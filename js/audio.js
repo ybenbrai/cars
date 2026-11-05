@@ -1,3 +1,5 @@
+import { MenuMusic } from './music.js';
+
 // Each body style gets its own engine voice. The numbers are deliberately
 // exaggerated: a muscle car should rumble at idle and a hypercar should scream.
 const PROFILES = {
@@ -22,6 +24,19 @@ export class AudioEngine {
     this.lastSpeed = 0;
     this.profile = PROFILES.sports;
     this.profileId = 'sports';
+    this.music = null;
+    this.wantMusic = false;
+  }
+
+  /**
+   * Menu music on/off. Safe to call before the first user gesture: the music
+   * starts once the audio context exists (browsers block audio until then).
+   */
+  setMusic(on) {
+    this.wantMusic = !!on;
+    if (!this.ready) return;
+    if (on) this.music.start();
+    else this.music.stop();
   }
 
   setProfile(category) {
@@ -132,8 +147,11 @@ export class AudioEngine {
     nitro.start();
     this.nitro = { nitroGain };
 
+    this.music = new MenuMusic(ctx, master, buffer);
+
     this.ready = true;
     this.applyVolume(1);
+    if (this.wantMusic) this.music.start();
     if (ctx.state === 'suspended') ctx.resume();
   }
 

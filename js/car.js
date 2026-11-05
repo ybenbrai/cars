@@ -220,7 +220,8 @@ export class Car {
       // Passive recharge keeps nitro useful without making it free.
       this.boost = Math.min(100, this.boost + 2.6 * dt);
     }
-    this.damage = Math.max(0, this.damage - 0.008 * dt);
+    // Damage slowly repairs itself (about 40 s from heavy damage to none).
+    this.damage = Math.max(0, this.damage - 0.025 * dt);
 
     this.braking = !!brake || handbrake;
     this.wheelSpin += (nF * dt) / this.def.body.wheelRadius;

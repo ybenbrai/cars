@@ -29,7 +29,7 @@ major feature, not a hidden progression system.
 | Steer | `A` `D` / `←` `→` | Left stick | ◀ ▶ |
 | Handbrake | `Space` | LB / RB | DRIFT |
 | Nitro | `Shift` | B | N2O |
-| Change camera | `C` | Y | — |
+| Cycle camera (near chase, far chase, bumper, cockpit) | `C` | Y | — |
 | Pause / resume | `Esc` / `P` | Start | ❚❚ |
 | Reset to track | `R` | — | — |
 | Mute | `M` | — | ♪ |
@@ -74,8 +74,9 @@ VIPER X at `1.12` needs deliberate weight transfer to rotate.
 - A new best lap is saved immediately, even if you quit afterwards.
 - The total time is the sum of all three laps. Drift score is separate from the
   time result.
-- Hitting a wall slows the car and shakes the camera, but there is no damage
-  model and no failure state.
+- Hitting walls or rivals adds damage (shown in the HUD), which costs a little
+  top speed and power. Above 50 % damage the bonnet trails smoke. Damage slowly
+  repairs while you drive, and there is no failure state.
 - Leaving the asphalt reduces grip and limits speed; `R` safely returns you to
   the nearest point on the circuit.
 

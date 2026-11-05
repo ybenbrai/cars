@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 
+/** Damage (0–1) above which the car trails smoke from the bonnet. */
+export const DAMAGE_SMOKE_AT = 0.5;
+
 const MAX_PARTICLES = 340;
 const MAX_SKIDS = 520;
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
@@ -263,10 +266,11 @@ export class Effects {
 
       if (!smoke) this.emitAcc = Math.min(this.emitAcc, 2);
 
-      // Damage smoke: a wounded car leaves a visible trail of grey smoke and
-      // loses a little pace, so contact has a consequence you can see.
-      if (car.damage > 0.24 && car.speed > 4) {
-        this.damageAcc += dt * (8 + car.damage * 46);
+      // Damage smoke: only a badly damaged car smokes (a few wall scrapes no
+      // longer do it), and the trail thickens with the damage.
+      if (car.damage > DAMAGE_SMOKE_AT && car.speed > 4) {
+        const severity = (car.damage - DAMAGE_SMOKE_AT) / (1 - DAMAGE_SMOKE_AT);
+        this.damageAcc += dt * (4 + severity * 30);
         let guard = 0;
         while (this.damageAcc >= 1 && guard < 6) {
           this.damageAcc -= 1;
@@ -285,7 +289,7 @@ export class Effects {
             2.6,
             1.0 + Math.random() * 0.7,
             new THREE.Color().setHSL(0.02, 0.04, shade),
-            0.3 + car.damage * 0.28,
+            0.18 + severity * 0.3,
           );
         }
       } else {
