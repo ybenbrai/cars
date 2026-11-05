@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>Sunset Drift — Three.js Arcade Racer</title>
-  <meta name="description" content="Pick your car, tune your look, and chase the sunset in a three-lap drift racing game built with Three.js." />
+  <meta name="description" content="Build a garage, buy your dream car and race up to seven AI rivals across seven circuits in a browser-based drift racer built with Three.js." />
   <meta name="theme-color" content="#0b0714" />
   <meta name="color-scheme" content="dark" />
   <link rel="canonical" href="https://ybenbrai.github.io/cars/" />
@@ -15,7 +15,7 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Sunset Drift" />
   <meta property="og:title" content="Sunset Drift — Three.js Arcade Racer" />
-  <meta property="og:description" content="Several very different cars. One sunset circuit. Three laps to make your mark." />
+  <meta property="og:description" content="Eighteen cars, seven circuits, real AI rivals and a career ladder. Pick a car, tune the look and chase the sunset." />
   <meta property="og:url" content="https://ybenbrai.github.io/cars/" />
   <meta property="og:image" content="https://ybenbrai.github.io/cars/assets/og-image.jpg" />
   <meta property="og:image:width" content="1200" />
@@ -30,7 +30,7 @@
       "@context": "https://schema.org",
       "@type": "VideoGame",
       "name": "Sunset Drift",
-      "description": "A Three.js arcade drift racer with four cars, a sunset circuit and three-lap time attacks.",
+      "description": "A Three.js arcade drift racer with eighteen cars, seven circuits, AI rivals and a full career ladder.",
       "url": "https://ybenbrai.github.io/cars/",
       "image": "https://ybenbrai.github.io/cars/assets/og-image.jpg",
       "genre": ["Racing", "Arcade"],
@@ -66,12 +66,20 @@
         <div class="hud-driver">
           <span class="hud-label">DRIVER</span>
           <strong id="hudDriver">—</strong>
+          <small id="hudMode" class="hud-sub"></small>
         </div>
+
+        <div class="hud-position">
+          <span class="hud-label">POSITION</span>
+          <div><strong id="position">P—</strong><em id="positionOf">/—</em></div>
+        </div>
+
         <div class="lap-block">
           <div class="lap-line"><span class="hud-label">LAP</span><strong id="lapNum">1</strong><span class="dim">/ 3</span></div>
           <div class="lap-time" id="lapTime">00:00.00</div>
           <div class="best-line"><span>BEST</span><span id="bestTime">--:--.--</span></div>
         </div>
+
         <div class="hud-actions">
           <button class="icon-btn" id="btnSoundHud" title="Mute sound">♪</button>
           <button class="icon-btn" id="btnCam" title="Change camera (C)">◉</button>
@@ -113,23 +121,26 @@
           <div class="gauge-center">
             <div class="speed"><span id="speed">0</span><em>KM/H</em></div>
             <div class="gear" id="gear">N</div>
+            <div class="rpm-bar"><i id="rpmFill"></i></div>
           </div>
         </div>
         <div class="nitro">
           <div class="nitro-head"><span>NITRO</span><span id="nitroPct">0%</span></div>
           <div class="nitro-bar"><i id="nitroFill"></i></div>
           <div class="nitro-hint">DRIFT TO REFILL</div>
+          <div class="damage-head"><span>DAMAGE</span></div>
+          <div class="damage-bar"><i id="damageFill"></i></div>
         </div>
       </div>
     </div>
 
     <!-- ═══════════════ PROFILE ═══════════════ -->
-    <section id="screen-profile" class="screen">
+    <section id="screen-profile" class="screen hidden">
       <div class="profile-panel">
         <div class="brand">SUNSET<span>DRIFT</span></div>
         <div class="eyebrow">THREE.JS · ARCADE RACER</div>
         <h1>Who's<br /><em>driving?</em></h1>
-        <p class="lede">Every legend starts with a name. Yours goes on the leaderboard — and on the plate.</p>
+        <p class="lede">Every legend starts with a name. Yours goes on the results sheet — and on the plate.</p>
 
         <label class="field-label" for="nameInput">DRIVER NAME</label>
         <div class="name-field">
@@ -137,23 +148,23 @@
           <span id="nameCount">0/14</span>
         </div>
         <button class="btn primary wide" id="btnProfile">ENTER THE GARAGE <span>→</span></button>
-        <p class="micro">Your driver profile and car build are saved in this browser.</p>
+        <p class="micro">Saved in this browser. Add a cloud account later from the garage — passwords are never stored on this device.</p>
       </div>
       <div class="profile-side">
         <div class="side-card">
           <span class="side-index">01</span>
-          <h3>PICK A CAR</h3>
-          <p>Four very different machines. Each one has real strengths — and a personality flaw.</p>
+          <h3>EARN &amp; BUY</h3>
+          <p>Start with a hatchback and a wallet. Race, podium and set records to afford the next machine.</p>
         </div>
         <div class="side-card">
           <span class="side-index">02</span>
-          <h3>MAKE IT YOURS</h3>
-          <p>Paint, finish, stripes, spoilers, rims, tint, underglow and a custom plate.</p>
+          <h3>BEAT REAL AI</h3>
+          <p>Up to seven opponents with their own racing lines, pace, mistakes and overtaking instincts.</p>
         </div>
         <div class="side-card">
           <span class="side-index">03</span>
-          <h3>HOLD THE DRIFT</h3>
-          <p>Three laps in the sunset. Chain drifts, fill the nitro, beat your best time.</p>
+          <h3>SEVEN CIRCUITS</h3>
+          <p>Grand prix, coast, city, forest, desert, mountain and dockyard. Every layout has its own record book.</p>
         </div>
       </div>
     </section>
@@ -162,14 +173,19 @@
     <section id="screen-garage" class="screen hidden">
       <header class="garage-top">
         <div class="brand small">SUNSET<span>DRIFT</span></div>
-        <button class="driver-chip" id="btnDriver" title="Change driver">
+        <button class="driver-chip" id="btnDriver" title="Change driver name">
           <span class="driver-dot"></span>
           <span class="driver-copy"><small>DRIVER</small><strong id="driverName">—</strong></span>
           <span class="driver-edit">EDIT</span>
         </button>
+        <button class="account-chip" id="btnAccount" title="Account and cloud save">
+          <span class="account-dot"></span>
+          <span><small id="accountMode">LOCAL GUEST</small><strong id="accountName">PLAYER</strong></span>
+        </button>
         <div class="garage-meta">
+          <div class="meta"><small>WALLET</small><strong id="garageCredits">0 CR</strong></div>
+          <div class="meta"><small>RANK</small><strong id="garageRank">ROOKIE</strong></div>
           <div class="meta"><small>BEST LAP</small><strong id="garageBest">--:--.--</strong></div>
-          <div class="meta"><small>CREDITS</small><strong id="garageCredits">0</strong></div>
           <button class="icon-btn" id="btnSoundGarage" title="Mute sound">♪</button>
         </div>
       </header>
@@ -179,10 +195,14 @@
           <nav class="tabs" role="tablist">
             <button class="tab active" data-tab="cars" role="tab">CARS</button>
             <button class="tab" data-tab="custom" role="tab">CUSTOMIZE</button>
-            <button class="tab" data-tab="upgrades" role="tab">UPGRADES <span class="tab-lock">SOON</span></button>
+            <button class="tab" data-tab="race" role="tab">RACE</button>
+            <button class="tab" data-tab="career" role="tab">CAREER</button>
+            <button class="tab" data-tab="online" role="tab">ONLINE</button>
+            <button class="tab" data-tab="profile" role="tab">PROFILE</button>
           </nav>
 
           <div class="tab-pane active" id="tab-cars">
+            <div class="filter-row" id="carFilters"></div>
             <div class="car-list" id="carList"></div>
           </div>
 
@@ -194,16 +214,41 @@
             </div>
           </div>
 
-          <div class="tab-pane" id="tab-upgrades">
-            <div class="upgrade-locked">
-              <span class="lock-big">⌁</span>
-              <div class="eyebrow">NEXT UPDATE</div>
-              <h2>UPGRADES<br /><em>COMING SOON</em></h2>
-              <p>Engine swaps, tires, suspension and nitro tanks are on the workbench. For now, learn to wring every drop out of your car as it is.</p>
-              <div class="upgrade-teasers">
-                <span>ENGINE</span><span>TIRES</span><span>NITRO</span>
-              </div>
+          <div class="tab-pane" id="tab-race">
+            <div class="race-setup">
+              <section class="setup-section">
+                <div class="section-head"><span>MODE</span></div>
+                <div class="mode-grid" id="modeList"></div>
+              </section>
+              <section class="setup-section">
+                <div class="section-head"><span>CIRCUIT</span><span id="circuitHint">Pick a layout</span></div>
+                <div class="circuit-grid" id="circuitList"></div>
+              </section>
+              <section class="setup-section setup-row">
+                <div>
+                  <div class="section-head"><span>DIFFICULTY</span></div>
+                  <div class="segmented" id="difficultyList"></div>
+                </div>
+                <div>
+                  <div class="section-head"><span>OPPONENTS</span><span id="opponentCount">3</span></div>
+                  <input class="range" id="opponentRange" type="range" min="1" max="7" step="1" value="3" aria-label="Opponent count" />
+                </div>
+              </section>
+              <div class="setup-summary" id="setupSummary"></div>
+              <button class="btn primary wide" id="btnStartRace">START RACE <span>→</span></button>
             </div>
+          </div>
+
+          <div class="tab-pane" id="tab-career">
+            <div class="career-list" id="careerList"></div>
+          </div>
+
+          <div class="tab-pane" id="tab-online">
+            <div class="online-panel" id="onlinePanel" aria-live="polite"></div>
+          </div>
+
+          <div class="tab-pane" id="tab-profile">
+            <div class="profile-stats" id="profileStats"></div>
           </div>
         </div>
 
@@ -212,29 +257,47 @@
           <div class="stage-fade"></div>
           <div class="stage-top">
             <div class="stage-label">
-              <small id="stageCarClass">BALANCED</small>
-              <span id="stageCarName">FALCON GT</span>
+              <small id="stageCarClass">STARTER HATCH</small>
+              <span id="stageCarName">PULSE H3</span>
+              <em id="stageCarPrice" class="stage-price">OWNED</em>
             </div>
             <div class="stage-hint"><span class="drag-icon">↔</span> DRAG TO ROTATE</div>
           </div>
           <div class="stage-stats" id="stageStats"></div>
-          <button class="btn primary race-btn" id="btnRace">RACE <span>→</span></button>
+          <div class="stage-actions">
+            <button class="btn ghost" id="btnStageAction">EQUIPPED</button>
+            <button class="btn primary race-btn" id="btnRace">RACE <span>→</span></button>
+          </div>
         </div>
       </div>
     </section>
 
     <!-- ═══════════════ RESULTS ═══════════════ -->
     <section id="screen-results" class="screen overlay hidden">
-      <div class="modal">
-        <div class="eyebrow">RACE COMPLETE</div>
-        <h2>CHEQUERED<br /><em>FLAG.</em></h2>
+      <div class="modal wide">
+        <div class="eyebrow" id="resultEyebrow">RACE COMPLETE</div>
+        <h2 id="resultTitle">CHEQUERED<br /><em>FLAG.</em></h2>
         <div class="result-driver" id="resultDriver">—</div>
-        <div class="result-grid">
-          <div class="result"><small>TOTAL TIME</small><strong id="resultTotal">00:00.00</strong></div>
-          <div class="result"><small>BEST LAP</small><strong id="resultBest">00:00.00</strong></div>
-          <div class="result"><small>DRIFT SCORE</small><strong id="resultScore">0</strong></div>
-          <div class="result"><small>CAR</small><strong id="resultCar">—</strong></div>
+        <div class="result-unlocks hidden" id="resultUnlocks"></div>
+
+        <div class="results-body">
+          <div class="results-column">
+            <div class="section-head"><span>FINAL STANDINGS</span></div>
+            <div class="standings" id="resultStandings"></div>
+          </div>
+          <div class="results-column">
+            <div class="section-head"><span>PAYOUT</span></div>
+            <div class="reward-list" id="resultRewards"></div>
+            <div class="wallet-total"><small>WALLET</small><strong id="resultWallet">0 CR</strong></div>
+            <div class="result-grid">
+              <div class="result"><small>TOTAL TIME</small><strong id="resultTotal">00:00.00</strong></div>
+              <div class="result"><small>BEST LAP</small><strong id="resultBest">00:00.00</strong></div>
+              <div class="result"><small>DRIFT SCORE</small><strong id="resultScore">0</strong></div>
+              <div class="result"><small>CAR</small><strong id="resultCar">—</strong></div>
+            </div>
+          </div>
         </div>
+
         <div class="modal-actions">
           <button class="btn primary" id="btnAgain">RACE AGAIN <span>↻</span></button>
           <button class="btn ghost" id="btnToGarage">GARAGE</button>
@@ -242,14 +305,62 @@
       </div>
     </section>
 
+    <!-- ═══════════════ ACCOUNT ═══════════════ -->
+    <section id="screen-account" class="screen overlay hidden">
+      <div class="modal account-modal">
+        <button class="modal-close" id="btnCloseAccount" aria-label="Close account panel">✕</button>
+        <div class="eyebrow">CLOUD ACCOUNT</div>
+        <h2>SAVE YOUR<br /><em>LEGACY.</em></h2>
+        <p class="pause-copy" id="authBackendNote">Checking for a cloud backend…</p>
+
+        <div class="auth-tabs" id="authTabs">
+          <button class="seg active" data-auth-tab="login">SIGN IN</button>
+          <button class="seg" data-auth-tab="register">CREATE ACCOUNT</button>
+        </div>
+
+        <form id="loginForm" class="auth-form" autocomplete="on">
+          <label class="field">
+            <span>EMAIL</span>
+            <input id="loginEmail" name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+          </label>
+          <label class="field">
+            <span>PASSWORD</span>
+            <input id="loginPassword" name="password" type="password" autocomplete="current-password" required minlength="8" placeholder="At least 8 characters" />
+          </label>
+          <button class="btn primary wide" type="submit" id="btnLogin">SIGN IN <span>→</span></button>
+        </form>
+
+        <form id="registerForm" class="auth-form hidden" autocomplete="on">
+          <label class="field">
+            <span>USERNAME</span>
+            <input id="registerUsername" name="username" type="text" autocomplete="username" required minlength="3" maxlength="16" placeholder="3–16 letters, numbers, . _ or -" />
+          </label>
+          <label class="field">
+            <span>EMAIL</span>
+            <input id="registerEmail" name="email" type="email" autocomplete="email" required placeholder="you@example.com" />
+          </label>
+          <label class="field">
+            <span>PASSWORD</span>
+            <input id="registerPassword" name="password" type="password" autocomplete="new-password" required minlength="8" placeholder="At least 8 characters" />
+          </label>
+          <button class="btn primary wide" type="submit" id="btnRegister">CREATE ACCOUNT <span>→</span></button>
+        </form>
+
+        <p class="auth-status" id="authStatus" role="status"></p>
+        <div class="account-session" id="accountSession"></div>
+        <p class="micro">Passwords are hashed on the server with scrypt. This browser only keeps an HttpOnly session cookie and your game progress — never your password.</p>
+      </div>
+    </section>
+
     <!-- ═══════════════ PAUSE ═══════════════ -->
     <section id="screen-pause" class="screen overlay hidden">
       <div class="modal small">
         <div class="eyebrow">TIME OUT</div>
-        <h2>PAUSED</h2>
-        <p class="pause-copy">The sun isn't going anywhere.</p>
+        <h2 id="pauseTitle">PAUSED</h2>
+        <p class="pause-copy" id="pauseCopy">The sun isn't going anywhere.</p>
         <div class="modal-actions column">
           <button class="btn primary" id="btnResume">RESUME <span>▶</span></button>
+          <button class="btn primary hidden" id="btnEndSession">END SESSION · BANK DRIFT</button>
           <button class="btn ghost" id="btnRestart">RESTART RACE</button>
           <button class="btn ghost" id="btnQuit">QUIT TO GARAGE</button>
         </div>

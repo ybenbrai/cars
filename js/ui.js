@@ -1,7 +1,13 @@
 import {
-  CARS, FINISHES, PAINTS, RIM_COLORS, RIM_STYLES, SPOILERS, STRIPES,
-  STRIPE_COLORS, TINTS, UNDERGLOWS, STAT_LABELS, defaultLook, normalizeLook,
+  CARS, CATEGORIES, FINISHES, PAINTS, RANK_LABELS, RIM_COLORS, RIM_STYLES,
+  SPOILERS, STRIPES, STRIPE_COLORS, TINTS, UNDERGLOWS, STAT_LABELS,
+  defaultLook, formatCredits, getCar, normalizeLook,
 } from './data/cars.js';
+import { CIRCUITS, getCircuit } from './data/circuits.js';
+import { CAREER_SERIES, CAREER_EVENTS, eventsForSeries } from './data/career.js';
+import {
+  DIFFICULTIES, MODES, basePurse, getDifficulty, getMode, nextRankProgress,
+} from './economy.js';
 import { fmtTime } from './hud.js';
 
 const $ = (id) => document.getElementById(id);
@@ -57,24 +63,51 @@ function segmented(items, key, current) {
 }
 
 export class UI {
-  constructor(track, callbacks) {
-    this.track = track;
+  constructor(callbacks) {
     this.cb = callbacks;
     this.touchCapable = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
     this.currentCar = CARS[0];
     this.currentLook = defaultLook(CARS[0]);
-    this.profile = null;
+    this.store = null;
+    this.auth = null;
+    this.stageCarId = CARS[0].id;
+    this.category = 'all';
+    this.tab = 'cars';
     this.screens = {
       profile: $('screen-profile'),
       garage: $('screen-garage'),
       results: $('screen-results'),
       pause: $('screen-pause'),
+      account: $('screen-account'),
     };
     this.hud = $('hud');
     this.touch = $('touch');
     this.customRoot = $('customControls');
-
+    this.raceConfig = {
+      mode: 'quick',
+      circuitId: CIRCUITS[0].id,
+      difficulty: 'normal',
+      opponents: 3,
+    };
+    this.buildNotice();
     this.bind();
+  }
+
+  buildNotice() {
+    const el = document.createElement('div');
+    el.className = 'garage-notice';
+    el.setAttribute('role', 'status');
+    document.getElementById('app').appendChild(el);
+    this.noticeEl = el;
+    this.noticeTimer = null;
+  }
+
+  notice(text, kind = '') {
+    const el = this.noticeEl;
+    el.textContent = text;
+    el.className = `garage-notice show ${kind}`;
+    clearTimeout(this.noticeTimer);
+    this.noticeTimer = setTimeout(() => el.classList.remove('show'), 2800);
   }
 
   bind() {
@@ -88,29 +121,108 @@ export class UI {
     $('btnProfile').addEventListener('click', () => this.submitProfile());
 
     $('btnDriver').addEventListener('click', () => {
-      if (this.profile) {
-        nameInput.value = this.profile.name;
-        $('nameCount').textContent = `${this.profile.name.length}/14`;
+      if (this.store?.profile) {
+        nameInput.value = this.store.profile.name;
+        $('nameCount').textContent = `${this.store.profile.name.length}/14`;
       }
       this.cb.onEditDriver?.();
     });
 
+    $('btnAccount').addEventListener('click', () => this.cb.onOpenAccount?.());
+    $('btnCloseAccount').addEventListener('click', () => this.closeAccount());
+    document.querySelectorAll('[data-auth-tab]').forEach((tab) => {
+      tab.addEventListener('click', () => this.setAuthTab(tab.dataset.authTab));
+    });
+    $('loginForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.submitAuth('login');
+    });
+    $('registerForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.submitAuth('register');
+    });
+
     document.querySelectorAll('.tab').forEach((tab) => {
-      tab.addEventListener('click', () => {
-        document.querySelectorAll('.tab').forEach((t) => t.classList.toggle('active', t === tab));
-        document.querySelectorAll('.tab-pane').forEach((pane) => {
-          pane.classList.toggle('active', pane.id === `tab-${tab.dataset.tab}`);
-        });
-      });
+      tab.addEventListener('click', () => this.setTab(tab.dataset.tab));
+    });
+
+    $('carFilters').addEventListener('click', (e) => {
+      const chip = e.target.closest('[data-category]');
+      if (!chip) return;
+      this.category = chip.dataset.category;
+      this.renderFilters();
+      this.renderCarList();
     });
 
     $('carList').addEventListener('click', (e) => {
       const card = e.target.closest('[data-car]');
-      if (card) this.cb.onSelectCar?.(card.dataset.car);
+      if (!card || !this.store) return;
+      const id = card.dataset.car;
+      if (this.store.owns(id)) this.cb.onSelectCar?.(id);
+      else this.cb.onPreviewCar?.(id);
+    });
+    $('carList').addEventListener('keydown', (e) => {
+      if (e.key !== 'Enter' && e.key !== ' ') return;
+      const card = e.target.closest('[data-car]');
+      if (!card) return;
+      e.preventDefault();
+      card.click();
     });
 
-    $('btnRace').addEventListener('click', () => this.cb.onRace?.());
+    $('btnStageAction').addEventListener('click', () => {
+      const action = $('btnStageAction').dataset.action;
+      if (action === 'buy') this.cb.onBuyCar?.(this.stageCarId);
+      else if (action === 'equip') this.cb.onSelectCar?.(this.stageCarId);
+    });
+    $('btnRace').addEventListener('click', () => this.setTab('race'));
+
+    $('modeList').addEventListener('click', (e) => {
+      const card = e.target.closest('[data-mode]');
+      if (!card) return;
+      // Career races are events with fixed rules: send the player to the ladder.
+      if (card.dataset.mode === 'career') {
+        this.setTab('career');
+        return;
+      }
+      this.raceConfig.mode = card.dataset.mode;
+      this.renderRaceSetup();
+    });
+    $('circuitList').addEventListener('click', (e) => {
+      const card = e.target.closest('[data-circuit]');
+      if (!card || card.classList.contains('locked')) return;
+      this.raceConfig.circuitId = card.dataset.circuit;
+      this.renderRaceSetup();
+    });
+    $('difficultyList').addEventListener('click', (e) => {
+      const button = e.target.closest('[data-difficulty]');
+      if (!button) return;
+      this.raceConfig.difficulty = button.dataset.difficulty;
+      this.renderRaceSetup();
+    });
+    $('opponentRange').addEventListener('input', (e) => {
+      this.raceConfig.opponents = Number(e.target.value);
+      $('opponentCount').textContent = String(this.raceConfig.opponents);
+      this.renderSummary();
+    });
+    $('btnStartRace').addEventListener('click', () => this.cb.onRace?.({ ...this.raceConfig }));
+
+    $('careerList').addEventListener('click', (e) => {
+      const button = e.target.closest('[data-event]');
+      if (!button || button.disabled) return;
+      const event = CAREER_EVENTS.find((item) => item.id === button.dataset.event);
+      if (!event) return;
+      this.cb.onRace?.({
+        mode: 'career',
+        circuitId: event.circuitId,
+        difficulty: event.difficulty,
+        opponents: event.opponents,
+        laps: event.laps,
+        eventId: event.id,
+      });
+    });
+
     $('btnRandomize').addEventListener('click', () => {
+      if (!this.store?.owns(this.stageCarId)) return;
       const look = {
         ...this.currentLook,
         paint: PAINTS[Math.floor(Math.random() * PAINTS.length)].hex,
@@ -126,6 +238,7 @@ export class UI {
       this.cb.onLookChange?.(look);
     });
     $('btnResetLook').addEventListener('click', () => {
+      if (!this.store?.owns(this.stageCarId)) return;
       const look = { ...defaultLook(this.currentCar), plate: this.currentLook.plate };
       this.cb.onLookChange?.(look);
     });
@@ -137,7 +250,48 @@ export class UI {
     $('btnResume').addEventListener('click', () => this.cb.onResume?.());
     $('btnRestart').addEventListener('click', () => this.cb.onRestart?.());
     $('btnQuit').addEventListener('click', () => this.cb.onQuit?.());
+    $('btnEndSession').addEventListener('click', () => this.cb.onEndSession?.());
     $('btnAgain').addEventListener('click', () => this.cb.onAgain?.());
+
+    $('onlinePanel').addEventListener('click', (e) => {
+      const button = e.target.closest('[data-online]');
+      if (!button || button.disabled) return;
+      const action = button.dataset.online;
+      if (action === 'signin') {
+        this.cb.onOpenAccount?.();
+      } else if (action === 'join') {
+        const code = $('onlineCode')?.value.trim().toUpperCase() || '';
+        if (!/^[A-Z0-9]{5}$/.test(code)) {
+          this.notice('Room codes are 5 letters or numbers.', 'error');
+          return;
+        }
+        this.cb.onOnline?.('join', { code });
+      } else if (action === 'create') {
+        const first = CIRCUITS.find((c) => this.store?.circuitUnlocked(c.id)) || CIRCUITS[0];
+        this.cb.onOnline?.('create', { circuitId: first.id });
+      } else if (action === 'ready') {
+        this.cb.onOnline?.('ready', { ready: button.dataset.value === '1' });
+      } else if (action === 'laps') {
+        this.cb.onOnline?.('config', { laps: Number(button.dataset.value) });
+      } else if (action === 'circuit') {
+        this.cb.onOnline?.('config', { circuitId: button.dataset.value });
+      } else if (action === 'visibility') {
+        this.cb.onOnline?.('config', { public: button.dataset.value === '1' });
+      } else if (action === 'copy') {
+        navigator.clipboard?.writeText(button.dataset.value).then(
+          () => this.notice('Room code copied', 'ok'),
+          () => {},
+        );
+      } else {
+        this.cb.onOnline?.(action);
+      }
+    });
+    $('onlinePanel').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.id === 'onlineCode') {
+        e.preventDefault();
+        $('onlinePanel').querySelector('[data-online="join"]')?.click();
+      }
+    });
     $('btnToGarage').addEventListener('click', () => this.cb.onQuit?.());
   }
 
@@ -153,6 +307,20 @@ export class UI {
     for (const [key, el] of Object.entries(this.screens)) {
       el.classList.toggle('hidden', key !== name);
     }
+    if (name !== 'account') this.screens.account?.classList.add('hidden');
+  }
+
+  setTab(name) {
+    this.tab = name;
+    document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
+    document.querySelectorAll('.tab-pane').forEach((pane) => {
+      pane.classList.toggle('active', pane.id === `tab-${name}`);
+    });
+    if (name === 'race') this.renderRaceSetup();
+    if (name === 'career') this.renderCareer();
+    if (name === 'cars') this.renderCarList();
+    if (name === 'profile') this.renderProfile();
+    if (name === 'online') this.cb.onOnline?.('connect');
   }
 
   setHudVisible(visible) {
@@ -174,7 +342,6 @@ export class UI {
   }
 
   showProfile(profile) {
-    this.profile = profile;
     if (profile) {
       $('nameInput').value = profile.name;
       $('nameCount').textContent = `${profile.name.length}/14`;
@@ -183,51 +350,144 @@ export class UI {
       $('nameCount').textContent = '0/14';
     }
     this.show('profile');
-    setTimeout(() => $('nameInput').focus(), 60);
+    setTimeout(() => $('nameInput').focus(), 80);
   }
 
-  renderGarage(profile, bestLap = null) {
-    this.profile = profile;
+  /* ───────────────────────── garage ───────────────────────── */
+
+  renderGarage(store, auth) {
+    this.store = store;
+    this.auth = auth || this.auth;
     this.setHudVisible(false);
     this.setTouchVisible(false);
-    const car = CARS.find((c) => c.id === profile.carId) || CARS[0];
-    this.currentCar = car;
-    this.currentLook = normalizeLook(car, profile.looks?.[car.id] || {});
-    $('driverName').textContent = profile.name;
-    $('garageBest').textContent = bestLap ? fmtTime(bestLap) : '--:--.--';
-    $('stageCarName').textContent = car.name;
-    $('stageCarClass').textContent = car.klass;
-    $('stageStats').innerHTML = stageStatRows(car);
-    this.renderCarList(profile.carId);
-    this.buildCustom(car, this.currentLook);
+
+    const name = store.profile?.name || 'DRIVER';
+    $('driverName').textContent = name;
+    $('garageCredits').textContent = `${formatCredits(store.wallet)} CR`;
+    $('garageRank').textContent = (RANK_LABELS[store.rank] || 'ROOKIE').toUpperCase();
+    this.setAuthState(this.auth, store);
+
+    this.stageCarId = store.selectedCarId;
+    this.renderFilters();
+    this.renderCarList();
+    this.renderStage(this.stageCarId);
+    this.renderRaceSetup();
+    this.renderCareer();
+    this.renderProfile();
     this.show('garage');
   }
 
-  renderCarList(selectedId) {
-    $('carList').innerHTML = CARS.map((car) => {
-      const selected = car.id === selectedId;
+  renderFilters() {
+    $('carFilters').innerHTML = CATEGORIES.map((cat) => `
+      <button class="filter ${cat.id === this.category ? 'active' : ''}" data-category="${cat.id}">${cat.label}</button>
+    `).join('');
+  }
+
+  renderCarList() {
+    if (!this.store) return;
+    const store = this.store;
+    const list = CARS.filter((car) => this.category === 'all' || car.category === this.category);
+    $('carList').innerHTML = list.map((car) => {
+      const owned = store.owns(car.id);
+      const equipped = store.selectedCarId === car.id;
+      const preview = this.stageCarId === car.id;
+      const rankOk = store.rank >= (car.unlockRank || 0);
+      const badge = equipped ? 'EQUIPPED' : owned ? 'OWNED' : rankOk ? 'AVAILABLE' : `RANK ${String(RANK_LABELS[car.unlockRank]).toUpperCase()}`;
       const traits = [
         ...car.pros.map((p) => `<div class="trait pro">${esc(p)}</div>`),
         ...car.cons.map((c) => `<div class="trait con">${esc(c)}</div>`),
       ].join('');
-      return `<article class="car-card ${selected ? 'selected' : ''}" data-car="${car.id}" role="button" tabindex="0">
+      return `<article class="car-card ${equipped ? 'selected' : ''} ${owned ? '' : 'locked'} ${preview && !equipped ? 'preview' : ''}" data-car="${car.id}" role="button" tabindex="0">
         <div class="car-card-head">
-          <div><h3>${esc(car.name)}</h3><span class="car-class">${car.klass}</span></div>
-          <span class="car-badge">${selected ? 'EQUIPPED' : 'SELECT'}</span>
+          <div><h3>${esc(car.name)}</h3><span class="car-class">${esc(car.klass)}</span></div>
+          <span class="car-badge ${owned ? 'owned' : 'locked'}">${badge}</span>
         </div>
-        <p class="car-tagline">${esc(car.tagline)}</p>
+        <div class="car-card-meta">
+          <p class="car-tagline" style="margin:0">${esc(car.tagline)}</p>
+          <span class="car-price ${store.wallet < car.price ? 'unaffordable' : ''}">${owned ? 'IN GARAGE' : `${formatCredits(car.price)} CR`}</span>
+        </div>
         <div class="car-stats">${statRows(car)}</div>
         <div class="car-traits">${traits}</div>
       </article>`;
     }).join('');
   }
 
-  buildCustom(car, look) {
-    const paint = group(
-      'PAINT',
-      '',
-      swatches(PAINTS, 'paint', look.paint),
-    );
+  renderStage(carId) {
+    if (!this.store) return;
+    this.stageCarId = carId || this.store.selectedCarId;
+    const car = getCar(this.stageCarId);
+    this.currentCar = car;
+    const owned = this.store.owns(car.id);
+    this.currentLook = owned ? this.store.lookFor(car.id) : normalizeLook(car, { plate: this.store.name.toUpperCase().slice(0, 9) });
+
+    $('stageCarName').textContent = car.name;
+    $('stageCarClass').textContent = car.klass;
+    $('stageStats').innerHTML = stageStatRows(car);
+
+    const priceEl = $('stageCarPrice');
+    if (this.store.selectedCarId === car.id) {
+      priceEl.textContent = 'EQUIPPED · ' + car.klass;
+      priceEl.className = 'stage-price owned';
+    } else if (owned) {
+      priceEl.textContent = 'OWNED · READY TO EQUIP';
+      priceEl.className = 'stage-price owned';
+    } else {
+      priceEl.textContent = `${formatCredits(car.price)} CR · ${car.category.toUpperCase()}`;
+      priceEl.className = 'stage-price';
+    }
+
+    this.renderStageAction(car, owned);
+    this.buildCustom(car, this.currentLook, owned);
+    this.renderCarList();
+  }
+
+  renderStageAction(car, owned) {
+    const button = $('btnStageAction');
+    const equipped = this.store.selectedCarId === car.id;
+    const rankOk = this.store.rank >= (car.unlockRank || 0);
+    const deficit = Math.max(0, car.price - this.store.wallet);
+    let label = 'EQUIP';
+    let action = 'equip';
+    let disabled = false;
+
+    if (equipped) {
+      label = 'EQUIPPED';
+      action = 'none';
+      disabled = true;
+    } else if (owned) {
+      label = 'EQUIP';
+    } else if (!rankOk) {
+      label = `RANK ${(RANK_LABELS[car.unlockRank] || 'LOCKED').toUpperCase()}`;
+      action = 'none';
+      disabled = true;
+    } else if (deficit > 0) {
+      label = `NEED ${formatCredits(deficit)} CR`;
+      action = 'none';
+      disabled = true;
+    } else {
+      label = `BUY · ${formatCredits(car.price)} CR`;
+      action = 'buy';
+    }
+    button.textContent = label;
+    button.dataset.action = action;
+    button.dataset.car = car.id;
+    button.disabled = disabled;
+  }
+
+  /* ───────────────────────── customization ───────────────────────── */
+
+  buildCustom(car, look, owned = true) {
+    if (!owned) {
+      this.customRoot.innerHTML = `<div class="upgrade-locked">
+        <span class="lock-big">◈</span>
+        <div class="eyebrow">LOCKED</div>
+        <h2>BUY IT<br /><em>FIRST.</em></h2>
+        <p>Paint, wheels, wings and plates unlock when this car is in your garage. Take it for a spin on the stage, then make an offer.</p>
+      </div>`;
+      return;
+    }
+
+    const paint = group('PAINT', '', swatches(PAINTS, 'paint', look.paint));
     const finish = group('FINISH', 'material', segmented(FINISHES, 'finish', look.finish));
     const rims = group(
       'WHEELS',
@@ -256,15 +516,13 @@ export class UI {
       el.addEventListener('click', () => {
         const key = el.dataset.key;
         const value = el.dataset.value;
-        const next = { ...this.currentLook, [key]: value };
-        this.cb.onLookChange?.(next);
+        this.cb.onLookChange?.({ ...this.currentLook, [key]: value });
       });
     });
     this.customRoot.querySelectorAll('[data-color]').forEach((el) => {
       el.addEventListener('input', () => {
         const key = el.dataset.color;
-        const next = { ...this.currentLook, [key]: el.value };
-        this.cb.onLookChange?.(next);
+        this.cb.onLookChange?.({ ...this.currentLook, [key]: el.value });
       });
     });
     const plate = $('plateInput');
@@ -272,8 +530,7 @@ export class UI {
       plate.addEventListener('input', () => {
         const value = plate.value.toUpperCase().replace(/[^A-Z0-9 \-_.]/g, '').slice(0, 9);
         plate.value = value;
-        const next = { ...this.currentLook, plate: value || 'SUNSET' };
-        this.cb.onLookChange?.(next);
+        this.cb.onLookChange?.({ ...this.currentLook, plate: value || 'SUNSET' });
       });
     }
   }
@@ -293,22 +550,230 @@ export class UI {
     if (plate && document.activeElement !== plate) plate.value = look.plate;
   }
 
-  setStageCar(car, look) {
-    this.currentCar = car;
-    this.currentLook = look;
-    $('stageCarName').textContent = car.name;
-    $('stageCarClass').textContent = car.klass;
-    $('stageStats').innerHTML = stageStatRows(car);
-    this.buildCustom(car, look);
-    this.renderCarList(car.id);
+  /* ───────────────────────── race setup ───────────────────────── */
+
+  renderRaceSetup() {
+    if (!this.store) return;
+    const mode = getMode(this.raceConfig.mode);
+    $('modeList').innerHTML = MODES.map((item) => `
+      <button class="mode-card ${item.id === mode.id ? 'active' : ''}" data-mode="${item.id}">
+        <strong>${item.label}</strong>
+        <span>${item.blurb}</span>
+      </button>
+    `).join('');
+
+    $('circuitList').innerHTML = CIRCUITS.map((circuit) => {
+      const unlocked = this.store.circuitUnlocked(circuit.id);
+      const active = circuit.id === this.raceConfig.circuitId;
+      const best = this.store.bestLapFor(circuit.id);
+      const lockText = unlocked ? (best ? `BEST ${fmtTime(best)}` : `${circuit.lengthKm} KM · ${circuit.difficultyLabel}`) : `RANK ${(RANK_LABELS[circuit.unlockRank] || 'LOCKED').toUpperCase()}`;
+      return `<button class="circuit-card ${active ? 'active' : ''} ${unlocked ? '' : 'locked'}" data-circuit="${circuit.id}" ${unlocked ? '' : 'aria-disabled="true"'}>
+        <strong>${circuit.name}</strong>
+        <small>${circuit.location} · ${lockText}</small>
+        <div class="circuit-tags">${circuit.features.map((f) => `<span>${f}</span>`).join('')}</div>
+      </button>`;
+    }).join('');
+
+    $('difficultyList').innerHTML = DIFFICULTIES.map((diff) => `
+      <button class="seg ${diff.id === this.raceConfig.difficulty ? 'active' : ''}" data-difficulty="${diff.id}">${diff.label}</button>
+    `).join('');
+
+    const aiMode = mode.id === 'quick' || mode.id === 'career';
+    const range = $('opponentRange');
+    range.disabled = !aiMode;
+    range.value = String(this.raceConfig.opponents);
+    $('opponentCount').textContent = aiMode ? String(this.raceConfig.opponents) : '—';
+    this.renderSummary();
   }
 
+  renderSummary() {
+    if (!this.store) return;
+    const mode = getMode(this.raceConfig.mode);
+    const circuit = getCircuit(this.raceConfig.circuitId);
+    const diff = getDifficulty(this.raceConfig.difficulty);
+    const car = this.store.selectedCar;
+    const aiMode = mode.id === 'quick' || mode.id === 'career';
+    const laps = mode.id === 'practice' ? 'Free drive' : `${circuit.laps} laps`;
+    const opponents = aiMode ? `${this.raceConfig.opponents} AI` : 'Solo';
+    $('setupSummary').innerHTML = `
+      <div class="summary-row"><span>MODE</span><strong>${mode.label}</strong></div>
+      <div class="summary-row"><span>CIRCUIT</span><strong>${circuit.name} · ${circuit.lengthKm} km</strong></div>
+      <div class="summary-row"><span>CAR</span><strong>${car.name}</strong></div>
+      <div class="summary-row"><span>RACE</span><strong>${laps} · ${opponents} · ${aiMode ? diff.label : 'No rivals'}</strong></div>
+      <div class="summary-row"><span>PAYOUT</span><strong>${mode.id === 'practice' ? 'Drift score only' : `Base ${formatCredits(basePurse({ mode: mode.id, circuit, laps: mode.id === 'time-trial' ? 3 : circuit.laps }))} CR`}</strong></div>`;
+  }
+
+  /* ───────────────────────── career ───────────────────────── */
+
+  renderCareer() {
+    if (!this.store) return;
+    const store = this.store;
+    $('careerList').innerHTML = CAREER_SERIES.map((series) => {
+      const events = eventsForSeries(series.id);
+      return `<section class="series-block">
+        <div class="series-head"><strong>${series.name}</strong><span>${series.subtitle}</span></div>
+        ${events.map((event) => {
+          const state = store.careerEventState(event);
+          const circuit = getCircuit(event.circuitId);
+          return `<article class="event-card ${state.completed ? 'completed' : ''} ${state.locked ? 'locked' : ''}">
+            <div class="event-copy">
+              <strong>${event.name}</strong>
+              <p>${event.subtitle}</p>
+              <div class="event-meta">
+                <span>${circuit.name}</span>
+                <span>${event.laps} LAPS</span>
+                <span>${getDifficulty(event.difficulty).label.toUpperCase()}</span>
+                <span>${event.objective}</span>
+                <span class="reward">${formatCredits(event.reward)} CR</span>
+                ${state.completed ? '<span class="done">CLEARED</span>' : ''}
+                ${state.bestPosition ? `<span>BEST P${state.bestPosition}</span>` : ''}
+              </div>
+            </div>
+            ${state.locked
+              ? `<div class="event-lock">${state.reason}</div>`
+              : `<button class="btn ${state.completed ? 'ghost' : 'primary'}" data-event="${event.id}">${state.completed ? 'REPLAY' : 'START'}</button>`}
+          </article>`;
+        }).join('')}
+      </section>`;
+    }).join('');
+  }
+
+  /* ───────────────────────── account ───────────────────────── */
+
+  setAuthState(auth, store = this.store) {
+    this.auth = auth;
+    if (!auth) return;
+    const chip = $('btnAccount');
+    const account = auth.isAccount;
+    const offline = !auth.available;
+    chip.dataset.mode = account ? 'account' : offline ? 'offline' : 'guest';
+    $('accountMode').textContent = account ? 'CLOUD ACCOUNT' : offline ? 'LOCAL · STATIC' : 'LOCAL GUEST';
+    $('accountName').textContent = account ? auth.user.username : (store?.name || 'PLAYER');
+    if (!$('screen-account').classList.contains('hidden')) this.renderAccount(auth, store);
+  }
+
+  openAccount(auth, store) {
+    this.auth = auth;
+    this.store = store;
+    this.renderAccount(auth, store);
+    // Account is an overlay: keep whatever screen is behind it visible.
+    $('screen-account').classList.remove('hidden');
+    setTimeout(() => $('loginEmail').focus(), 50);
+  }
+
+  closeAccount() {
+    $('screen-account').classList.add('hidden');
+    this.setAuthStatus('', '');
+  }
+
+  renderAccount(auth, store) {
+    const account = auth?.isAccount;
+    const available = auth?.available;
+    $('authBackendNote').textContent = available
+      ? 'Cloud backend online. Your garage syncs to this account and follows you to any browser.'
+      : 'No cloud backend detected on this host. The game is fully playable as a local guest — accounts need the included Node server.';
+    $('authTabs').classList.toggle('hidden', account);
+    $('loginForm').classList.toggle('hidden', account);
+    $('registerForm').classList.toggle('hidden', account);
+    $('accountSession').innerHTML = account ? `
+      <div class="session-row">
+        <div><strong>${esc(auth.user.username)}</strong><small>${esc(auth.user.email || '')}</small></div>
+        <button class="btn ghost" id="btnLogout" type="button">SIGN OUT</button>
+      </div>
+      <div class="session-row"><div><strong>${formatCredits(store?.wallet || 0)} CR</strong><small>Saved to ${esc(auth.user.username)}'s cloud garage</small></div></div>
+    ` : '';
+    const logout = $('btnLogout');
+    if (logout) logout.addEventListener('click', () => this.cb.onLogout?.());
+    if (!account) this.setAuthTab('login');
+  }
+
+  setAuthTab(tab) {
+    this.authTab = tab;
+    document.querySelectorAll('[data-auth-tab]').forEach((el) => el.classList.toggle('active', el.dataset.authTab === tab));
+    $('loginForm').classList.toggle('hidden', tab !== 'login');
+    $('registerForm').classList.toggle('hidden', tab !== 'register');
+    this.setAuthStatus('', '');
+  }
+
+  setAuthStatus(message, kind = '') {
+    const el = $('authStatus');
+    el.textContent = message || '';
+    el.className = `auth-status ${kind}`;
+  }
+
+  async submitAuth(kind) {
+    const button = kind === 'login' ? $('btnLogin') : $('btnRegister');
+    const payload = kind === 'login'
+      ? { email: $('loginEmail').value.trim(), password: $('loginPassword').value }
+      : {
+        username: $('registerUsername').value.trim(),
+        email: $('registerEmail').value.trim(),
+        password: $('registerPassword').value,
+      };
+    button.disabled = true;
+    this.setAuthStatus('Contacting the cloud garage…');
+    const result = kind === 'login'
+      ? await this.cb.onLogin?.(payload)
+      : await this.cb.onRegister?.(payload);
+    button.disabled = false;
+    if (!result?.ok) {
+      this.setAuthStatus(result?.error || 'Something went wrong.', 'error');
+      return;
+    }
+    this.setAuthStatus('Signed in. Syncing your garage…', 'ok');
+    if (kind === 'login') $('loginPassword').value = '';
+    else $('registerPassword').value = '';
+    setTimeout(() => this.closeAccount(), 420);
+  }
+
+  /* ───────────────────────── results / chrome ───────────────────────── */
+
   renderResults(data) {
+    const titles = {
+      practice: ['SESSION COMPLETE', 'FREE<br /><em>DRIVE.</em>'],
+      'time-trial': ['TIME TRIAL COMPLETE', 'AGAINST THE<br /><em>CLOCK.</em>'],
+      online: ['ONLINE RACE', 'CHEQUERED<br /><em>FLAG.</em>'],
+    };
+    let [eyebrow, title] = titles[data.mode] || ['RACE COMPLETE', 'CHEQUERED<br /><em>FLAG.</em>'];
+    if (data.event) {
+      eyebrow = `${data.event.name} · ${data.event.cleared ? 'OBJECTIVE MET' : 'OBJECTIVE MISSED'}`;
+      title = data.event.cleared ? 'EVENT<br /><em>CLEARED.</em>' : 'TRY<br /><em>AGAIN.</em>';
+    }
+    $('resultEyebrow').textContent = eyebrow;
+    $('resultTitle').innerHTML = title;
+    const unlocks = data.unlocks || [];
+    $('resultUnlocks').classList.toggle('hidden', !unlocks.length);
+    $('resultUnlocks').innerHTML = unlocks.map((u) => `<span class="unlock ${u.kind}"><small>${
+      u.kind === 'car' ? 'CAR AVAILABLE' : u.kind === 'circuit' ? 'CIRCUIT UNLOCKED' : 'PROMOTED'
+    }</small>${esc(u.name)}</span>`).join('');
+    if (data.mode === 'online') {
+      $('resultEyebrow').textContent = data.pending ? 'ONLINE RACE · WAITING FOR RIVALS' : 'ONLINE RACE · FINAL';
+      if (!data.pending && !data.position) $('resultTitle').innerHTML = 'DID NOT<br /><em>FINISH.</em>';
+    }
+    $('btnAgain').innerHTML = data.mode === 'practice' ? 'DRIVE AGAIN <span>↻</span>'
+      : data.mode === 'online' ? 'BACK TO LOBBY <span>↻</span>' : 'RACE AGAIN <span>↻</span>';
     $('resultDriver').textContent = data.driver;
     $('resultTotal').textContent = fmtTime(data.total);
     $('resultBest').textContent = fmtTime(data.best);
     $('resultScore').textContent = Math.round(data.score).toLocaleString('en-US');
     $('resultCar').textContent = data.car;
+    $('resultWallet').textContent = `${formatCredits(data.wallet)} CR`;
+
+    const standings = data.standings || [];
+    $('resultStandings').innerHTML = standings.map((row) => `
+      <div class="standing ${row.isPlayer ? 'player' : ''}">
+        <span class="pos">P${row.position}</span>
+        <span class="who"><i style="background:${row.color || '#ffc46b'}"></i><b>${esc(row.name)}</b></span>
+        <time>${row.finished ? fmtTime(row.time) : '—'}</time>
+      </div>
+    `).join('');
+
+    const lines = data.rewards?.lines || [];
+    $('resultRewards').innerHTML = [
+      ...lines.map((line) => `<div class="reward-line ${line.value < 0 ? 'minus' : ''}"><span>${esc(line.label)}</span><b>${line.value < 0 ? '−' : '+'}${formatCredits(Math.abs(line.value))}</b></div>`),
+      `<div class="reward-line total"><span>TOTAL PAYOUT</span><b>+${formatCredits(data.rewards?.total || 0)}</b></div>`,
+    ].join('');
+
     this.show('results');
     this.setHudVisible(false);
     this.setTouchVisible(false);
@@ -324,5 +789,208 @@ export class UI {
 
   setGarageBest(seconds) {
     $('garageBest').textContent = seconds ? fmtTime(seconds) : '--:--.--';
+  }
+
+  setPauseMode(mode) {
+    const isOnline = mode === 'online';
+    $('btnEndSession').classList.toggle('hidden', mode !== 'practice');
+    $('btnRestart').classList.toggle('hidden', isOnline);
+    $('btnRestart').textContent = mode === 'practice' ? 'RESTART SESSION' : 'RESTART RACE';
+    $('btnQuit').textContent = isOnline ? 'FORFEIT · BACK TO GARAGE' : 'QUIT TO GARAGE';
+    $('pauseCopy').textContent = isOnline
+      ? 'This is a live race: your car is stopped while your rivals keep driving.'
+      : "The sun isn't going anywhere.";
+  }
+
+  /* ───────────────────────── online ───────────────────────── */
+
+  renderOnline(client, auth, store = this.store) {
+    const root = $('onlinePanel');
+    if (!root) return;
+    if (this.tab !== 'online') return;
+    const intro = `<p class="online-intro">Race other drivers in real time. Rooms hold up to six cars; everyone races the car they have equipped.</p>`;
+
+    if (!auth?.available) {
+      root.innerHTML = `${intro}<div class="online-card notice-card">
+        <strong>ONLINE NEEDS THE GAME SERVER</strong>
+        <span>This copy is running on a static host. Run <code>npm start</code> and open the local server to race online.</span>
+      </div>`;
+      return;
+    }
+    if (!auth.isAccount) {
+      root.innerHTML = `${intro}<div class="online-card notice-card">
+        <strong>SIGN IN TO RACE ONLINE</strong>
+        <span>Your username is shown to other drivers, so online races need an account.</span>
+        <button class="btn primary" data-online="signin">SIGN IN / REGISTER</button>
+      </div>`;
+      return;
+    }
+    if (client.status === 'connecting') {
+      root.innerHTML = `${intro}<div class="online-card"><strong>CONNECTING…</strong><span>Reaching the online lobby.</span></div>`;
+      return;
+    }
+    if (!client.connected) {
+      root.innerHTML = `${intro}<div class="online-card notice-card">
+        <strong>OFFLINE</strong>
+        <span>${esc(client.lastError || 'Not connected to the online lobby.')}</span>
+        <button class="btn primary" data-online="connect">CONNECT</button>
+      </div>`;
+      return;
+    }
+
+    const room = client.room;
+    if (!room) {
+      root.innerHTML = `${intro}
+        <div class="online-actions">
+          <button class="online-choice" data-online="quick">
+            <strong>QUICK MATCH</strong><span>Join an open public room, or open one for others to join.</span>
+          </button>
+          <button class="online-choice" data-online="create">
+            <strong>PRIVATE ROOM</strong><span>Get a code to share with friends.</span>
+          </button>
+        </div>
+        <div class="online-join">
+          <label class="section-head" for="onlineCode"><span>JOIN WITH A CODE</span></label>
+          <div class="online-join-row">
+            <input id="onlineCode" class="text-input" maxlength="5" autocomplete="off" spellcheck="false" placeholder="ABCDE" aria-label="Room code" />
+            <button class="btn ghost" data-online="join">JOIN</button>
+          </div>
+        </div>
+        <div class="online-foot">Signed in as <b>${esc(auth.displayName)}</b> · racing the <b>${esc(store?.selectedCar.name || '')}</b></div>`;
+      return;
+    }
+
+    const isHost = room.hostId === client.id;
+    const me = room.players.find((p) => p.id === client.id);
+    const circuit = getCircuit(room.circuitId);
+    const racing = room.state !== 'lobby';
+    const players = room.players.map((p) => `
+      <div class="online-player ${p.id === client.id ? 'me' : ''}">
+        <i style="background:${esc(p.look?.paint || '#ffc46b')}"></i>
+        <span class="who"><b>${esc(p.name)}</b><small>${esc(getCar(p.carId).name)}</small></span>
+        <span class="tag ${p.host ? 'host' : p.ready ? 'ready' : 'waiting'}">${p.host ? 'HOST' : p.ready ? 'READY' : 'NOT READY'}</span>
+      </div>`).join('');
+    const empty = Array.from({ length: Math.max(0, room.size - room.players.length) }, () => `
+      <div class="online-player empty"><i></i><span class="who"><small>Open slot</small></span></div>`).join('');
+
+    const circuits = CIRCUITS.map((c) => {
+      const allowed = this.store?.circuitUnlocked(c.id);
+      return `<button class="seg ${c.id === room.circuitId ? 'active' : ''}" data-online="circuit" data-value="${c.id}" ${allowed ? '' : 'disabled title="Locked in your career"'}>${esc(c.name)}</button>`;
+    }).join('');
+    const laps = [2, 3, 4, 5].map((n) => `<button class="seg ${n === room.laps ? 'active' : ''}" data-online="laps" data-value="${n}">${n}</button>`).join('');
+
+    const hostControls = isHost && !racing ? `
+      <section class="setup-section">
+        <div class="section-head"><span>CIRCUIT</span><span>Host picks</span></div>
+        <div class="segmented wrap">${circuits}</div>
+      </section>
+      <section class="setup-section setup-row">
+        <div><div class="section-head"><span>LAPS</span></div><div class="segmented">${laps}</div></div>
+        <div><div class="section-head"><span>ROOM</span></div><div class="segmented">
+          <button class="seg ${room.public ? '' : 'active'}" data-online="visibility" data-value="0">Private</button>
+          <button class="seg ${room.public ? 'active' : ''}" data-online="visibility" data-value="1">Public</button>
+        </div></div>
+      </section>` : `
+      <div class="setup-summary">
+        <div class="summary-row"><span>CIRCUIT</span><strong>${esc(circuit.name)} · ${circuit.lengthKm} km</strong></div>
+        <div class="summary-row"><span>RACE</span><strong>${room.laps} laps · ${room.public ? 'Public' : 'Private'} room</strong></div>
+      </div>`;
+
+    let primary;
+    if (racing) {
+      primary = `<button class="btn primary wide" disabled>RACE IN PROGRESS</button>`;
+    } else if (isHost) {
+      const hint = room.players.length < 2 ? 'WAITING FOR DRIVERS' : room.canStart ? 'START RACE' : 'WAITING FOR READY';
+      primary = `<button class="btn primary wide" data-online="start" ${room.canStart ? '' : 'disabled'}>${hint} <span>→</span></button>`;
+    } else {
+      primary = me?.ready
+        ? `<button class="btn ghost wide" data-online="ready" data-value="0">NOT READY</button>`
+        : `<button class="btn primary wide" data-online="ready" data-value="1">READY <span>✓</span></button>`;
+    }
+
+    root.innerHTML = `
+      <div class="online-room-head">
+        <div><small>${room.public ? 'PUBLIC ROOM' : 'PRIVATE ROOM'} · ${room.players.length}/${room.size}</small>
+          <button class="room-code" data-online="copy" data-value="${esc(room.code)}" title="Copy code">${esc(room.code)}</button></div>
+        <button class="btn ghost" data-online="leave">LEAVE</button>
+      </div>
+      <div class="online-players">${players}${empty}</div>
+      ${hostControls}
+      ${primary}
+      <div class="online-foot">Change your car in the CARS tab before the race starts.</div>`;
+  }
+
+  /* ───────────────────────── profile / stats ───────────────────────── */
+
+  renderProfile() {
+    if (!this.store) return;
+    const data = this.store.data;
+    const stats = data.stats;
+    const rank = this.store.rank;
+    const progress = nextRankProgress(stats);
+    const winRate = stats.races ? Math.round((stats.wins / stats.races) * 100) : 0;
+    const tiles = [
+      ['RACES', stats.races],
+      ['WINS', stats.wins],
+      ['PODIUMS', stats.podiums],
+      ['WIN RATE', `${winRate}%`],
+      ['LAPS', stats.laps],
+      ['EARNED', `${formatCredits(stats.creditsEarned)} CR`],
+      ['SPENT', `${formatCredits(stats.creditsSpent)} CR`],
+      ['CARS OWNED', `${data.ownedCars.length}/${CARS.length}`],
+      ['EVENTS CLEARED', `${data.career.completed.length}/${CAREER_EVENTS.length}`],
+      ['DRIFT TOTAL', formatCredits(stats.driftScore)],
+      ['PRACTICE', `${stats.sessions || 0} sessions`],
+      ['DISTANCE', `${(stats.distanceKm || 0).toFixed(1)} km`],
+    ];
+    const records = CIRCUITS.map((circuit) => {
+      const rec = data.records[circuit.id];
+      const unlocked = this.store.circuitUnlocked(circuit.id);
+      return `<div class="record-row ${unlocked ? '' : 'locked'}">
+        <span>${circuit.name}</span>
+        <b>${rec?.bestLap ? fmtTime(rec.bestLap) : unlocked ? '—' : 'LOCKED'}</b>
+        <small>${rec?.bestTotal ? `3 LAPS ${fmtTime(rec.bestTotal)}` : ''}</small>
+      </div>`;
+    }).join('');
+    const history = (data.history || []).slice(0, 8).map((row) => {
+      const circuit = getCircuit(row.circuitId);
+      const when = new Date(row.at);
+      const place = row.mode === 'practice' || row.mode === 'time-trial'
+        ? getMode(row.mode).label
+        : row.position
+          ? `${row.mode === 'online' ? 'ONLINE · ' : ''}P${row.position}/${row.totalRacers}`
+          : 'DNF';
+      return `<div class="history-row">
+        <span class="pos">${place}</span>
+        <span>${circuit.name}<small>${when.toLocaleDateString()} · ${getDifficulty(row.difficulty).label}</small></span>
+        <b>+${formatCredits(row.reward || 0)}</b>
+      </div>`;
+    }).join('') || '<p class="empty-note">No races yet. Your history will appear here.</p>';
+
+    $('profileStats').innerHTML = `
+      <section class="setup-section">
+        <div class="section-head"><span>RANK</span><span>${RANK_LABELS[rank].toUpperCase()}</span></div>
+        <div class="rank-meter"><i style="width:${Math.round(progress.progress * 100)}%"></i></div>
+        <p class="rank-note">${progress.next == null
+          ? 'Legend status reached. Every car and circuit is open to you.'
+          : `${progress.next - progress.score} rank points to ${RANK_LABELS[rank + 1].toUpperCase()}. A win is worth 2, any finished race or time trial 1.`}</p>
+      </section>
+      <section class="setup-section">
+        <div class="section-head"><span>CAREER STATS</span></div>
+        <div class="stat-tiles">${tiles.map(([label, value]) => `<div class="stat-tile"><small>${label}</small><strong>${value}</strong></div>`).join('')}</div>
+      </section>
+      <section class="setup-section">
+        <div class="section-head"><span>PERSONAL RECORDS</span><span>BEST LAP</span></div>
+        <div class="record-list">${records}</div>
+      </section>
+      <section class="setup-section">
+        <div class="section-head"><span>RECENT RACES</span></div>
+        <div class="history-list">${history}</div>
+      </section>`;
+  }
+
+  setPaused(paused) {
+    $('pauseTitle').textContent = paused ? 'PAUSED' : 'PAUSED';
+    $('pauseCopy').textContent = paused ? "The sun isn't going anywhere." : '';
   }
 }

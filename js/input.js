@@ -6,6 +6,12 @@ const KEY_ACTIONS = {
   KeyP: 'pause',
 };
 
+function isTextTarget(target) {
+  if (!target) return false;
+  const tag = target.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || target.isContentEditable;
+}
+
 export class Input {
   constructor() {
     this.held = new Set();
@@ -13,9 +19,16 @@ export class Input {
     this.pad = { steer: 0, gas: false, brake: false, handbrake: false, boost: false };
     this.padPrev = {};
     this.onAction = null;
+    this.enabled = true;
     this.touchCapable = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
 
     window.addEventListener('keydown', (e) => {
+      // Never swallow keys while the player is typing a name, email or password.
+      if (isTextTarget(e.target)) {
+        if (e.code === 'Escape') e.target.blur();
+        return;
+      }
+      if (!this.enabled) return;
       if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
         e.preventDefault();
       }
@@ -77,6 +90,7 @@ export class Input {
   }
 
   pollGamepad() {
+    if (!this.enabled) return;
     const pads = navigator.getGamepads ? navigator.getGamepads() : [];
     let pad = null;
     for (const p of pads) {
@@ -108,14 +122,15 @@ export class Input {
   }
 
   get gas() {
-    return this.held.has('KeyW') || this.held.has('ArrowUp') || this.touch.gas || this.pad.gas;
+    return this.enabled && (this.held.has('KeyW') || this.held.has('ArrowUp') || this.touch.gas || this.pad.gas);
   }
 
   get brake() {
-    return this.held.has('KeyS') || this.held.has('ArrowDown') || this.touch.brake || this.pad.brake;
+    return this.enabled && (this.held.has('KeyS') || this.held.has('ArrowDown') || this.touch.brake || this.pad.brake);
   }
 
   get steer() {
+    if (!this.enabled) return 0;
     let value = 0;
     if (this.held.has('KeyA') || this.held.has('ArrowLeft') || this.touch.left) value -= 1;
     if (this.held.has('KeyD') || this.held.has('ArrowRight') || this.touch.right) value += 1;
@@ -124,11 +139,11 @@ export class Input {
   }
 
   get handbrake() {
-    return this.held.has('Space') || this.touch.handbrake || this.pad.handbrake;
+    return this.enabled && (this.held.has('Space') || this.touch.handbrake || this.pad.handbrake);
   }
 
   get boost() {
-    return this.held.has('ShiftLeft') || this.held.has('ShiftRight') || this.touch.boost || this.pad.boost;
+    return this.enabled && (this.held.has('ShiftLeft') || this.held.has('ShiftRight') || this.touch.boost || this.pad.boost);
   }
 
   releaseAll() {

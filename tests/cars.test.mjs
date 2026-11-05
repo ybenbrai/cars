@@ -3,32 +3,39 @@ import { test } from 'node:test';
 
 import {
   CARS,
+  CATEGORIES,
   FINISHES,
   PAINTS,
   RIM_COLORS,
   RIM_STYLES,
   SPOILERS,
+  STARTING_MONEY,
   STRIPES,
   TINTS,
   UNDERGLOWS,
   defaultLook,
   getCar,
   normalizeLook,
+  rankForWins,
 } from '../js/data/cars.js';
 
 const HEX = /^#[0-9a-f]{6}$/i;
 
-test('car catalogue has four unique, complete cars', () => {
-  assert.equal(CARS.length, 4);
+test('car catalogue has a full, unique and complete field', () => {
+  assert.ok(CARS.length >= 18, `expected at least 18 cars, got ${CARS.length}`);
   assert.equal(new Set(CARS.map((car) => car.id)).size, CARS.length);
 
   for (const car of CARS) {
     assert.ok(car.name.length > 0);
     assert.ok(car.klass.length > 0);
     assert.ok(car.tagline.length > 20);
+    assert.ok(car.description.length > 60, `${car.id} needs a real description`);
     assert.match(car.paint, HEX);
     assert.equal(car.pros.length, 2);
     assert.equal(car.cons.length, 2);
+    assert.ok(Number.isFinite(car.price) && car.price >= 0);
+    assert.ok(car.specs && car.specs.power > 0 && car.specs.weight > 0);
+    assert.ok(car.body && car.body.length > 0 && car.body.style);
 
     for (const stat of Object.values(car.stats)) {
       assert.ok(Number.isInteger(stat) && stat >= 1 && stat <= 10);
@@ -37,6 +44,31 @@ test('car catalogue has four unique, complete cars', () => {
       assert.ok(Number.isFinite(value) && value > 0);
     }
   }
+});
+
+test('catalogue covers every body category without recolour duplicates', () => {
+  const usedCategories = new Set(CARS.map((car) => car.category));
+  for (const category of CATEGORIES) {
+    if (category.id === 'all') continue;
+    assert.ok(usedCategories.has(category.id), `no car in category ${category.id}`);
+  }
+  const styles = new Set(CARS.map((car) => car.body.style));
+  assert.ok(styles.size >= 7, `expected distinct body styles, got ${styles.size}`);
+});
+
+test('starting money buys at least one car beyond the starter', () => {
+  const starter = CARS.find((car) => car.starter);
+  assert.ok(starter);
+  assert.equal(starter.price, 0);
+  const affordable = CARS.filter((car) => !car.starter && car.unlockRank === 0 && car.price <= STARTING_MONEY);
+  assert.ok(affordable.length >= 1, 'wallet must afford an upgrade from the start');
+});
+
+test('rank ladder is monotonic', () => {
+  assert.equal(rankForWins(0, 0), 0);
+  assert.ok(rankForWins(4, 0) >= 1);
+  assert.ok(rankForWins(20, 0) >= 3);
+  assert.equal(rankForWins(40, 0), 4);
 });
 
 test('getCar falls back to the first car for unknown ids', () => {

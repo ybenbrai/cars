@@ -25,12 +25,16 @@ No install. No account. No build step.
 Sunset Drift is a compact arcade racer built around a simple idea: make drifting
 feel good immediately, but leave enough depth to chase a clean lap.
 
-- **Four cars, four personalities.** A balanced Falcon, a top-speed Viper, a
-  dedicated drift machine and a rally-bred launch monster.
+- **Eighteen cars across eight classes.** Hatchbacks to hypercars, each with its
+  own body, stats, price and rank requirement. Start with 30,000 CR and earn
+  your way up.
 - **A real garage.** Change paint, finish, rims, spoiler, stripes, tint,
   underglow and the license plate with a live 3D preview.
-- **Three laps against the clock.** Eight ordered checkpoint gates, best-lap
-  tracking, a minimap and a proper results screen.
+- **Seven circuits, four modes.** Career (nine events), Quick Race against up to
+  seven AI rivals on four difficulty levels, Time Trial and Practice.
+- **Online races.** Quick match or private rooms with a share code, up to six
+  drivers, live positions and server-ranked results (needs the bundled server
+  and an account).
 - **Arcade drift physics.** Handbrake rotation, slip angle, combo scoring,
   nitro refills, off-road penalties and wall collisions.
 - **Plays everywhere.** Keyboard, gamepad and on-screen touch controls.
@@ -112,6 +116,16 @@ Full stats, physics modifiers, scoring formulas and driving tips are in the
 - Nitro that refills through drifting, checkpoints, laps and track pickups
 - Best-lap persistence, wrong-way detection and a live minimap
 
+**Online multiplayer**
+
+- WebSocket lobby built into `server.mjs` (no dependencies): quick match into
+  public rooms, private rooms with a five-character code, host-picked circuit
+  and lap count, ready checks and rematches
+- Remote cars are interpolated between snapshots and collide with yours
+- Finishing order comes from the server clock; implausibly fast finishes are
+  rejected
+- Requires a signed-in account; static hosts show an explanation instead
+
 **Garage**
 
 - Four cars with stats, pros and cons derived from real handling modifiers
@@ -155,7 +169,10 @@ Full stats, physics modifiers, scoring formulas and driving tips are in the
 ├─ index.html                 Screens, HUD, import map and metadata
 ├─ styles.css                 Sunset theme, HUD and responsive layouts
 ├─ manifest.webmanifest       Installable web app metadata
-├─ server.mjs                 Zero-dependency static dev server
+├─ server.mjs                 Static server, accounts, cloud saves, online lobby
+├─ server/
+│  ├─ rooms.mjs               Online rooms, matchmaking and race flow
+│  └─ ws.mjs                  Minimal RFC 6455 WebSocket endpoint
 ├─ js/
 │  ├─ main.js                 State machine, race loop, camera, scoring
 │  ├─ track.js                Circuit geometry, gates, pads, nearest-point lookup
@@ -167,8 +184,14 @@ Full stats, physics modifiers, scoring formulas and driving tips are in the
 │  ├─ audio.js                Procedural Web Audio engine and cues
 │  ├─ input.js                Keyboard, gamepad and touch normalization
 │  ├─ hud.js                  HUD updates and minimap canvas
-│  ├─ ui.js                   Screen navigation and garage controls
-│  └─ data/cars.js            Cars, palettes, look normalization, storage keys
+│  ├─ ui.js                   Screen navigation, garage, race setup, online lobby
+│  ├─ ai.js                   AI drivers and personalities
+│  ├─ economy.js              Difficulty, payouts and rank progress
+│  ├─ save.js                 Save store and progression
+│  ├─ auth.js                 Account client (backend sessions, guest mode)
+│  ├─ cloudSync.js            Versioned cloud-save sync
+│  ├─ online.js               Multiplayer client and snapshot interpolation
+│  └─ data/                   Cars, circuits and career events
 ├─ assets/                    Icon, social preview and generated favicon assets
 ├─ docs/                      Gameplay, architecture, testing, deployment, roadmap
 ├─ scripts/                   check.mjs and build.mjs

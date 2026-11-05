@@ -1,3 +1,16 @@
+// Each body style gets its own engine voice. The numbers are deliberately
+// exaggerated: a muscle car should rumble at idle and a hypercar should scream.
+const PROFILES = {
+  hatch: { base: 54, span: 74, sub: 0.34, bright: 0.9, gain: 0.9, wave: 'sawtooth' },
+  sedan: { base: 47, span: 66, sub: 0.5, bright: 0.8, gain: 0.92, wave: 'sawtooth' },
+  sports: { base: 60, span: 88, sub: 0.42, bright: 1.05, gain: 1.0, wave: 'sawtooth' },
+  muscle: { base: 38, span: 58, sub: 0.86, bright: 0.68, gain: 1.22, wave: 'square' },
+  super: { base: 68, span: 102, sub: 0.34, bright: 1.25, gain: 1.02, wave: 'sawtooth' },
+  hyper: { base: 78, span: 118, sub: 0.3, bright: 1.5, gain: 1.04, wave: 'sawtooth' },
+  suv: { base: 41, span: 54, sub: 0.74, bright: 0.72, gain: 1.08, wave: 'square' },
+  offroad: { base: 45, span: 60, sub: 0.68, bright: 0.76, gain: 1.08, wave: 'square' },
+};
+
 export class AudioEngine {
   constructor() {
     this.ctx = null;
@@ -7,6 +20,17 @@ export class AudioEngine {
     this.noiseBuffer = null;
     this.engine = null;
     this.lastSpeed = 0;
+    this.profile = PROFILES.sports;
+    this.profileId = 'sports';
+  }
+
+  setProfile(category) {
+    this.profileId = PROFILES[category] ? category : 'sports';
+    this.profile = PROFILES[this.profileId];
+    if (!this.ready) return;
+    const e = this.engine;
+    e.oscA.type = this.profile.wave;
+    e.oscB.type = this.profile.wave === 'square' ? 'sawtooth' : 'square';
   }
 
   init() {
@@ -133,20 +157,25 @@ export class AudioEngine {
     if (!this.ready) return;
     const t = this.ctx.currentTime;
     const speedN = Math.min(1, state.speed / (state.maxSpeed || 56));
+    const profile = this.profile;
     const gearSpan = 5.6;
     const pos = speedN * gearSpan;
     const gear = Math.min(5, Math.floor(pos));
     const rpm = pos - gear;
-    const freq = 46 + rpm * 82 + gear * 9;
+    const freq = profile.base + rpm * (profile.span * 0.82) + gear * (profile.span * 0.13);
     const throttle = state.throttle ? 1 : 0;
-    const targetGain = 0.1 + throttle * 0.055 + speedN * 0.03;
+    const targetGain = (0.095 + throttle * 0.055 + speedN * 0.03) * profile.gain;
 
     const e = this.engine;
     e.oscA.frequency.setTargetAtTime(freq, t, 0.04);
     e.oscB.frequency.setTargetAtTime(freq * 0.5, t, 0.06);
     e.sub.frequency.setTargetAtTime(freq * 0.5, t, 0.06);
     e.engineGain.gain.setTargetAtTime(targetGain, t, 0.12);
-    e.filter.frequency.setTargetAtTime(280 + speedN * 1600 + throttle * 320, t, 0.08);
+    e.filter.frequency.setTargetAtTime(
+      (240 + speedN * 1500 + throttle * 320) * profile.bright,
+      t,
+      0.08,
+    );
 
     const slipAmount = Math.max(0, Math.min(1, (state.slip - 1.6) / 10));
     this.tire.tireGain.gain.setTargetAtTime(slipAmount * 0.16 + (state.handbrake ? 0.05 : 0), t, 0.06);

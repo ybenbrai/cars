@@ -8,19 +8,28 @@ export function fmtTime(seconds) {
   return `${pad2(m)}:${pad2(s)}.${pad2(cs)}`;
 }
 
+export function fmtCredits(value) {
+  return Math.round(value || 0).toLocaleString('en-US');
+}
+
 export class HUD {
-  constructor(track) {
-    this.track = track;
+  constructor() {
+    this.track = null;
     this.el = {
       root: document.getElementById('hud'),
       driver: document.getElementById('hudDriver'),
+      mode: document.getElementById('hudMode'),
       lapNum: document.getElementById('lapNum'),
       lapDim: document.querySelector('.lap-line .dim'),
       lapTime: document.getElementById('lapTime'),
       bestTime: document.getElementById('bestTime'),
+      position: document.getElementById('position'),
+      positionOf: document.getElementById('positionOf'),
       speed: document.getElementById('speed'),
       gear: document.getElementById('gear'),
       speedArc: document.getElementById('speedArc'),
+      rpmFill: document.getElementById('rpmFill'),
+      damageFill: document.getElementById('damageFill'),
       boostFill: document.getElementById('nitroFill'),
       boostPct: document.getElementById('nitroPct'),
       score: document.getElementById('score'),
@@ -33,17 +42,27 @@ export class HUD {
       minimap: document.getElementById('minimap'),
     };
     this.arcLength = 2 * Math.PI * 78;
-    this.el.speedArc.style.strokeDasharray = String(this.arcLength);
-    this.el.speedArc.style.strokeDashoffset = String(this.arcLength);
+    if (this.el.speedArc) {
+      this.el.speedArc.style.strokeDasharray = String(this.arcLength);
+      this.el.speedArc.style.strokeDashoffset = String(this.arcLength);
+    }
     this.last = {};
     this.toastTimer = null;
-    this.map = this.el.minimap.getContext('2d');
+    this.map = this.el.minimap ? this.el.minimap.getContext('2d') : null;
     this.buildTicks();
+  }
+
+  /** Swap circuits without rebuilding the HUD DOM. */
+  setTrack(track) {
+    this.track = track;
+    this.lastMapCircuit = null;
     this.buildMapBase();
   }
 
   buildTicks() {
     const g = document.getElementById('gaugeTicks');
+    if (!g) return;
+    g.innerHTML = '';
     const ns = 'http://www.w3.org/2000/svg';
     for (let i = 0; i < 36; i++) {
       const a = (i / 36) * Math.PI * 2;
@@ -61,6 +80,7 @@ export class HUD {
   }
 
   buildMapBase() {
+    if (!this.map || !this.track) return;
     const size = 360;
     const canvas = document.createElement('canvas');
     canvas.width = size;
@@ -76,7 +96,7 @@ export class HUD {
       minZ = Math.min(minZ, s.point.z);
       maxZ = Math.max(maxZ, s.point.z);
     }
-    const span = Math.max(maxX - minX, maxZ - minZ);
+    const span = Math.max(1, Math.max(maxX - minX, maxZ - minZ));
     const scale = (size * 0.8) / span;
     const ox = (size - (maxX - minX) * scale) / 2 - minX * scale;
     const oy = (size - (maxZ - minZ) * scale) / 2 - minZ * scale;
@@ -102,12 +122,9 @@ export class HUD {
     ctx.lineWidth = 2;
     ctx.stroke(path);
 
-    // start line tick
     const st = pts[0];
-    const sx = st.point.x * scale + ox;
-    const sy = st.point.z * scale + oy;
     ctx.save();
-    ctx.translate(sx, sy);
+    ctx.translate(st.point.x * scale + ox, st.point.z * scale + oy);
     ctx.rotate(Math.atan2(st.tangent.z, st.tangent.x));
     ctx.fillStyle = '#ff7a45';
     ctx.fillRect(-1.5, -8, 3, 16);
@@ -116,13 +133,32 @@ export class HUD {
     this.mapBase = canvas;
   }
 
-  setDriver(name) {
-    this.el.driver.textContent = name || 'DRIVER';
+  setDriver(name, modeLabel = '') {
+    if (this.el.driver) this.el.driver.textContent = name || 'DRIVER';
+    if (this.el.mode) this.el.mode.textContent = modeLabel;
   }
 
-  setLap(lap, total) {
+  setLap(lap, total, freeDrive = false) {
+    if (freeDrive) {
+      this.el.lapNum.textContent = '∞';
+      this.el.lapDim.textContent = 'FREE DRIVE';
+      return;
+    }
     this.el.lapNum.textContent = String(lap);
     this.el.lapDim.textContent = `/ ${total}`;
+  }
+
+  setPosition(position, total) {
+    const text = position ? `P${position}` : 'P—';
+    if (text !== this.last.position) {
+      this.el.position.textContent = text;
+      this.last.position = text;
+    }
+    const of = total ? `/${total}` : '';
+    if (of !== this.last.positionOf) {
+      this.el.positionOf.textContent = of;
+      this.last.positionOf = of;
+    }
   }
 
   setLapTime(seconds) {
@@ -137,17 +173,35 @@ export class HUD {
     this.el.bestTime.textContent = fmtTime(seconds);
   }
 
-  setSpeed(kmh, gear) {
+  setSpeed(kmh, gear, maxKmh = 240) {
     const rounded = Math.round(kmh);
     if (rounded !== this.last.speed) {
       this.el.speed.textContent = String(rounded);
-      const fraction = Math.min(1, rounded / 240);
+      const fraction = Math.min(1, rounded / Math.max(60, maxKmh));
       this.el.speedArc.style.strokeDashoffset = String(this.arcLength * (1 - fraction));
       this.last.speed = rounded;
     }
     if (gear !== this.last.gear) {
       this.el.gear.textContent = gear;
       this.last.gear = gear;
+    }
+  }
+
+  /** 0–1 normalised engine speed, drawn as a thin bar under the gear. */
+  setRpm(ratio) {
+    const v = Math.round(Math.max(0, Math.min(1, ratio)) * 100);
+    if (v !== this.last.rpm) {
+      this.el.rpmFill.style.width = `${v}%`;
+      this.last.rpm = v;
+    }
+  }
+
+  setDamage(value) {
+    const v = Math.round(Math.max(0, Math.min(1, value)) * 100);
+    if (v !== this.last.damage) {
+      this.el.damageFill.style.width = `${v}%`;
+      this.el.damageFill.classList.toggle('critical', v > 65);
+      this.last.damage = v;
     }
   }
 
@@ -208,11 +262,16 @@ export class HUD {
     this.el.wrongway.classList.toggle('hidden', !on);
   }
 
-  drawMap(car, nextGate, time) {
+  /**
+   * Draw the minimap. `racers` is a list of `{ pos, isPlayer, color }`; the
+   * player is always drawn last so they stay on top of the field.
+   */
+  drawMap(player, racers = [], nextGate, time) {
+    if (!this.map || !this.track || !this.mapTransform) return;
     const ctx = this.map;
     const { scale, ox, oy } = this.mapTransform;
     ctx.clearRect(0, 0, 360, 360);
-    ctx.drawImage(this.mapBase, 0, 0);
+    if (this.mapBase) ctx.drawImage(this.mapBase, 0, 0);
 
     for (const gate of this.track.gates) {
       if (gate.index === 0) continue;
@@ -228,11 +287,24 @@ export class HUD {
       ctx.shadowBlur = 0;
     }
 
-    const px = car.pos.x * scale + ox;
-    const py = car.pos.z * scale + oy;
+    for (const racer of racers) {
+      if (!racer || racer.isPlayer || !racer.pos) continue;
+      const x = racer.pos.x * scale + ox;
+      const y = racer.pos.z * scale + oy;
+      ctx.beginPath();
+      ctx.arc(x, y, 3.6, 0, Math.PI * 2);
+      ctx.fillStyle = racer.color || '#ff3d7f';
+      ctx.globalAlpha = 0.85;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+
+    if (!player) return;
+    const px = player.pos.x * scale + ox;
+    const py = player.pos.z * scale + oy;
     ctx.save();
     ctx.translate(px, py);
-    ctx.rotate(Math.atan2(car.forward.x, car.forward.z));
+    ctx.rotate(Math.atan2(player.forward.x, player.forward.z));
     ctx.beginPath();
     ctx.moveTo(0, -10);
     ctx.lineTo(6.5, 7);

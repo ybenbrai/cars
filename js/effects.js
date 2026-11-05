@@ -10,6 +10,7 @@ export class Effects {
     this.car = null;
     this.emitAcc = 0;
     this.skidAcc = 0;
+    this.damageAcc = 0;
     this.skidIndex = 0;
     this.skidDummy = new THREE.Object3D();
     this.buildParticles();
@@ -166,6 +167,48 @@ export class Effects {
     this.skids.instanceMatrix.needsUpdate = true;
   }
 
+  /** Spark shower for car-to-car contact and heavy wall hits. */
+  burst(point, intensity = 0.6, colorHex = 0xffb23d) {
+    const strength = clamp(intensity, 0, 1);
+    const count = Math.round(6 + strength * 20);
+    const hot = new THREE.Color(colorHex);
+    const warm = new THREE.Color(0xff5a1f);
+    for (let i = 0; i < count; i++) {
+      const angle = Math.random() * Math.PI * 2;
+      const speed = 1.4 + Math.random() * (4 + strength * 7);
+      const tint = Math.random() > 0.4 ? hot : warm;
+      this.spawnParticle(
+        point.x + (Math.random() - 0.5) * 0.7,
+        0.35 + Math.random() * 0.5,
+        point.z + (Math.random() - 0.5) * 0.7,
+        Math.cos(angle) * speed,
+        0.7 + Math.random() * (2.4 + strength * 3.5),
+        Math.sin(angle) * speed,
+        0.14 + Math.random() * 0.22,
+        1.6,
+        0.35 + Math.random() * 0.45,
+        tint,
+        0.85,
+      );
+    }
+    // A short, dark puff of tyre/body smoke underneath the sparks.
+    for (let i = 0; i < Math.round(2 + strength * 5); i++) {
+      this.spawnParticle(
+        point.x + (Math.random() - 0.5) * 0.9,
+        0.2 + Math.random() * 0.4,
+        point.z + (Math.random() - 0.5) * 0.9,
+        (Math.random() - 0.5) * 1.8,
+        0.5 + Math.random() * 1.1,
+        (Math.random() - 0.5) * 1.8,
+        0.5 + Math.random() * 0.5,
+        2.2,
+        0.7,
+        new THREE.Color(0x5a5058),
+        0.3,
+      );
+    }
+  }
+
   update(dt) {
     const car = this.car;
     if (car) {
@@ -219,6 +262,35 @@ export class Effects {
       }
 
       if (!smoke) this.emitAcc = Math.min(this.emitAcc, 2);
+
+      // Damage smoke: a wounded car leaves a visible trail of grey smoke and
+      // loses a little pace, so contact has a consequence you can see.
+      if (car.damage > 0.24 && car.speed > 4) {
+        this.damageAcc += dt * (8 + car.damage * 46);
+        let guard = 0;
+        while (this.damageAcc >= 1 && guard < 6) {
+          this.damageAcc -= 1;
+          guard++;
+          const hoodX = car.pos.x + car.forward.x * car.def.body.length * 0.28;
+          const hoodZ = car.pos.z + car.forward.z * car.def.body.length * 0.28;
+          const shade = 0.24 + Math.random() * 0.16;
+          this.spawnParticle(
+            hoodX + (Math.random() - 0.5) * 0.6,
+            0.5 + Math.random() * 0.35,
+            hoodZ + (Math.random() - 0.5) * 0.6,
+            -car.vel.x * 0.05 + (Math.random() - 0.5) * 1.1,
+            0.8 + Math.random() * 1.4,
+            -car.vel.z * 0.05 + (Math.random() - 0.5) * 1.1,
+            0.6 + Math.random() * 0.7,
+            2.6,
+            1.0 + Math.random() * 0.7,
+            new THREE.Color().setHSL(0.02, 0.04, shade),
+            0.3 + car.damage * 0.28,
+          );
+        }
+      } else {
+        this.damageAcc = 0;
+      }
 
       // skid marks
       if (smoke && car.speed > 6) {
@@ -279,6 +351,9 @@ export class Effects {
 
   reset() {
     for (const p of this.particles) p.life = 0;
+    this.emitAcc = 0;
+    this.skidAcc = 0;
+    this.damageAcc = 0;
     for (let i = 0; i < MAX_PARTICLES; i++) this.alphas[i] = 0;
     this.points.geometry.attributes.aAlpha.needsUpdate = true;
     const zero = new THREE.Matrix4().makeScale(0, 0, 0);

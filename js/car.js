@@ -36,6 +36,7 @@ export class Car {
     this.boost = 45;
     this.boosting = false;
     this.impact = 0;
+    this.damage = 0;
     this.offroad = false;
     this.trackInfo = null;
     this.wheelSpin = 0;
@@ -43,6 +44,8 @@ export class Car {
     this.roll = 0;
     this.pitch = 0;
     this.braking = false;
+    this.paceScale = 1;
+    this.isPlayer = false;
 
     this.maxSpeed = BASE.maxSpeed * this.physics.speed;
     this.turnRate = BASE.turn * this.physics.turn;
@@ -64,6 +67,7 @@ export class Car {
     this.boosting = false;
     this.boost = 45;
     this.impact = 0;
+    this.damage = 0;
     this.offroad = false;
     this.trackInfo = null;
     this.wheelSpin = 0;
@@ -71,7 +75,12 @@ export class Car {
     this.model.setBodyTilt(0, 0);
     this.model.setSteer(0);
     this.model.setSpin(0);
+    this.model.setDamage(0);
     this.syncTransform();
+  }
+
+  enableHeadlights() {
+    this.model.enableHeadlights();
   }
 
   syncTransform() {
@@ -79,8 +88,20 @@ export class Car {
     this.group.rotation.y = this.heading;
   }
 
+  /** Collision response used by the race director for car-to-car contact. */
+  takeHit(strength, nx = 0, nz = 0) {
+    const push = clamp(strength, 0, 1);
+    this.damage = clamp(this.damage + push * 0.16, 0, 1);
+    this.impact = Math.max(this.impact, push);
+    this.vel.x += nx * push * 5.5;
+    this.vel.z += nz * push * 5.5;
+    this.vel.multiplyScalar(0.94);
+    this.model.setDamage(this.damage);
+  }
+
   update(dt, input, track) {
     const p = this.physics;
+    const pace = this.paceScale || 1;
     const f0x = Math.sin(this.heading);
     const f0z = Math.cos(this.heading);
     let vF = this.vel.x * f0x + this.vel.z * f0z;
@@ -118,17 +139,18 @@ export class Car {
     this.boosting = !!input.boost && this.boost > 0.5 && !this.offroad;
     if (this.boosting) {
       this.boost = Math.max(0, this.boost - 26 * dt);
-      nF += BASE.boostPower * p.boost * dt;
+      nF += BASE.boostPower * p.boost * pace * dt;
     }
 
     const offroad = this.offroad;
-    const maxNow = this.maxSpeed * (offroad ? 0.58 : 1) + (this.boosting ? 7 : 0);
+    const damagePenalty = 1 - this.damage * 0.16;
+    const maxNow = this.maxSpeed * pace * damagePenalty * (offroad ? 0.58 : 1) + (this.boosting ? 7 : 0);
 
     if (throttle) {
       if (nF < -0.5) {
         nF = Math.min(0, nF + BASE.brake * dt);
       } else {
-        const push = BASE.power * p.accel * (this.boosting ? 1.45 : 1);
+        const push = BASE.power * p.accel * pace * (this.boosting ? 1.45 : 1) * damagePenalty;
         nF += push * (1 - clamp(nF / maxNow, 0, 1)) * dt;
       }
     }
@@ -157,9 +179,9 @@ export class Car {
     this.vel.set(fx * nF + rx * nR, 0, fz * nF + rz * nR);
     this.pos.addScaledVector(this.vel, dt);
 
-    const near = track.nearest(this.pos);
+    const near = track.nearest(this.pos, this.trackInfo?.index);
     this.trackInfo = near;
-    this.offroad = Math.abs(near.signed) > 7.55;
+    this.offroad = Math.abs(near.signed) > track.halfWidth + 0.15;
 
     const limit = track.wallOffset - 0.95;
     if (Math.abs(near.signed) > limit) {
@@ -177,7 +199,12 @@ export class Car {
         this.vel.z -= nz * vn * 1.4;
       }
       this.vel.multiplyScalar(0.88);
-      this.impact = Math.max(this.impact, Math.min(1, Math.abs(vn) / 16));
+      const hit = Math.min(1, Math.abs(vn) / 16);
+      if (hit > 0.08) {
+        this.damage = clamp(this.damage + hit * 0.08, 0, 1);
+        this.model.setDamage(this.damage);
+      }
+      this.impact = Math.max(this.impact, hit);
     }
 
     this.speed = this.vel.length();
@@ -189,7 +216,11 @@ export class Car {
 
     if (this.drifting) {
       this.boost = Math.min(100, this.boost + 15 * dt);
+    } else if (!this.boosting && !this.offroad) {
+      // Passive recharge keeps nitro useful without making it free.
+      this.boost = Math.min(100, this.boost + 2.6 * dt);
     }
+    this.damage = Math.max(0, this.damage - 0.008 * dt);
 
     this.braking = !!brake || handbrake;
     this.wheelSpin += (nF * dt) / this.def.body.wheelRadius;
@@ -212,6 +243,10 @@ export class Car {
     return this.speed * 3.6;
   }
 
+  get maxSpeedKmh() {
+    return this.maxSpeed * 3.6;
+  }
+
   get gear() {
     if (this.prevSpeed < -0.5) return 'R';
     if (this.speed < 0.5) return 'N';
@@ -223,7 +258,10 @@ export class Car {
     this.group.traverse((obj) => {
       if (obj.isMesh) {
         obj.geometry?.dispose();
+        if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+        else obj.material?.dispose();
       }
     });
+    this.model.dispose?.();
   }
 }

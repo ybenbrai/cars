@@ -59,7 +59,9 @@ whether credits are per-car, and how to avoid turning the game into a grind.
 - Full racing simulation (tire temperatures, fuel, damage)
 - Real-world licensed cars or brands
 - A large open world
-- Accounts, cloud saves or matchmaking
+- Server-authoritative physics or anti-cheat beyond sanity checks (online
+  races relay client positions; they need the bundled Node server, and static
+  hosts stay guest-only)
 
 The project stays dependency-free at runtime and playable in a browser tab. Any
 feature that compromises that should be discussed before implementation.
