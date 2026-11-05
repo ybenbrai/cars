@@ -1,0 +1,62 @@
+name: Feature request
+description: Suggest a car, cosmetic, track, mode or quality-of-life improvement.
+title: "[Feature]: "
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Big features benefit from a short design discussion before code. Please
+        check the roadmap and existing issues first.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or motivation
+      description: What is missing, frustrating or unclear today?
+      placeholder: There is no reason to replay a race after setting a best lap.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the experience you have in mind.
+      placeholder: Add a local ghost car that replays the best lap.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Cars and handling
+        - Customization
+        - Track and environment
+        - Race rules and scoring
+        - HUD and UI
+        - Audio
+        - Accessibility
+        - Performance
+        - Documentation and tooling
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues and the roadmap.
+          required: true
+        - label: This fits the project's browser-first, dependency-light direction.
+          required: true

@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512" role="img" aria-label="Sunset Drift">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b0714"/>
+      <stop offset="0.46" stop-color="#3b1450"/>
+      <stop offset="0.76" stop-color="#b3345a"/>
+      <stop offset="1" stop-color="#ff7a45"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.42" r="0.62">
+      <stop offset="0" stop-color="#fff6cf"/>
+      <stop offset="0.45" stop-color="#ffc46b"/>
+      <stop offset="0.8" stop-color="#ff7a45"/>
+      <stop offset="1" stop-color="#ff3d7f"/>
+    </radialGradient>
+    <linearGradient id="road" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#241b30"/>
+      <stop offset="1" stop-color="#0a0710"/>
+    </linearGradient>
+    <linearGradient id="car" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffb23d"/>
+      <stop offset="1" stop-color="#ff3d7f"/>
+    </linearGradient>
+    <filter id="glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="12"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="url(#sky)"/>
+
+  <!-- sun -->
+  <circle cx="256" cy="222" r="94" fill="url(#sun)" opacity="0.92"/>
+  <g fill="#3b1450" opacity="0.5">
+    <rect x="150" y="236" width="212" height="13" rx="6"/>
+    <rect x="166" y="264" width="180" height="15" rx="7"/>
+    <rect x="186" y="294" width="140" height="12" rx="6"/>
+  </g>
+
+  <!-- distant mesas -->
+  <path d="M0 330 L54 292 L94 310 L136 276 L184 322 L232 308 L286 330 Z" fill="#2a123b" opacity="0.85"/>
+  <path d="M248 332 L302 296 L344 318 L392 280 L436 312 L474 290 L512 324 L512 360 L248 360 Z" fill="#241035" opacity="0.8"/>
+
+  <!-- road -->
+  <path d="M204 334 L308 334 L512 512 L0 512 Z" fill="url(#road)"/>
+  <path d="M252 334 L260 334 L300 512 L212 512 Z" fill="#ff7a45" opacity="0.9"/>
+  <path d="M234 336 L240 336 L176 512 L154 512 Z" fill="#f1ece2" opacity="0.55"/>
+  <path d="M272 336 L278 336 L358 512 L336 512 Z" fill="#f1ece2" opacity="0.55"/>
+
+  <!-- drift car -->
+  <g transform="translate(108 332) rotate(-7 148 58)">
+    <ellipse cx="154" cy="120" rx="132" ry="16" fill="#ff3d7f" opacity="0.35" filter="url(#glow)"/>
+    <path d="M14 78 L48 38 L108 24 L206 38 L260 70 L278 94 L268 116 L18 116 Z" fill="#120c1d" stroke="url(#car)" stroke-width="6" stroke-linejoin="round"/>
+    <path d="M84 40 L120 30 L188 42 L222 66 L78 66 Z" fill="#5ce1e6" opacity="0.75"/>
+    <rect x="12" y="78" width="268" height="26" rx="10" fill="#0c0813"/>
+    <circle cx="74" cy="110" r="30" fill="#0c0813" stroke="#ffb23d" stroke-width="7"/>
+    <circle cx="74" cy="110" r="10" fill="#ffb23d"/>
+    <circle cx="222" cy="110" r="30" fill="#0c0813" stroke="#ffb23d" stroke-width="7"/>
+    <circle cx="222" cy="110" r="10" fill="#ffb23d"/>
+    <path d="M244 76 L286 60 L292 78 L248 92 Z" fill="#ff3d7f"/>
+    <rect x="24" y="84" width="32" height="8" rx="4" fill="#fff6cf"/>
+  </g>
+
+  <!-- speed lines -->
+  <g stroke="#ffc46b" stroke-linecap="round" opacity="0.7">
+    <path d="M40 402 L132 402" stroke-width="9"/>
+    <path d="M70 432 L122 432" stroke-width="6"/>
+    <path d="M24 462 L98 462" stroke-width="5"/>
+  </g>
+</svg>

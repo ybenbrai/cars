@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ybenbrai.github.io/cars/sitemap.xml

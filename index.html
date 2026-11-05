@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>Sunset Drift — Three.js Arcade Racer</title>
+  <meta name="description" content="Pick your car, tune your look, and chase the sunset in a three-lap drift racing game built with Three.js." />
+  <meta name="theme-color" content="#0b0714" />
+  <meta name="color-scheme" content="dark" />
+  <link rel="canonical" href="https://ybenbrai.github.io/cars/" />
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg" />
+  <link rel="apple-touch-icon" href="assets/icon-180.png" />
+  <link rel="manifest" href="manifest.webmanifest" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="Sunset Drift" />
+  <meta property="og:title" content="Sunset Drift — Three.js Arcade Racer" />
+  <meta property="og:description" content="Several very different cars. One sunset circuit. Three laps to make your mark." />
+  <meta property="og:url" content="https://ybenbrai.github.io/cars/" />
+  <meta property="og:image" content="https://ybenbrai.github.io/cars/assets/og-image.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Sunset Drift — Three.js Arcade Racer" />
+  <meta name="twitter:description" content="Pick a car, customize it, and chase the sunset in a browser-based drift racer." />
+  <meta name="twitter:image" content="https://ybenbrai.github.io/cars/assets/og-image.jpg" />
+
+  <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "VideoGame",
+      "name": "Sunset Drift",
+      "description": "A Three.js arcade drift racer with four cars, a sunset circuit and three-lap time attacks.",
+      "url": "https://ybenbrai.github.io/cars/",
+      "image": "https://ybenbrai.github.io/cars/assets/og-image.jpg",
+      "genre": ["Racing", "Arcade"],
+      "gamePlatform": "Web browser",
+      "applicationCategory": "Game",
+      "operatingSystem": "Any",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,400;0,500;0,600;0,700;1,600;1,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <div id="webgl" aria-hidden="true"></div>
+    <div id="vignette" aria-hidden="true"></div>
+    <div id="grain" aria-hidden="true"></div>
+
+    <!-- ═══════════════ RACE HUD ═══════════════ -->
+    <div id="hud" class="hidden">
+      <header class="hud-top">
+        <div class="hud-driver">
+          <span class="hud-label">DRIVER</span>
+          <strong id="hudDriver">—</strong>
+        </div>
+        <div class="lap-block">
+          <div class="lap-line"><span class="hud-label">LAP</span><strong id="lapNum">1</strong><span class="dim">/ 3</span></div>
+          <div class="lap-time" id="lapTime">00:00.00</div>
+          <div class="best-line"><span>BEST</span><span id="bestTime">--:--.--</span></div>
+        </div>
+        <div class="hud-actions">
+          <button class="icon-btn" id="btnSoundHud" title="Mute sound">♪</button>
+          <button class="icon-btn" id="btnCam" title="Change camera (C)">◉</button>
+          <button class="icon-btn" id="btnPauseHud" title="Pause (Esc)">❚❚</button>
+        </div>
+      </header>
+
+      <aside class="map-block">
+        <canvas id="minimap" width="360" height="360"></canvas>
+        <div class="score-block">
+          <span class="hud-label">DRIFT SCORE</span>
+          <strong id="score">0</strong>
+        </div>
+      </aside>
+
+      <div id="liveDrift" class="live-drift hidden">
+        <span class="combo" id="combo">x1.0</span>
+        <span class="drift-pts" id="driftPts">+0</span>
+      </div>
+
+      <div id="countdown" class="countdown"></div>
+      <div id="toast" class="toast"></div>
+      <div id="wrongway" class="wrongway hidden">WRONG WAY</div>
+
+      <div class="hud-bottom">
+        <div class="gauge">
+          <svg viewBox="0 0 180 180" class="gauge-svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ffc46b" />
+                <stop offset="55%" stop-color="#ff7a45" />
+                <stop offset="100%" stop-color="#ff3d7f" />
+              </linearGradient>
+            </defs>
+            <circle class="gauge-track" cx="90" cy="90" r="78"></circle>
+            <circle id="speedArc" class="gauge-arc" cx="90" cy="90" r="78"></circle>
+            <g id="gaugeTicks" class="gauge-ticks"></g>
+          </svg>
+          <div class="gauge-center">
+            <div class="speed"><span id="speed">0</span><em>KM/H</em></div>
+            <div class="gear" id="gear">N</div>
+          </div>
+        </div>
+        <div class="nitro">
+          <div class="nitro-head"><span>NITRO</span><span id="nitroPct">0%</span></div>
+          <div class="nitro-bar"><i id="nitroFill"></i></div>
+          <div class="nitro-hint">DRIFT TO REFILL</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══════════════ PROFILE ═══════════════ -->
+    <section id="screen-profile" class="screen">
+      <div class="profile-panel">
+        <div class="brand">SUNSET<span>DRIFT</span></div>
+        <div class="eyebrow">THREE.JS · ARCADE RACER</div>
+        <h1>Who's<br /><em>driving?</em></h1>
+        <p class="lede">Every legend starts with a name. Yours goes on the leaderboard — and on the plate.</p>
+
+        <label class="field-label" for="nameInput">DRIVER NAME</label>
+        <div class="name-field">
+          <input id="nameInput" maxlength="14" placeholder="ENTER NAME" autocomplete="off" spellcheck="false" />
+          <span id="nameCount">0/14</span>
+        </div>
+        <button class="btn primary wide" id="btnProfile">ENTER THE GARAGE <span>→</span></button>
+        <p class="micro">Your driver profile and car build are saved in this browser.</p>
+      </div>
+      <div class="profile-side">
+        <div class="side-card">
+          <span class="side-index">01</span>
+          <h3>PICK A CAR</h3>
+          <p>Four very different machines. Each one has real strengths — and a personality flaw.</p>
+        </div>
+        <div class="side-card">
+          <span class="side-index">02</span>
+          <h3>MAKE IT YOURS</h3>
+          <p>Paint, finish, stripes, spoilers, rims, tint, underglow and a custom plate.</p>
+        </div>
+        <div class="side-card">
+          <span class="side-index">03</span>
+          <h3>HOLD THE DRIFT</h3>
+          <p>Three laps in the sunset. Chain drifts, fill the nitro, beat your best time.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ GARAGE ═══════════════ -->
+    <section id="screen-garage" class="screen hidden">
+      <header class="garage-top">
+        <div class="brand small">SUNSET<span>DRIFT</span></div>
+        <button class="driver-chip" id="btnDriver" title="Change driver">
+          <span class="driver-dot"></span>
+          <span class="driver-copy"><small>DRIVER</small><strong id="driverName">—</strong></span>
+          <span class="driver-edit">EDIT</span>
+        </button>
+        <div class="garage-meta">
+          <div class="meta"><small>BEST LAP</small><strong id="garageBest">--:--.--</strong></div>
+          <div class="meta"><small>CREDITS</small><strong id="garageCredits">0</strong></div>
+          <button class="icon-btn" id="btnSoundGarage" title="Mute sound">♪</button>
+        </div>
+      </header>
+
+      <div class="garage-body">
+        <div class="garage-panel">
+          <nav class="tabs" role="tablist">
+            <button class="tab active" data-tab="cars" role="tab">CARS</button>
+            <button class="tab" data-tab="custom" role="tab">CUSTOMIZE</button>
+            <button class="tab" data-tab="upgrades" role="tab">UPGRADES <span class="tab-lock">SOON</span></button>
+          </nav>
+
+          <div class="tab-pane active" id="tab-cars">
+            <div class="car-list" id="carList"></div>
+          </div>
+
+          <div class="tab-pane" id="tab-custom">
+            <div class="custom-controls" id="customControls"></div>
+            <div class="custom-actions">
+              <button class="btn ghost" id="btnRandomize">RANDOMIZE</button>
+              <button class="btn ghost" id="btnResetLook">RESET LOOK</button>
+            </div>
+          </div>
+
+          <div class="tab-pane" id="tab-upgrades">
+            <div class="upgrade-locked">
+              <span class="lock-big">⌁</span>
+              <div class="eyebrow">NEXT UPDATE</div>
+              <h2>UPGRADES<br /><em>COMING SOON</em></h2>
+              <p>Engine swaps, tires, suspension and nitro tanks are on the workbench. For now, learn to wring every drop out of your car as it is.</p>
+              <div class="upgrade-teasers">
+                <span>ENGINE</span><span>TIRES</span><span>NITRO</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="garage-stage">
+          <div class="stage-canvas" id="stageCanvas"></div>
+          <div class="stage-fade"></div>
+          <div class="stage-top">
+            <div class="stage-label">
+              <small id="stageCarClass">BALANCED</small>
+              <span id="stageCarName">FALCON GT</span>
+            </div>
+            <div class="stage-hint"><span class="drag-icon">↔</span> DRAG TO ROTATE</div>
+          </div>
+          <div class="stage-stats" id="stageStats"></div>
+          <button class="btn primary race-btn" id="btnRace">RACE <span>→</span></button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ RESULTS ═══════════════ -->
+    <section id="screen-results" class="screen overlay hidden">
+      <div class="modal">
+        <div class="eyebrow">RACE COMPLETE</div>
+        <h2>CHEQUERED<br /><em>FLAG.</em></h2>
+        <div class="result-driver" id="resultDriver">—</div>
+        <div class="result-grid">
+          <div class="result"><small>TOTAL TIME</small><strong id="resultTotal">00:00.00</strong></div>
+          <div class="result"><small>BEST LAP</small><strong id="resultBest">00:00.00</strong></div>
+          <div class="result"><small>DRIFT SCORE</small><strong id="resultScore">0</strong></div>
+          <div class="result"><small>CAR</small><strong id="resultCar">—</strong></div>
+        </div>
+        <div class="modal-actions">
+          <button class="btn primary" id="btnAgain">RACE AGAIN <span>↻</span></button>
+          <button class="btn ghost" id="btnToGarage">GARAGE</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ PAUSE ═══════════════ -->
+    <section id="screen-pause" class="screen overlay hidden">
+      <div class="modal small">
+        <div class="eyebrow">TIME OUT</div>
+        <h2>PAUSED</h2>
+        <p class="pause-copy">The sun isn't going anywhere.</p>
+        <div class="modal-actions column">
+          <button class="btn primary" id="btnResume">RESUME <span>▶</span></button>
+          <button class="btn ghost" id="btnRestart">RESTART RACE</button>
+          <button class="btn ghost" id="btnQuit">QUIT TO GARAGE</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ TOUCH ═══════════════ -->
+    <div id="touch" class="hidden">
+      <div class="touch-side left">
+        <button class="tbtn steer" data-action="left" aria-label="Steer left">◀</button>
+        <button class="tbtn steer" data-action="right" aria-label="Steer right">▶</button>
+      </div>
+      <div class="touch-side right">
+        <div class="touch-row">
+          <button class="tbtn util" data-action="handbrake" aria-label="Handbrake">DRIFT</button>
+          <button class="tbtn util" data-action="boost" aria-label="Nitro">N2O</button>
+        </div>
+        <div class="touch-row">
+          <button class="tbtn pedal brake" data-action="brake" aria-label="Brake">BRK</button>
+          <button class="tbtn pedal gas" data-action="gas" aria-label="Accelerate">GAS</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="loader">
+      <div class="loader-inner">
+        <div class="brand">SUNSET<span>DRIFT</span></div>
+        <div class="loader-bar"><i></i></div>
+        <div class="loader-text">WARMING THE TIRES…</div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

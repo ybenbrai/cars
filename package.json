@@ -1,0 +1,36 @@
+{
+  "name": "sunset-drift",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "A Three.js arcade drift racer with four cars, a sunset circuit and three-lap time attacks.",
+  "license": "MIT",
+  "author": "ybenbrai",
+  "homepage": "https://ybenbrai.github.io/cars/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ybenbrai/cars.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ybenbrai/cars/issues"
+  },
+  "keywords": [
+    "threejs",
+    "webgl",
+    "racing-game",
+    "drift",
+    "browser-game",
+    "arcade"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "check": "node scripts/check.mjs",
+    "test": "node --test tests/*.test.mjs",
+    "build": "node scripts/build.mjs",
+    "preview": "npm run build && node server.mjs dist"
+  }
+}

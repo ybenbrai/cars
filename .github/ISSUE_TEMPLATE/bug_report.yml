@@ -1,0 +1,88 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping make Sunset Drift better. Please search existing
+        issues before filing a new one.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: What went wrong, in one or two sentences?
+      placeholder: The car falls through the track after a wall collision.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps are easiest to follow.
+      placeholder: |
+        1. Start a race in KAZE S
+        2. Drift into the outside wall on the bottom straight
+        3. Hold accelerate
+        4. Watch the car clip through the barrier
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      placeholder: The car should be pushed back onto the track.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Profile / persistence
+        - Garage / car selection
+        - Customization
+        - Driving / physics
+        - Track / collision
+        - HUD / minimap
+        - Audio
+        - Touch / gamepad input
+        - Results / race flow
+        - Visual / rendering
+        - Deployment / tooling
+        - Documentation
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: Browser and OS
+      description: Include the version if you know it.
+      placeholder: Chrome 145 on macOS 15.4 / iPhone 16, Safari
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console output or screenshots
+      description: Paste relevant console errors or attach a screenshot. Do not include personal data.
+      render: shell
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Checks
+      options:
+        - label: I searched existing issues.
+          required: true
+        - label: I can reproduce this on the latest version.
+          required: true
