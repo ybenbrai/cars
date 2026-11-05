@@ -68,6 +68,7 @@ export class CarModel {
     this.buildSpoilers();
     this.buildStripes();
     this.buildExtras();
+    this.buildStyleDetails();
     this.applyLook(look, true);
   }
 
@@ -123,20 +124,27 @@ export class CarModel {
     this.deckMesh = this.add(new THREE.Mesh(rbox(W * 0.84, 0.24, L * 0.26, 0.1), this.paintMat));
     this.deckMesh.position.set(0, b.tailHeight, -L * 0.31);
 
-    // cabin glass + painted roof
+    // cabin glass + painted roof (roadsters get an open cockpit instead)
     const cabinY = bodyTop - 0.06 + b.cabinHeight / 2;
-    this.add(new THREE.Mesh(rbox(b.cabinWidth, b.cabinHeight, b.cabinLength, 0.14), this.glassMat))
-      .position.set(0, cabinY, b.cabinZ);
-    const roofY = cabinY + b.cabinHeight / 2 + 0.015;
-    this.roofMesh = this.add(new THREE.Mesh(rbox(b.roofWidth, 0.09, b.roofLength, 0.04), this.paintMat));
-    this.roofMesh.position.set(0, roofY, b.cabinZ - 0.12);
-    this.roofY = roofY + 0.045;
+    this.openTop = b.style === 'roadster';
+    if (this.openTop) {
+      this.buildCockpit(bodyTop);
+      this.roofMesh = null;
+      this.roofY = bodyTop + 0.2;
+    } else {
+      this.add(new THREE.Mesh(rbox(b.cabinWidth, b.cabinHeight, b.cabinLength, 0.14), this.glassMat))
+        .position.set(0, cabinY, b.cabinZ);
+      const roofY = cabinY + b.cabinHeight / 2 + 0.015;
+      this.roofMesh = this.add(new THREE.Mesh(rbox(b.roofWidth, 0.09, b.roofLength, 0.04), this.paintMat));
+      this.roofMesh.position.set(0, roofY, b.cabinZ - 0.12);
+      this.roofY = roofY + 0.045;
 
-    // A / C pillars hint
-    for (const sz of [-1, 1]) {
-      const pillar = this.add(new THREE.Mesh(rbox(0.06, b.cabinHeight * 0.92, 0.1, 0.02), this.trimMat));
-      pillar.position.set(sz * b.cabinWidth * 0.46, cabinY, b.cabinZ + b.cabinLength * 0.42);
-      pillar.rotation.z = sz * 0.22;
+      // A / C pillars hint
+      for (const sz of [-1, 1]) {
+        const pillar = this.add(new THREE.Mesh(rbox(0.06, b.cabinHeight * 0.92, 0.1, 0.02), this.trimMat));
+        pillar.position.set(sz * b.cabinWidth * 0.46, cabinY, b.cabinZ + b.cabinLength * 0.42);
+        pillar.rotation.z = sz * 0.22;
+      }
     }
 
     // fender bulges
@@ -208,6 +216,37 @@ export class CarModel {
 
     this.bodyTop = bodyTop;
     this.cabinY = cabinY;
+  }
+
+  /** Open two-seat cockpit: raked screen, seats, roll hoops and fairings. */
+  buildCockpit(bodyTop) {
+    const b = this.bodyDef;
+    const front = b.cabinZ + b.cabinLength * 0.46;
+    const rear = b.cabinZ - b.cabinLength * 0.38;
+
+    const screen = this.add(new THREE.Mesh(rbox(b.cabinWidth, b.cabinHeight, 0.05, 0.03), this.glassMat));
+    screen.position.set(0, bodyTop + b.cabinHeight * 0.42, front);
+    screen.rotation.x = -0.62;
+    const header = this.add(new THREE.Mesh(rbox(b.cabinWidth * 1.02, 0.05, 0.07, 0.02), this.chromeMat));
+    header.position.set(0, bodyTop + b.cabinHeight * 0.8, front - b.cabinHeight * 0.48);
+    header.rotation.x = -0.62;
+
+    const tub = this.add(new THREE.Mesh(rbox(b.cabinWidth * 0.9, 0.08, b.cabinLength * 0.86, 0.03), this.rubberMat));
+    tub.position.set(0, bodyTop - 0.01, b.cabinZ);
+
+    for (const sx of [-1, 1]) {
+      const x = sx * b.cabinWidth * 0.24;
+      const cushion = this.add(new THREE.Mesh(rbox(0.44, 0.1, 0.44, 0.04), this.trimMat));
+      cushion.position.set(x, bodyTop + 0.06, b.cabinZ + 0.02);
+      const back = this.add(new THREE.Mesh(rbox(0.4, 0.34, 0.09, 0.04), this.trimMat));
+      back.position.set(x, bodyTop + 0.2, rear + 0.12);
+      back.rotation.x = -0.22;
+      const hoop = this.add(new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.028, 8, 18, Math.PI), this.chromeMat));
+      hoop.position.set(x, bodyTop + 0.26, rear - 0.02);
+      const fairing = this.add(new THREE.Mesh(rbox(0.34, 0.16, 0.8, 0.07), this.paintMat));
+      fairing.position.set(x, bodyTop + 0.05, rear - 0.44);
+      fairing.rotation.x = 0.1;
+    }
   }
 
   buildWheels() {
@@ -378,10 +417,12 @@ export class CarModel {
       hood.rotation.x = -Math.PI / 2;
       hood.position.set(x, hoodY, L * 0.255);
       twin.add(hood);
-      const roof = new THREE.Mesh(new THREE.PlaneGeometry(0.14, b.roofLength * 0.92), this.stripeMat);
-      roof.rotation.x = -Math.PI / 2;
-      roof.position.set(x, this.roofY + 0.005, b.cabinZ - 0.12);
-      twin.add(roof);
+      if (!this.openTop) {
+        const roof = new THREE.Mesh(new THREE.PlaneGeometry(0.14, b.roofLength * 0.92), this.stripeMat);
+        roof.rotation.x = -Math.PI / 2;
+        roof.position.set(x, this.roofY + 0.005, b.cabinZ - 0.12);
+        twin.add(roof);
+      }
       const deck = new THREE.Mesh(new THREE.PlaneGeometry(0.15, L * 0.22), this.stripeMat);
       deck.rotation.x = -Math.PI / 2;
       deck.position.set(x, deckY, -L * 0.31);
@@ -401,10 +442,12 @@ export class CarModel {
     hood.rotation.x = -Math.PI / 2;
     hood.position.set(0, hoodY, L * 0.255);
     roof.add(hood);
-    const roofPanel = new THREE.Mesh(new THREE.PlaneGeometry(0.4, b.roofLength * 0.92), this.stripeMat);
-    roofPanel.rotation.x = -Math.PI / 2;
-    roofPanel.position.set(0, this.roofY + 0.005, b.cabinZ - 0.12);
-    roof.add(roofPanel);
+    if (!this.openTop) {
+      const roofPanel = new THREE.Mesh(new THREE.PlaneGeometry(0.4, b.roofLength * 0.92), this.stripeMat);
+      roofPanel.rotation.x = -Math.PI / 2;
+      roofPanel.position.set(0, this.roofY + 0.005, b.cabinZ - 0.12);
+      roof.add(roofPanel);
+    }
     const deck = new THREE.Mesh(new THREE.PlaneGeometry(0.42, L * 0.22), this.stripeMat);
     deck.rotation.x = -Math.PI / 2;
     deck.position.set(0, deckY, -L * 0.31);
@@ -423,10 +466,188 @@ export class CarModel {
     this.root.add(this.glowMesh);
   }
 
+  /**
+   * Category-specific body language. The shared tub gives every car its
+   * proportions, while these details make a hatchback read as a hatchback and
+   * a hypercar read as something that costs half a million credits.
+   */
+  buildStyleDetails() {
+    const b = this.bodyDef;
+    const W = b.width;
+    const L = b.length;
+    const style = b.style;
+    const group = new THREE.Group();
+    group.name = `style-${style}`;
+    this.body.add(group);
+    this.detailGroup = group;
+
+    const add = (geo, mat, x, y, z, rx = 0, ry = 0, rz = 0) => {
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(x, y, z);
+      mesh.rotation.set(rx, ry, rz);
+      mesh.castShadow = true;
+      group.add(mesh);
+      return mesh;
+    };
+    const rail = (x, y, z, len, th = 0.06) => add(
+      new THREE.BoxGeometry(th, th, len), this.trimMat, x, y, z,
+    );
+
+    if (style === 'hatch') {
+      // Roof spoiler, fog lamps, aerial and black arch trim.
+      add(rbox(W * 0.78, 0.06, 0.34, 0.02), this.paintMat, 0, this.roofY + 0.05, b.cabinZ - b.roofLength * 0.55);
+      for (const sx of [-1, 1]) {
+        add(rbox(0.16, 0.08, 0.05, 0.02), this.headMat, sx * W * 0.31, b.noseDrop - 0.06, L / 2 - 0.01);
+        add(new THREE.BoxGeometry(0.12, 0.12, 0.9), this.trimMat, sx * (W / 2 + 0.03), b.wheelRadius + 0.12, b.wheelbase);
+        add(new THREE.BoxGeometry(0.12, 0.12, 0.9), this.trimMat, sx * (W / 2 + 0.03), b.wheelRadius + 0.12, -b.wheelbase);
+      }
+      add(new THREE.CylinderGeometry(0.012, 0.012, 0.55, 5), this.trimMat, 0, this.roofY + 0.3, b.cabinZ - 0.2, 0.16);
+      add(new THREE.BoxGeometry(W * 0.5, 0.03, 0.16), this.trimMat, 0, this.roofY + 0.01, b.cabinZ + b.roofLength * 0.45);
+    } else if (style === 'sedan') {
+      // Chrome beltline, formal grille, trunk lip and door handles.
+      for (const sx of [-1, 1]) {
+        add(new THREE.BoxGeometry(0.025, 0.025, b.cabinLength * 1.02), this.chromeMat, sx * (b.cabinWidth / 2 + 0.01), this.cabinY + b.cabinHeight * 0.34, b.cabinZ);
+        for (const sz of [-0.62, 0.55]) {
+          add(rbox(0.14, 0.035, 0.04, 0.015), this.chromeMat, sx * (W / 2 + 0.005), b.rideHeight + 0.26, sz * L * 0.34);
+        }
+      }
+      for (let i = -2; i <= 2; i++) {
+        add(new THREE.BoxGeometry(0.04, 0.16, 0.02), this.chromeMat, i * W * 0.075, b.noseDrop - 0.02, L / 2 + 0.01);
+      }
+      add(rbox(W * 0.72, 0.05, 0.2, 0.02), this.paintMat, 0, b.tailHeight + 0.17, -L / 2 + 0.12, -0.12);
+    } else if (style === 'suv') {
+      // Roof rails, side steps, skid plates and chunkier arch flares.
+      for (const sx of [-1, 1]) {
+        rail(sx * b.roofWidth * 0.42, this.roofY + 0.09, b.cabinZ - 0.05, b.roofLength * 0.9, 0.07);
+        add(new THREE.BoxGeometry(0.16, 0.1, L * 0.42), this.trimMat, sx * (W / 2 + 0.02), b.rideHeight - 0.06, 0);
+        add(rbox(0.24, 0.34, 1.15, 0.06), this.trimMat, sx * (W / 2 + 0.01), b.wheelRadius + 0.1, b.wheelbase);
+        add(rbox(0.24, 0.34, 1.15, 0.06), this.trimMat, sx * (W / 2 + 0.01), b.wheelRadius + 0.1, -b.wheelbase);
+      }
+      add(rbox(W * 0.78, 0.06, 0.4, 0.03), this.chromeMat, 0, 0.36, L / 2 - 0.16);
+      add(rbox(W * 0.72, 0.06, 0.34, 0.03), this.chromeMat, 0, 0.38, -L / 2 + 0.18);
+      add(rbox(W * 0.42, 0.16, 0.04, 0.02), this.chromeMat, 0, b.noseDrop + 0.03, L / 2 + 0.005);
+    } else if (style === 'offroad') {
+      // Roof rack + light bar, snorkel, mud flaps, tow hooks and a spare wheel.
+      for (const sx of [-1, 1]) {
+        rail(sx * b.roofWidth * 0.42, this.roofY + 0.12, b.cabinZ, b.roofLength * 0.95, 0.05);
+        add(new THREE.BoxGeometry(0.11, 0.26, 0.2), this.trimMat, sx * W * 0.3, 0.34, L / 2 - 0.03);
+        add(new THREE.PlaneGeometry(0.32, 0.34), this.trimMat, sx * (W / 2 - 0.05), 0.24, b.wheelbase - 0.55);
+      }
+      for (let i = -2; i <= 2; i++) {
+        add(new THREE.CylinderGeometry(0.075, 0.075, 0.09, 10), this.headMat, i * W * 0.16, this.roofY + 0.27, b.cabinZ + b.roofLength * 0.44, Math.PI / 2);
+      }
+      add(new THREE.BoxGeometry(W * 0.8, 0.045, 0.12), this.carbonMat, 0, this.roofY + 0.22, b.cabinZ + b.roofLength * 0.44);
+      add(new THREE.CylinderGeometry(0.07, 0.06, b.cabinHeight + 0.5, 8), this.trimMat, W / 2 + 0.02, this.cabinY + 0.14, b.cabinZ + b.cabinLength * 0.42);
+      add(new THREE.CylinderGeometry(b.wheelRadius * 0.62, b.wheelRadius * 0.62, 0.18, 20), this.rubberMat, 0, b.tailHeight + 0.3, -L / 2 - 0.08, Math.PI / 2);
+      add(new THREE.CylinderGeometry(0.07, 0.07, 0.15, 10), this.chromeMat, 0, b.tailHeight + 0.3, -L / 2 - 0.02, Math.PI / 2);
+    } else if (style === 'muscle') {
+      // Hood bulge, pins, side pipes and wide rear quarters.
+      add(rbox(W * 0.46, 0.1, L * 0.26, 0.03), this.paintMat, 0, b.noseDrop + 0.08, L * 0.26);
+      for (const sx of [-1, 1]) {
+        add(new THREE.CylinderGeometry(0.025, 0.025, 0.09, 6), this.chromeMat, sx * W * 0.2, b.noseDrop + 0.17, L * 0.12);
+        add(new THREE.BoxGeometry(0.06, 0.06, L * 0.34), this.chromeMat, sx * (W / 2 + 0.05), 0.3, 0);
+        add(rbox(0.3, 0.34, 1.25, 0.07), this.paintMat, sx * (W / 2 - 0.01), b.wheelRadius + 0.12, -b.wheelbase);
+      }
+      add(rbox(W * 0.9, 0.05, 0.28, 0.02), this.carbonMat, 0, b.tailHeight + 0.13, -L / 2 + 0.1, -0.1);
+    } else if (style === 'super') {
+      // Side intakes, canards, diffuser fins and a low front splitter.
+      for (const sx of [-1, 1]) {
+        add(rbox(0.07, 0.2, 0.52, 0.02), this.carbonMat, sx * (W / 2 + 0.04), 0.62, -L * 0.05);
+        add(rbox(0.1, 0.18, 0.1, 0.02), this.carbonMat, sx * (W / 2 + 0.02), 0.42, b.cabinZ + b.cabinLength * 0.44, 0, 0, sx * 0.28);
+        add(rbox(0.42, 0.035, 0.24, 0.01), this.carbonMat, sx * W * 0.34, 0.3, L / 2 + 0.12);
+      }
+      add(rbox(W * 0.94, 0.04, 0.34, 0.02), this.carbonMat, 0, 0.285, L / 2 - 0.02);
+      for (let i = -2; i <= 2; i++) {
+        add(new THREE.BoxGeometry(0.035, 0.16, 0.5), this.carbonMat, i * W * 0.15, 0.34, -L / 2 + 0.1);
+      }
+      add(rbox(W * 0.5, 0.09, 0.34, 0.03), this.paintMat, 0, b.noseDrop + 0.02, L * 0.3);
+    } else if (style === 'hyper') {
+      // Canards, roof snorkel, dorsal fin and the biggest diffuser in the shop.
+      for (const sx of [-1, 1]) {
+        add(rbox(0.5, 0.035, 0.2, 0.01), this.carbonMat, sx * W * 0.36, 0.29, L / 2 + 0.14);
+        add(rbox(0.08, 0.24, 0.6, 0.02), this.carbonMat, sx * (W / 2 + 0.03), 0.6, -L * 0.08);
+        add(rbox(0.16, 0.1, 0.34, 0.02), this.carbonMat, sx * W * 0.36, 0.5, b.cabinZ - b.cabinLength * 0.48);
+      }
+      add(rbox(0.3, 0.07, 0.5, 0.02), this.carbonMat, 0, this.roofY + 0.06, b.cabinZ + b.roofLength * 0.2);
+      add(rbox(0.06, 0.24, 1.15, 0.02), this.carbonMat, 0, this.roofY - 0.05, -b.roofLength * 0.35);
+      add(rbox(W * 0.96, 0.04, 0.32, 0.02), this.carbonMat, 0, 0.28, L / 2 + 0.02);
+      for (let i = -3; i <= 3; i++) {
+        add(new THREE.BoxGeometry(0.03, 0.22, 0.6), this.carbonMat, i * W * 0.12, 0.35, -L / 2 + 0.08);
+      }
+      add(new THREE.BoxGeometry(W * 0.92, 0.16, 0.05), this.carbonMat, 0, b.rideHeight + 0.34, L / 2 + 0.005);
+    } else if (style === 'roadster') {
+      // Pop-up-style lamp pods, a low splitter, side gills and a single tail pipe.
+      for (const sx of [-1, 1]) {
+        add(rbox(0.3, 0.07, 0.24, 0.03), this.trimMat, sx * W * 0.29, b.noseDrop + 0.1, L / 2 - 0.2);
+        add(rbox(0.05, 0.1, 0.3, 0.02), this.trimMat, sx * (W / 2 + 0.03), 0.58, b.wheelbase * 0.45);
+      }
+      add(rbox(W * 0.86, 0.035, 0.24, 0.02), this.carbonMat, 0, 0.29, L / 2 - 0.03);
+      add(rbox(W * 0.5, 0.05, 0.22, 0.02), this.paintMat, 0, b.tailHeight + 0.15, -L / 2 + 0.14, -0.18);
+    } else if (style === 'gt') {
+      // Long-bonnet louvres, chrome window surround, fender gills and quad pipes.
+      for (let i = 0; i < 6; i++) {
+        add(new THREE.BoxGeometry(W * 0.3, 0.02, 0.05), this.trimMat, 0, b.noseDrop + 0.135, L * 0.2 + i * 0.11);
+      }
+      for (const sx of [-1, 1]) {
+        add(new THREE.BoxGeometry(0.025, 0.025, b.cabinLength * 0.98), this.chromeMat, sx * (b.cabinWidth / 2 + 0.01), this.cabinY + b.cabinHeight * 0.4, b.cabinZ);
+        for (let i = 0; i < 3; i++) {
+          add(rbox(0.03, 0.05, 0.28, 0.01), this.chromeMat, sx * (W / 2 + 0.01), 0.56 + i * 0.08, b.wheelbase - 0.72);
+        }
+        for (const off of [0.2, 0.34]) {
+          add(new THREE.CylinderGeometry(0.05, 0.05, 0.14, 12), this.chromeMat, sx * W * off, 0.4, -L / 2 - 0.06, Math.PI / 2);
+        }
+      }
+      add(rbox(W * 0.44, 0.14, 0.05, 0.03), this.chromeMat, 0, b.noseDrop - 0.08, L / 2 + 0.01);
+      add(rbox(W * 0.76, 0.05, 0.2, 0.02), this.paintMat, 0, b.tailHeight + 0.16, -L / 2 + 0.12, -0.14);
+    } else {
+      // Sports: fog lights, a subtle splitter and side gills.
+      for (const sx of [-1, 1]) {
+        add(rbox(0.14, 0.07, 0.05, 0.02), this.headMat, sx * W * 0.34, b.noseDrop - 0.07, L / 2 - 0.005);
+        add(rbox(0.05, 0.12, 0.38, 0.02), this.trimMat, sx * (W / 2 + 0.03), 0.6, 0.06);
+      }
+      add(rbox(W * 0.9, 0.035, 0.26, 0.02), this.carbonMat, 0, 0.3, L / 2 - 0.03);
+    }
+  }
+
+  enableHeadlights() {
+    if (this.headlights) return;
+    const b = this.bodyDef;
+    const W = b.width;
+    const L = b.length;
+    this.headlights = [];
+    for (const sx of [-1, 1]) {
+      const lamp = new THREE.SpotLight(0xfff1d4, 22, 65, 0.42, 0.55, 1.1);
+      lamp.position.set(sx * W * 0.29, b.noseDrop + 0.06, L / 2 - 0.05);
+      lamp.target.position.set(sx * W * 0.24, 0.1, L / 2 + 22);
+      this.root.add(lamp);
+      this.root.add(lamp.target);
+      this.headlights.push(lamp);
+    }
+  }
+
+  dispose() {
+    this.plateTex?.dispose();
+    for (const light of this.headlights || []) {
+      light.removeFromParent();
+      light.target.removeFromParent();
+      light.dispose?.();
+    }
+    for (const mat of [
+      this.paintMat, this.trimMat, this.carbonMat, this.chromeMat, this.glassMat,
+      this.headMat, this.tailMat, this.rubberMat, this.rimMat, this.discMat,
+      this.plateMat, this.stripeMat, this.glowMat,
+    ]) {
+      mat?.dispose();
+    }
+  }
+
   applyLook(look, initial = false) {
     this.look = look;
     const finish = FINISHES.find((f) => f.id === look.finish) || FINISHES[0];
     this.paintMat.color.set(look.paint);
+    this.basePaint = new THREE.Color(look.paint);
+    this.lookFinishRoughness = finish.roughness;
+    this.lookFinishClearcoat = finish.clearcoat;
     this.paintMat.metalness = finish.metalness;
     this.paintMat.roughness = finish.roughness;
     this.paintMat.clearcoat = finish.clearcoat;
@@ -471,6 +692,18 @@ export class CarModel {
       this.plateMat.map = newTex;
       this.plateMat.needsUpdate = true;
     }
+
+    this.setDamage(this.damageAmount || 0);
+  }
+
+  setDamage(amount) {
+    const v = Math.max(0, Math.min(1, amount || 0));
+    this.damageAmount = v;
+    const base = this.basePaint || this.paintMat.color;
+    const dark = new THREE.Color(0x120f12);
+    this.paintMat.color.copy(base).lerp(dark, v * 0.58);
+    this.paintMat.roughness = Math.min(0.9, (this.lookFinishRoughness ?? 0.24) + v * 0.35);
+    this.paintMat.clearcoat = Math.max(0.05, (this.lookFinishClearcoat ?? 1) - v * 0.7);
   }
 
   setSteer(angle) {

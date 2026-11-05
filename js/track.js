@@ -1,21 +1,6 @@
 import * as THREE from 'three';
 
-export const TRACK = {
-  halfWidth: 7.4,
-  curbOuter: 8.6,
-  wallOffset: 10.4,
-  gates: 8,
-};
-
-// Ordered so that the start / finish line sits on the long bottom straight.
-const CP = [
-  [-92, -256], [-10, -268], [68, -272], [138, -252], [180, -208],
-  [206, -152], [214, -84], [186, -28], [126, 26], [54, 38], [14, 16],
-  [0, 0], [70, 6], [135, -12], [172, -62], [158, -120], [100, -146],
-  [58, -122], [18, -148], [-28, -190], [-92, -206], [-148, -176],
-  [-164, -116], [-202, -78], [-250, -102], [-266, -164], [-236, -220],
-  [-168, -242],
-];
+const N = 1200;
 
 function noiseTexture(size, draw) {
   const canvas = document.createElement('canvas');
@@ -31,24 +16,21 @@ function noiseTexture(size, draw) {
   return tex;
 }
 
-function asphaltTexture() {
+function asphaltTexture(palette) {
   return noiseTexture(512, (ctx, s) => {
-    ctx.fillStyle = '#33323a';
+    ctx.fillStyle = palette.road || '#33323a';
     ctx.fillRect(0, 0, s, s);
     for (let i = 0; i < 9000; i++) {
       const shade = 38 + Math.random() * 45;
       ctx.fillStyle = `rgba(${shade},${shade},${shade + 4},${0.25 + Math.random() * 0.4})`;
       ctx.fillRect(Math.random() * s, Math.random() * s, 1 + Math.random() * 2, 1 + Math.random() * 2);
     }
-    // faint longitudinal wear
     ctx.fillStyle = 'rgba(20,20,24,0.12)';
     ctx.fillRect(s * 0.26, 0, s * 0.14, s);
     ctx.fillRect(s * 0.6, 0, s * 0.14, s);
-    // edge lines
-    ctx.fillStyle = '#efe6d4';
+    ctx.fillStyle = palette.line || '#efe6d4';
     ctx.fillRect(16, 0, 10, s);
     ctx.fillRect(s - 26, 0, 10, s);
-    // dashed centre line
     for (const y of [24, 280]) {
       ctx.fillRect(s / 2 - 6, y, 12, 132);
     }
@@ -57,14 +39,14 @@ function asphaltTexture() {
   });
 }
 
-function curbTexture() {
+function curbTexture(palette) {
   const canvas = document.createElement('canvas');
   canvas.width = 64;
   canvas.height = 64;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#e7e0d1';
+  ctx.fillStyle = palette.curbA || '#e7e0d1';
   ctx.fillRect(0, 0, 64, 32);
-  ctx.fillStyle = '#cf3f2f';
+  ctx.fillStyle = palette.curbB || '#cf3f2f';
   ctx.fillRect(0, 32, 64, 32);
   for (let i = 0; i < 300; i++) {
     ctx.fillStyle = `rgba(20,16,14,${Math.random() * 0.16})`;
@@ -96,14 +78,14 @@ function checkerTexture() {
   return tex;
 }
 
-function bannerTexture() {
+function bannerTexture(title, subtitle, palette) {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
   canvas.height = 160;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#100b18';
   ctx.fillRect(0, 0, 1024, 160);
-  ctx.strokeStyle = '#ff7a45';
+  ctx.strokeStyle = `#${palette.marker.toString(16).padStart(6, '0')}`;
   ctx.lineWidth = 4;
   ctx.strokeRect(6, 6, 1012, 148);
   for (let x = 0; x < 8; x++) {
@@ -114,10 +96,15 @@ function bannerTexture() {
     }
   }
   ctx.fillStyle = '#fff4e6';
-  ctx.font = 'italic 700 70px "Chakra Petch", Arial, sans-serif';
+  ctx.font = 'italic 700 58px "Chakra Petch", Arial, sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('SUNSET CIRCUIT', 512, 84);
+  ctx.fillText(title, 512, 74);
+  if (subtitle) {
+    ctx.fillStyle = '#ffc46b';
+    ctx.font = '600 18px "Chakra Petch", Arial, sans-serif';
+    ctx.fillText(subtitle.toUpperCase(), 512, 120);
+  }
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
@@ -145,25 +132,24 @@ function padTexture() {
   return tex;
 }
 
-function ribbonGeometry(samples, curveLength, offsetA, offsetB, y, uvPeriod, n) {
+function ribbonGeometry(samples, curveLength, offsetA, offsetB, y, uvPeriod) {
   const positions = [];
   const uvs = [];
   const indices = [];
-  for (let i = 0; i <= n; i++) {
-    const s = samples[i % n];
+  for (let i = 0; i <= N; i++) {
+    const s = samples[i % N];
     positions.push(
       s.point.x + s.side.x * offsetA, y, s.point.z + s.side.z * offsetA,
       s.point.x + s.side.x * offsetB, y, s.point.z + s.side.z * offsetB,
     );
-    const v = ((i / n) * curveLength) / uvPeriod;
+    const v = ((i / N) * curveLength) / uvPeriod;
     uvs.push(0, v, 1, v);
   }
-  for (let i = 0; i < n; i++) {
+  for (let i = 0; i < N; i++) {
     const a0 = i * 2;
     const b0 = a0 + 1;
     const a1 = a0 + 2;
     const b1 = a0 + 3;
-    // Winding chosen so that strips whose offsetA sits "left" of offsetB face upward.
     indices.push(a0, b0, a1, a1, b0, b1);
   }
   const geo = new THREE.BufferGeometry();
@@ -174,11 +160,26 @@ function ribbonGeometry(samples, curveLength, offsetA, offsetB, y, uvPeriod, n) 
   return geo;
 }
 
-export function createTrack(scene) {
-  const points = CP.map(([x, z]) => new THREE.Vector3(x, 0, z));
+function disposeObject(root) {
+  root.traverse((obj) => {
+    if (obj.isMesh || obj.isInstancedMesh) {
+      obj.geometry?.dispose();
+      if (Array.isArray(obj.material)) obj.material.forEach((m) => m.dispose());
+      else obj.material?.dispose();
+    }
+  });
+  root.removeFromParent();
+}
+
+export function createTrack(scene, circuit) {
+  const palette = circuit.palette;
+  const halfWidth = circuit.width;
+  const curbOuter = halfWidth + 1.2;
+  const wallOffset = halfWidth + 3.0;
+
+  const points = circuit.cp.map(([x, z]) => new THREE.Vector3(x, 0, z));
   const curve = new THREE.CatmullRomCurve3(points, true, 'centripetal', 0.5);
   const length = curve.getLength();
-  const N = 1200;
   const raw = curve.getSpacedPoints(N);
 
   const samples = [];
@@ -194,35 +195,35 @@ export function createTrack(scene) {
   }
 
   const group = new THREE.Group();
-  group.name = 'track';
+  group.name = `track-${circuit.id}`;
   scene.add(group);
 
   // ── road surface
-  const roadPeriod = length / Math.round(length / 11);
+  const roadPeriod = length / Math.max(1, Math.round(length / 11));
   const roadMat = new THREE.MeshStandardMaterial({
-    map: asphaltTexture(),
+    map: asphaltTexture(palette),
     roughness: 0.93,
     metalness: 0.04,
     color: 0xffffff,
   });
   const road = new THREE.Mesh(
-    ribbonGeometry(samples, length, TRACK.halfWidth, -TRACK.halfWidth, 0, roadPeriod, N),
+    ribbonGeometry(samples, length, halfWidth, -halfWidth, 0, roadPeriod),
     roadMat,
   );
   road.receiveShadow = true;
   group.add(road);
 
   // ── curbs
-  const curbPeriod = length / Math.round(length / 4);
-  const curbMat = new THREE.MeshStandardMaterial({ map: curbTexture(), roughness: 0.8, metalness: 0.02 });
+  const curbPeriod = length / Math.max(1, Math.round(length / 4));
+  const curbMat = new THREE.MeshStandardMaterial({ map: curbTexture(palette), roughness: 0.8, metalness: 0.02 });
   const curbL = new THREE.Mesh(
-    ribbonGeometry(samples, length, TRACK.curbOuter, TRACK.halfWidth + 0.02, 0.018, curbPeriod, N),
+    ribbonGeometry(samples, length, curbOuter, halfWidth + 0.02, 0.018, curbPeriod),
     curbMat,
   );
   curbL.receiveShadow = true;
   group.add(curbL);
   const curbR = new THREE.Mesh(
-    ribbonGeometry(samples, length, -TRACK.halfWidth - 0.02, -TRACK.curbOuter, 0.018, curbPeriod, N),
+    ribbonGeometry(samples, length, -halfWidth - 0.02, -curbOuter, 0.018, curbPeriod),
     curbMat,
   );
   curbR.receiveShadow = true;
@@ -233,17 +234,17 @@ export function createTrack(scene) {
   const barrierCount = Math.ceil(N / step) * 2;
   const segLength = (length / N) * step * 0.94;
   const barrierGeo = new THREE.BoxGeometry(0.34, 0.7, segLength);
-  const barrierMat = new THREE.MeshStandardMaterial({ color: 0xd8c3a6, roughness: 0.85, metalness: 0.05 });
+  const barrierMat = new THREE.MeshStandardMaterial({ color: palette.barrier, roughness: 0.85, metalness: 0.05 });
   const barriers = new THREE.InstancedMesh(barrierGeo, barrierMat, barrierCount);
   const markerGeo = new THREE.BoxGeometry(0.38, 0.06, 0.14);
-  const markerMat = new THREE.MeshStandardMaterial({ color: 0x2a1d16, emissive: 0xff6a2f, emissiveIntensity: 1.2 });
+  const markerMat = new THREE.MeshStandardMaterial({ color: 0x2a1d16, emissive: palette.marker, emissiveIntensity: 1.2 });
   const markers = new THREE.InstancedMesh(markerGeo, markerMat, barrierCount);
   const dummy = new THREE.Object3D();
   let bi = 0;
   for (let i = 0; i < N; i += step) {
     const s = samples[i];
     for (const sign of [-1, 1]) {
-      const off = sign * TRACK.wallOffset;
+      const off = sign * wallOffset;
       dummy.position.set(s.point.x + s.side.x * off, 0.35, s.point.z + s.side.z * off);
       dummy.rotation.set(0, Math.atan2(s.tangent.x, s.tangent.z), 0);
       dummy.scale.set(1, 1, 1);
@@ -264,7 +265,7 @@ export function createTrack(scene) {
   // ── start / finish line
   const startSample = samples[0];
   const checkerMat = new THREE.MeshStandardMaterial({ map: checkerTexture(), roughness: 0.7 });
-  const startLine = new THREE.Mesh(new THREE.PlaneGeometry(TRACK.halfWidth * 2, 2.4), checkerMat);
+  const startLine = new THREE.Mesh(new THREE.PlaneGeometry(halfWidth * 2, 2.4), checkerMat);
   startLine.rotation.x = -Math.PI / 2;
   startLine.position.set(startSample.point.x, 0.026, startSample.point.z);
   startLine.rotation.z = -Math.atan2(startSample.tangent.x, startSample.tangent.z);
@@ -278,40 +279,44 @@ export function createTrack(scene) {
   group.add(archGroup);
   const metalMat = new THREE.MeshStandardMaterial({ color: 0x1b1b22, roughness: 0.45, metalness: 0.7 });
   const archTrimMat = new THREE.MeshStandardMaterial({
-    color: 0x1a1218, emissive: 0xff7a45, emissiveIntensity: 0.9, roughness: 0.4, metalness: 0.5,
+    color: 0x1a1218, emissive: palette.accent, emissiveIntensity: 0.9, roughness: 0.4, metalness: 0.5,
   });
+  const archWidth = halfWidth + 1.8;
   for (const sx of [-1, 1]) {
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.55, 6.4, 0.55), metalMat);
-    post.position.set(sx * 8.9, 3.2, 0);
+    post.position.set(sx * archWidth, 3.2, 0);
     post.castShadow = true;
     archGroup.add(post);
     const trim = new THREE.Mesh(new THREE.BoxGeometry(0.13, 5.4, 0.58), archTrimMat);
-    trim.position.set(sx * 8.9, 3.2, 0.01);
+    trim.position.set(sx * archWidth, 3.2, 0.01);
     archGroup.add(trim);
   }
-  const beam = new THREE.Mesh(new THREE.BoxGeometry(18.4, 0.5, 0.6), metalMat);
+  const beam = new THREE.Mesh(new THREE.BoxGeometry(archWidth * 2 + 0.6, 0.5, 0.6), metalMat);
   beam.position.set(0, 6.5, 0);
   beam.castShadow = true;
   archGroup.add(beam);
   const bannerMat = new THREE.MeshStandardMaterial({
-    map: bannerTexture(), roughness: 0.6, metalness: 0.1, side: THREE.FrontSide,
+    map: bannerTexture(circuit.name, circuit.location, palette),
+    roughness: 0.6, metalness: 0.1, side: THREE.FrontSide,
   });
-  const banner = new THREE.Mesh(new THREE.PlaneGeometry(13.6, 2.1), bannerMat);
+  const bannerWidth = Math.min(archWidth * 1.7, 16.5);
+  const banner = new THREE.Mesh(new THREE.PlaneGeometry(bannerWidth, bannerWidth * 0.155), bannerMat);
   banner.position.set(0, 6.1, 0.32);
   archGroup.add(banner);
-  const bannerBack = new THREE.Mesh(new THREE.PlaneGeometry(13.6, 2.1), bannerMat);
+  const bannerBack = new THREE.Mesh(new THREE.PlaneGeometry(bannerWidth, bannerWidth * 0.155), bannerMat);
   bannerBack.position.set(0, 6.1, -0.32);
   bannerBack.rotation.y = Math.PI;
   archGroup.add(bannerBack);
 
   // ── checkpoint gates
   const gates = [];
-  for (let i = 0; i < TRACK.gates; i++) {
-    const t = i / TRACK.gates;
+  const gateCount = circuit.gates || 8;
+  for (let i = 0; i < gateCount; i++) {
+    const t = i / gateCount;
     const idx = Math.round(t * N) % N;
     const s = samples[idx];
     const mat = new THREE.MeshStandardMaterial({
-      color: 0x12101a, emissive: 0xff7a45, emissiveIntensity: 0.35,
+      color: 0x12101a, emissive: palette.accent, emissiveIntensity: 0.35,
       roughness: 0.4, metalness: 0.6,
     });
     const g = new THREE.Group();
@@ -319,18 +324,19 @@ export function createTrack(scene) {
     g.rotation.y = Math.atan2(s.tangent.x, s.tangent.z);
     group.add(g);
     if (i !== 0) {
+      const gw = halfWidth + 0.9;
       for (const sx of [-1, 1]) {
         const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 5.1, 0.22), mat);
-        post.position.set(sx * 8.3, 2.55, 0);
+        post.position.set(sx * gw, 2.55, 0);
         post.castShadow = true;
         g.add(post);
       }
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(16.8, 0.22, 0.22), mat);
+      const beam = new THREE.Mesh(new THREE.BoxGeometry(gw * 2 + 0.2, 0.22, 0.22), mat);
       beam.position.set(0, 5.1, 0);
       g.add(beam);
       for (const sx of [-1, 1]) {
         const glow = new THREE.Mesh(new THREE.BoxGeometry(0.1, 4.4, 0.3), mat);
-        glow.position.set(sx * 8.28, 2.4, 0.06);
+        glow.position.set(sx * (gw - 0.02), 2.4, 0.06);
         g.add(glow);
       }
     }
@@ -339,7 +345,6 @@ export function createTrack(scene) {
       group: g, material: mat, flash: 0, gate: true,
     });
   }
-  // gate 0 uses the arch trim
   gates[0].material = archTrimMat;
 
   // ── boost pads
@@ -348,7 +353,7 @@ export function createTrack(scene) {
     map: padTexture(), color: 0x5ce1e6, transparent: true, opacity: 0.85,
     blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
   });
-  for (const t of [0.055, 0.30, 0.545, 0.79]) {
+  for (const t of circuit.pads || [0.08, 0.32, 0.56, 0.8]) {
     const idx = Math.round(t * N) % N;
     const s = samples[idx];
     const pad = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 3.2), padMat.clone());
@@ -361,11 +366,21 @@ export function createTrack(scene) {
     pads.push({ point: s.point.clone(), mesh: pad, readyAt: 0 });
   }
 
-  // ── nearest point query
-  function nearest(pos) {
+  // ── queries
+  function nearest(pos, hint = null) {
     let best = Infinity;
     let bestIndex = 0;
-    for (let i = 0; i < N; i++) {
+    let from = 0;
+    let to = N;
+    // When a previous index is supplied, only scan a local window around it.
+    // This keeps per-frame cost flat for AI and the player alike. If the car
+    // has been teleported far away we fall back to a full scan below.
+    if (Number.isInteger(hint) && hint >= 0 && hint < N) {
+      from = hint - 70;
+      to = hint + 70;
+    }
+    for (let k = from; k <= to; k++) {
+      const i = ((k % N) + N) % N;
       const s = samples[i];
       const dx = pos.x - s.point.x;
       const dz = pos.z - s.point.z;
@@ -375,15 +390,34 @@ export function createTrack(scene) {
         bestIndex = i;
       }
     }
+    if (best > 45 * 45 && (to - from) < N) {
+      for (let i = 0; i < N; i++) {
+        const s = samples[i];
+        const dx = pos.x - s.point.x;
+        const dz = pos.z - s.point.z;
+        const d = dx * dx + dz * dz;
+        if (d < best) {
+          best = d;
+          bestIndex = i;
+        }
+      }
+    }
     const s = samples[bestIndex];
     return {
       index: bestIndex,
       point: s.point,
       tangent: s.tangent,
       side: s.side,
-      dist: Math.sqrt(best),
+      dist: s.dist,
+      distance: Math.sqrt(best),
       signed: (pos.x - s.point.x) * s.side.x + (pos.z - s.point.z) * s.side.z,
     };
+  }
+
+  function sampleAt(distance) {
+    const wrapped = ((distance % length) + length) % length;
+    const idx = Math.round((wrapped / length) * N) % N;
+    return samples[idx];
   }
 
   function distanceToTrack(x, z) {
@@ -398,6 +432,23 @@ export function createTrack(scene) {
     return Math.sqrt(best);
   }
 
+  function gridSlot(index) {
+    const row = Math.floor(index / 2);
+    const col = index % 2;
+    // Grid rows sit ~8 m apart in metres, measured backwards from the line.
+    const behind = 8 + row * 8.5;
+    const wrapped = ((length - behind) % length + length) % length;
+    const idx = Math.round((wrapped / length) * N) % N;
+    const s = samples[idx];
+    const lateral = (col === 0 ? -1 : 1) * Math.min(2.2, halfWidth * 0.34);
+    return {
+      point: new THREE.Vector3(s.point.x + s.side.x * lateral, 0, s.point.z + s.side.z * lateral),
+      tangent: s.tangent.clone(),
+      index: idx,
+      dist: s.dist,
+    };
+  }
+
   let elapsed = 0;
   function update(dt, nextGate) {
     elapsed += dt;
@@ -409,10 +460,10 @@ export function createTrack(scene) {
         gate.material.emissive.set(0x8dffb0);
         gate.material.emissiveIntensity = 2 + gate.flash * 3;
       } else if (active) {
-        gate.material.emissive.set(0x5ce1e6);
+        gate.material.emissive.set(palette.accent);
         gate.material.emissiveIntensity = 1.6 + Math.sin(elapsed * 5) * 1.1;
       } else {
-        gate.material.emissive.set(0xff7a45);
+        gate.material.emissive.set(palette.marker);
         gate.material.emissiveIntensity = gate.index === 0 ? 0.9 : 0.35;
       }
     }
@@ -429,21 +480,33 @@ export function createTrack(scene) {
     if (gate && gate.gate) gate.flash = 1;
   }
 
-  const startGrid = samples[(N - 8) % N];
+  function dispose() {
+    disposeObject(group);
+    roadMat.map?.dispose();
+    curbMat.map?.dispose();
+    checkerMat.map?.dispose();
+    padMat.map?.dispose();
+  }
 
   return {
+    circuit,
     curve,
     samples,
     gates,
     pads,
     length,
+    halfWidth,
+    curbOuter,
+    wallOffset,
     group,
     start: samples[0],
-    startGrid,
+    startGrid: gridSlot(0),
+    gridSlot,
     nearest,
+    sampleAt,
     distanceToTrack,
     update,
     flashGate,
-    wallOffset: TRACK.wallOffset,
+    dispose,
   };
 }
