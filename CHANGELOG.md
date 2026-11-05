@@ -31,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (no audio files; follows the mute button and stops in races and background
   tabs).
 - Front license plates on every car.
+- Drifts can be started by steering hard at speed and held through a corner
+  with throttle and steering, instead of ending the moment the handbrake is
+  released.
 - Online multiplayer: quick match, private rooms with share codes, up to six
   drivers, live interpolated rival cars, server-ranked results, rematches and
   online payouts. Built on a dependency-free WebSocket endpoint in the Node
@@ -47,6 +50,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Practice sessions no longer write circuit records, and best race times are
   kept per lap count instead of comparing different distances.
 - A DNF no longer counts as a podium.
+- Starting a race could do nothing after a deploy: browsers mixed cached old
+  modules with new ones (e.g. `audio.setMusic is not a function`). The build
+  now stamps every module URL with a release hash.
+- Sunset Coast's hairpin was a single 136° kink, so road edges, kerbs and a
+  row of barriers folded across the corner. It is now a proper ~16 m hairpin;
+  barriers that would land on any road are skipped, and a test guards against
+  new kinks.
+- Running wide no longer brakes the car hard: kerbs count as track, dirt eases
+  the car down to 80 % of top speed (93 % for SUVs and off-roaders) instead of
+  58 % with heavy drag, and any over-limit speed bleeds off smoothly.
 - License plates were hidden inside the rear diffuser (and behind the diffuser
   fins on supercars and hypercars) and were dark text on a dark plate; they are
   now light plates with a faint plate light, readable from the chase camera.

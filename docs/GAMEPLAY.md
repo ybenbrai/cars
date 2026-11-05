@@ -77,14 +77,28 @@ VIPER X at `1.12` needs deliberate weight transfer to rotate.
 - Hitting walls or rivals adds damage (shown in the HUD), which costs a little
   top speed and power. Above 50 % damage the bonnet trails smoke. Damage slowly
   repairs while you drive, and there is no failure state.
-- Leaving the asphalt reduces grip and limits speed; `R` safely returns you to
-  the nearest point on the circuit.
+- Kerbs count as track. On the dirt beyond them grip drops and the car eases
+  down to about 80 % of its top speed (93 % for SUVs and off-roaders) over a
+  couple of seconds rather than braking hard. `R` safely returns you to the
+  nearest point on the circuit.
 
 ### Gate hitboxes
 
 Gates are checked as circles, not planes: radius `12` for the finish line and
 `11` for checkpoints. This keeps detection forgiving at high speed. Passing a
 gate out of order does nothing; the car must reach the active gate.
+
+## Starting and holding a drift
+
+- **Handbrake** (`Space`) kicks the rear out at any speed above 8 m/s.
+- **Steering hard at speed** with the throttle on also lets the rear step out:
+  hold a turn at high speed and the car slides; tap the key and it grips.
+- **Holding a drift:** once sliding, keep the throttle on and keep steering into
+  the corner. The drift lasts as long as you do, even after releasing `Space`.
+- **Ending a drift:** straighten the wheel or brake and grip returns within
+  about a quarter of a second.
+
+AI drivers do not get the steering-initiated slide; they keep full grip.
 
 ## Drift scoring
 

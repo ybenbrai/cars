@@ -459,6 +459,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     };
     if (entrant.isPlayer) {
       car.enableHeadlights();
+      car.driftAssist = true;
       player = racer;
     } else if (entrant.remoteId) {
       car.isRemote = true;

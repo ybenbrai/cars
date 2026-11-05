@@ -240,12 +240,33 @@ export function createTrack(scene, circuit) {
   const markerMat = new THREE.MeshStandardMaterial({ color: 0x2a1d16, emissive: palette.marker, emissiveIntensity: 1.2 });
   const markers = new THREE.InstancedMesh(markerGeo, markerMat, barrierCount);
   const dummy = new THREE.Object3D();
+  // On a corner tighter than the wall offset, the inside barrier line folds
+  // back across the road (and on layouts where two sections run close, one
+  // section's barriers land on the other). Those barriers never matched the
+  // collision walls, so skip any that would sit on or beside any road.
+  const clearance = (wallOffset - 0.6) ** 2;
+  const clearOfRoad = (x, z) => {
+    for (let k = 0; k < N; k += 2) {
+      const p = samples[k].point;
+      const dx = x - p.x;
+      const dz = z - p.z;
+      if (dx * dx + dz * dz < clearance) return false;
+    }
+    return true;
+  };
   let bi = 0;
+  let skipped = 0;
   for (let i = 0; i < N; i += step) {
     const s = samples[i];
     for (const sign of [-1, 1]) {
       const off = sign * wallOffset;
-      dummy.position.set(s.point.x + s.side.x * off, 0.35, s.point.z + s.side.z * off);
+      const bx = s.point.x + s.side.x * off;
+      const bz = s.point.z + s.side.z * off;
+      if (!clearOfRoad(bx, bz)) {
+        skipped++;
+        continue;
+      }
+      dummy.position.set(bx, 0.35, bz);
       dummy.rotation.set(0, Math.atan2(s.tangent.x, s.tangent.z), 0);
       dummy.scale.set(1, 1, 1);
       dummy.updateMatrix();
@@ -498,6 +519,7 @@ export function createTrack(scene, circuit) {
     halfWidth,
     curbOuter,
     wallOffset,
+    barriersSkipped: skipped,
     group,
     start: samples[0],
     startGrid: gridSlot(0),

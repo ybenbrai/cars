@@ -8,7 +8,7 @@ const BASE = {
   reverseMax: 12,
   turn: 1.8,
   grip: 10.5,
-  offroadGrip: 3.4,
+  offroadGrip: 5.6,
   boostPower: 16,
 };
 
@@ -46,6 +46,16 @@ export class Car {
     this.braking = false;
     this.paceScale = 1;
     this.isPlayer = false;
+    // Drift state 0–1. Rises with the handbrake or with hard steering at speed
+    // (player cars only, see `driftAssist`), and is sustained by keeping the
+    // throttle and steering into the corner, so a drift can be held through
+    // a bend instead of ending the moment the handbrake is released.
+    this.driftHold = 0;
+    this.driftAssist = false;
+    // Off-road ability: rugged cars barely notice dirt.
+    const rugged = def.category === 'offroad' || def.category === 'suv';
+    this.offroadPace = rugged ? 0.93 : 0.8;
+    this.offroadDrag = rugged ? 0.1 : 0.25;
 
     this.maxSpeed = BASE.maxSpeed * this.physics.speed;
     this.turnRate = BASE.turn * this.physics.turn;
@@ -72,6 +82,7 @@ export class Car {
     this.trackInfo = null;
     this.wheelSpin = 0;
     this.prevSpeed = 0;
+    this.driftHold = 0;
     this.model.setBodyTilt(0, 0);
     this.model.setSteer(0);
     this.model.setSpin(0);
@@ -118,7 +129,26 @@ export class Car {
     const speedN = clamp(Math.abs(vF) / this.maxSpeed, 0, 1);
     const speedSteer = clamp(Math.abs(vF) / 14, 0, 1);
     const highSpeedDamp = 1 - 0.34 * speedN;
-    const driftSteer = handbrake ? 1.16 : 1;
+
+    // ── drift state
+    const speedAbs = Math.abs(vF);
+    const steerAbs = Math.abs(this.steer);
+    if (handbrake && speedAbs > 8) {
+      this.driftHold = Math.min(1, this.driftHold + 4 * dt);
+    } else if (this.driftAssist && throttle && !brake && !this.offroad && speedAbs > 13 && steerAbs > 0.35
+      && (this.driftHold > 0.25 || steerAbs > 0.6)) {
+      // Hard steering at speed lets the rear step out a little; an existing
+      // drift is held for as long as the driver keeps steering and on the gas.
+      const initiate = clamp((steerAbs - 0.6) / 0.35, 0, 1) * clamp((speedN - 0.35) / 0.4, 0, 1) * 0.55;
+      const target = this.driftHold > 0.25 ? 0.45 + 0.4 * clamp((steerAbs - 0.35) / 0.5, 0, 1) : initiate;
+      this.driftHold += clamp(target - this.driftHold, -1.2 * dt, 2.2 * dt);
+    } else {
+      // Straightening the wheel or braking regains grip quickly; otherwise
+      // the slide fades out gradually.
+      const fade = steerAbs < 0.2 || brake ? 2.6 : 1.1;
+      this.driftHold = Math.max(0, this.driftHold - fade * dt);
+    }
+    const driftSteer = handbrake ? 1.16 : 1 + 0.18 * this.driftHold;
     const dir = vF < -0.2 ? -1 : 1;
     const yaw = -this.steer * this.turnRate * speedSteer * highSpeedDamp * driftSteer * dir;
     this.heading += yaw * dt;
@@ -144,7 +174,7 @@ export class Car {
 
     const offroad = this.offroad;
     const damagePenalty = 1 - this.damage * 0.16;
-    const maxNow = this.maxSpeed * pace * damagePenalty * (offroad ? 0.58 : 1) + (this.boosting ? 7 : 0);
+    const maxNow = this.maxSpeed * pace * damagePenalty * (offroad ? this.offroadPace : 1) + (this.boosting ? 7 : 0);
 
     if (throttle) {
       if (nF < -0.5) {
@@ -168,11 +198,16 @@ export class Car {
       nF *= Math.exp(-0.55 * dt);
     }
     if (offroad) {
-      nF *= Math.exp(-1.1 * dt);
+      nF *= Math.exp(-this.offroadDrag * dt);
     }
-    nF = clamp(nF, -BASE.reverseMax, maxNow + 1.5);
+    // Over the current limit (dirt, damage, nitro ending): bleed speed off
+    // over a second or two instead of snapping down to the limit.
+    if (nF > maxNow + 1.5) nF -= (nF - maxNow) * 1.6 * dt;
+    nF = clamp(nF, -BASE.reverseMax, this.maxSpeed * 1.6);
 
-    const grip = handbrake ? BASE.grip * 0.15 * p.slide : offroad ? BASE.offroadGrip : this.grip;
+    const baseGrip = offroad ? BASE.offroadGrip : this.grip;
+    const slideGrip = handbrake ? BASE.grip * 0.15 * p.slide : BASE.grip * 0.3 * p.slide;
+    const grip = baseGrip + (Math.min(baseGrip, slideGrip) - baseGrip) * this.driftHold;
     nR *= Math.exp(-grip * dt);
     nR = clamp(nR, -22, 22);
 
@@ -181,7 +216,8 @@ export class Car {
 
     const near = track.nearest(this.pos, this.trackInfo?.index);
     this.trackInfo = near;
-    this.offroad = Math.abs(near.signed) > track.halfWidth + 0.15;
+    // Kerbs are part of the track; only the dirt beyond them is off-road.
+    this.offroad = Math.abs(near.signed) > (track.curbOuter ?? track.halfWidth + 1.2) + 0.1;
 
     const limit = track.wallOffset - 0.95;
     if (Math.abs(near.signed) > limit) {
