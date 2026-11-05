@@ -5,6 +5,9 @@ import { extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 
+import { Lobby } from './server/rooms.mjs';
+import { upgrade as upgradeWebSocket, reject as rejectUpgrade } from './server/ws.mjs';
+
 const scrypt = promisify(scryptCallback);
 
 const MIME_TYPES = {
@@ -42,6 +45,10 @@ const BODY_LIMIT = 1024 * 1024; // 1 MB
 const SAVE_LIMIT = 512 * 1024; // 512 KB
 const AUTH_WINDOW_MS = 60 * 1000;
 const AUTH_ATTEMPTS = 30;
+
+const MP_PATH = '/api/mp';
+const MP_PER_IP = 8; // simultaneous online connections per address
+const MP_MSG_RATE = 80; // messages per second before a client is dropped
 
 const USERNAME_RE = /^[A-Za-z0-9_.-]{3,16}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -293,6 +300,7 @@ export function createStaticServer({
         ok: true,
         service: 'sunset-drift',
         auth: true,
+        multiplayer: true,
         time: new Date().toISOString(),
       });
       return true;
@@ -482,7 +490,7 @@ export function createStaticServer({
     return true;
   }
 
-  return http.createServer(async (req, res) => {
+  const server = http.createServer(async (req, res) => {
     const method = req.method || 'GET';
 
     let pathname;
@@ -563,6 +571,92 @@ export function createStaticServer({
       res.writeHead(404, { ...SECURITY_HEADERS, 'Content-Type': 'text/plain; charset=utf-8' }).end('Not found');
     }
   });
+
+  /* ── online multiplayer (WebSocket) ────────────────────────────── */
+  const lobby = new Lobby();
+  const sockets = new Set();
+  const perIp = new Map();
+
+  server.on('upgrade', async (req, socket, head) => {
+    socket.on('error', () => socket.destroy());
+    let pathname = '';
+    try { pathname = new URL(req.url || '/', 'http://x').pathname; } catch { /* handled below */ }
+    if (pathname !== MP_PATH) {
+      rejectUpgrade(socket, 404, 'Not Found');
+      return;
+    }
+    // Browsers send cookies with WebSocket handshakes regardless of CORS, so
+    // refuse pages from other origins (cross-site WebSocket hijacking).
+    const origin = req.headers.origin;
+    if (origin) {
+      let originHost = '';
+      try { originHost = new URL(origin).host; } catch { /* rejected below */ }
+      if (originHost !== req.headers.host) {
+        rejectUpgrade(socket, 403, 'Forbidden');
+        return;
+      }
+    }
+    let user = null;
+    try { user = await currentUser(req); } catch { /* treated as signed out */ }
+    if (!user) {
+      rejectUpgrade(socket, 401, 'Unauthorized');
+      return;
+    }
+    const ip = req.socket.remoteAddress || 'local';
+    if ((perIp.get(ip) || 0) >= MP_PER_IP) {
+      rejectUpgrade(socket, 429, 'Too Many Requests');
+      return;
+    }
+
+    const lobbyConn = {
+      id: `p_${randomBytes(6).toString('hex')}`,
+      userId: user.id,
+      username: user.username,
+      send: (message) => ws?.send(JSON.stringify(message)),
+      close: (code, reason) => ws?.close(code, reason),
+    };
+    const rate = { start: Date.now(), count: 0 };
+    let joined = false;
+    const ws = upgradeWebSocket(req, socket, head, {
+      onMessage(text) {
+        const now = Date.now();
+        if (now - rate.start >= 1000) {
+          rate.start = now;
+          rate.count = 0;
+        }
+        if (++rate.count > MP_MSG_RATE) {
+          ws.close(1008, 'Too many messages.');
+          return;
+        }
+        let message;
+        try { message = JSON.parse(text); } catch { return; }
+        lobby.handle(lobbyConn, message);
+      },
+      onClose() {
+        sockets.delete(ws);
+        if (joined) {
+          perIp.set(ip, Math.max(0, (perIp.get(ip) || 1) - 1));
+          if (!perIp.get(ip)) perIp.delete(ip);
+          lobby.disconnect(lobbyConn);
+        }
+      },
+    });
+    if (!ws || !ws.open) return;
+    joined = true;
+    perIp.set(ip, (perIp.get(ip) || 0) + 1);
+    sockets.add(ws);
+    lobby.connect(lobbyConn);
+  });
+
+  // Upgraded sockets are detached from the HTTP server, so close them too.
+  const closeHttp = server.close.bind(server);
+  server.close = (callback) => {
+    for (const ws of sockets) ws.terminate();
+    sockets.clear();
+    return closeHttp(callback);
+  };
+  server.lobby = lobby;
+  return server;
 }
 
 const isDirectRun = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);

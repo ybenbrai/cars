@@ -252,6 +252,46 @@ export class UI {
     $('btnQuit').addEventListener('click', () => this.cb.onQuit?.());
     $('btnEndSession').addEventListener('click', () => this.cb.onEndSession?.());
     $('btnAgain').addEventListener('click', () => this.cb.onAgain?.());
+
+    $('onlinePanel').addEventListener('click', (e) => {
+      const button = e.target.closest('[data-online]');
+      if (!button || button.disabled) return;
+      const action = button.dataset.online;
+      if (action === 'signin') {
+        this.cb.onOpenAccount?.();
+      } else if (action === 'join') {
+        const code = $('onlineCode')?.value.trim().toUpperCase() || '';
+        if (!/^[A-Z0-9]{5}$/.test(code)) {
+          this.notice('Room codes are 5 letters or numbers.', 'error');
+          return;
+        }
+        this.cb.onOnline?.('join', { code });
+      } else if (action === 'create') {
+        const first = CIRCUITS.find((c) => this.store?.circuitUnlocked(c.id)) || CIRCUITS[0];
+        this.cb.onOnline?.('create', { circuitId: first.id });
+      } else if (action === 'ready') {
+        this.cb.onOnline?.('ready', { ready: button.dataset.value === '1' });
+      } else if (action === 'laps') {
+        this.cb.onOnline?.('config', { laps: Number(button.dataset.value) });
+      } else if (action === 'circuit') {
+        this.cb.onOnline?.('config', { circuitId: button.dataset.value });
+      } else if (action === 'visibility') {
+        this.cb.onOnline?.('config', { public: button.dataset.value === '1' });
+      } else if (action === 'copy') {
+        navigator.clipboard?.writeText(button.dataset.value).then(
+          () => this.notice('Room code copied', 'ok'),
+          () => {},
+        );
+      } else {
+        this.cb.onOnline?.(action);
+      }
+    });
+    $('onlinePanel').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && e.target.id === 'onlineCode') {
+        e.preventDefault();
+        $('onlinePanel').querySelector('[data-online="join"]')?.click();
+      }
+    });
     $('btnToGarage').addEventListener('click', () => this.cb.onQuit?.());
   }
 
@@ -280,6 +320,7 @@ export class UI {
     if (name === 'career') this.renderCareer();
     if (name === 'cars') this.renderCarList();
     if (name === 'profile') this.renderProfile();
+    if (name === 'online') this.cb.onOnline?.('connect');
   }
 
   setHudVisible(visible) {
@@ -691,6 +732,7 @@ export class UI {
     const titles = {
       practice: ['SESSION COMPLETE', 'FREE<br /><em>DRIVE.</em>'],
       'time-trial': ['TIME TRIAL COMPLETE', 'AGAINST THE<br /><em>CLOCK.</em>'],
+      online: ['ONLINE RACE', 'CHEQUERED<br /><em>FLAG.</em>'],
     };
     let [eyebrow, title] = titles[data.mode] || ['RACE COMPLETE', 'CHEQUERED<br /><em>FLAG.</em>'];
     if (data.event) {
@@ -704,7 +746,12 @@ export class UI {
     $('resultUnlocks').innerHTML = unlocks.map((u) => `<span class="unlock ${u.kind}"><small>${
       u.kind === 'car' ? 'CAR AVAILABLE' : u.kind === 'circuit' ? 'CIRCUIT UNLOCKED' : 'PROMOTED'
     }</small>${esc(u.name)}</span>`).join('');
-    $('btnAgain').innerHTML = data.mode === 'practice' ? 'DRIVE AGAIN <span>↻</span>' : 'RACE AGAIN <span>↻</span>';
+    if (data.mode === 'online') {
+      $('resultEyebrow').textContent = data.pending ? 'ONLINE RACE · WAITING FOR RIVALS' : 'ONLINE RACE · FINAL';
+      if (!data.pending && !data.position) $('resultTitle').innerHTML = 'DID NOT<br /><em>FINISH.</em>';
+    }
+    $('btnAgain').innerHTML = data.mode === 'practice' ? 'DRIVE AGAIN <span>↻</span>'
+      : data.mode === 'online' ? 'BACK TO LOBBY <span>↻</span>' : 'RACE AGAIN <span>↻</span>';
     $('resultDriver').textContent = data.driver;
     $('resultTotal').textContent = fmtTime(data.total);
     $('resultBest').textContent = fmtTime(data.best);
@@ -745,8 +792,132 @@ export class UI {
   }
 
   setPauseMode(mode) {
+    const isOnline = mode === 'online';
     $('btnEndSession').classList.toggle('hidden', mode !== 'practice');
+    $('btnRestart').classList.toggle('hidden', isOnline);
     $('btnRestart').textContent = mode === 'practice' ? 'RESTART SESSION' : 'RESTART RACE';
+    $('btnQuit').textContent = isOnline ? 'FORFEIT · BACK TO GARAGE' : 'QUIT TO GARAGE';
+    $('pauseCopy').textContent = isOnline
+      ? 'This is a live race: your car is stopped while your rivals keep driving.'
+      : "The sun isn't going anywhere.";
+  }
+
+  /* ───────────────────────── online ───────────────────────── */
+
+  renderOnline(client, auth, store = this.store) {
+    const root = $('onlinePanel');
+    if (!root) return;
+    if (this.tab !== 'online') return;
+    const intro = `<p class="online-intro">Race other drivers in real time. Rooms hold up to six cars; everyone races the car they have equipped.</p>`;
+
+    if (!auth?.available) {
+      root.innerHTML = `${intro}<div class="online-card notice-card">
+        <strong>ONLINE NEEDS THE GAME SERVER</strong>
+        <span>This copy is running on a static host. Run <code>npm start</code> and open the local server to race online.</span>
+      </div>`;
+      return;
+    }
+    if (!auth.isAccount) {
+      root.innerHTML = `${intro}<div class="online-card notice-card">
+        <strong>SIGN IN TO RACE ONLINE</strong>
+        <span>Your username is shown to other drivers, so online races need an account.</span>
+        <button class="btn primary" data-online="signin">SIGN IN / REGISTER</button>
+      </div>`;
+      return;
+    }
+    if (client.status === 'connecting') {
+      root.innerHTML = `${intro}<div class="online-card"><strong>CONNECTING…</strong><span>Reaching the online lobby.</span></div>`;
+      return;
+    }
+    if (!client.connected) {
+      root.innerHTML = `${intro}<div class="online-card notice-card">
+        <strong>OFFLINE</strong>
+        <span>${esc(client.lastError || 'Not connected to the online lobby.')}</span>
+        <button class="btn primary" data-online="connect">CONNECT</button>
+      </div>`;
+      return;
+    }
+
+    const room = client.room;
+    if (!room) {
+      root.innerHTML = `${intro}
+        <div class="online-actions">
+          <button class="online-choice" data-online="quick">
+            <strong>QUICK MATCH</strong><span>Join an open public room, or open one for others to join.</span>
+          </button>
+          <button class="online-choice" data-online="create">
+            <strong>PRIVATE ROOM</strong><span>Get a code to share with friends.</span>
+          </button>
+        </div>
+        <div class="online-join">
+          <label class="section-head" for="onlineCode"><span>JOIN WITH A CODE</span></label>
+          <div class="online-join-row">
+            <input id="onlineCode" class="text-input" maxlength="5" autocomplete="off" spellcheck="false" placeholder="ABCDE" aria-label="Room code" />
+            <button class="btn ghost" data-online="join">JOIN</button>
+          </div>
+        </div>
+        <div class="online-foot">Signed in as <b>${esc(auth.displayName)}</b> · racing the <b>${esc(store?.selectedCar.name || '')}</b></div>`;
+      return;
+    }
+
+    const isHost = room.hostId === client.id;
+    const me = room.players.find((p) => p.id === client.id);
+    const circuit = getCircuit(room.circuitId);
+    const racing = room.state !== 'lobby';
+    const players = room.players.map((p) => `
+      <div class="online-player ${p.id === client.id ? 'me' : ''}">
+        <i style="background:${esc(p.look?.paint || '#ffc46b')}"></i>
+        <span class="who"><b>${esc(p.name)}</b><small>${esc(getCar(p.carId).name)}</small></span>
+        <span class="tag ${p.host ? 'host' : p.ready ? 'ready' : 'waiting'}">${p.host ? 'HOST' : p.ready ? 'READY' : 'NOT READY'}</span>
+      </div>`).join('');
+    const empty = Array.from({ length: Math.max(0, room.size - room.players.length) }, () => `
+      <div class="online-player empty"><i></i><span class="who"><small>Open slot</small></span></div>`).join('');
+
+    const circuits = CIRCUITS.map((c) => {
+      const allowed = this.store?.circuitUnlocked(c.id);
+      return `<button class="seg ${c.id === room.circuitId ? 'active' : ''}" data-online="circuit" data-value="${c.id}" ${allowed ? '' : 'disabled title="Locked in your career"'}>${esc(c.name)}</button>`;
+    }).join('');
+    const laps = [2, 3, 4, 5].map((n) => `<button class="seg ${n === room.laps ? 'active' : ''}" data-online="laps" data-value="${n}">${n}</button>`).join('');
+
+    const hostControls = isHost && !racing ? `
+      <section class="setup-section">
+        <div class="section-head"><span>CIRCUIT</span><span>Host picks</span></div>
+        <div class="segmented wrap">${circuits}</div>
+      </section>
+      <section class="setup-section setup-row">
+        <div><div class="section-head"><span>LAPS</span></div><div class="segmented">${laps}</div></div>
+        <div><div class="section-head"><span>ROOM</span></div><div class="segmented">
+          <button class="seg ${room.public ? '' : 'active'}" data-online="visibility" data-value="0">Private</button>
+          <button class="seg ${room.public ? 'active' : ''}" data-online="visibility" data-value="1">Public</button>
+        </div></div>
+      </section>` : `
+      <div class="setup-summary">
+        <div class="summary-row"><span>CIRCUIT</span><strong>${esc(circuit.name)} · ${circuit.lengthKm} km</strong></div>
+        <div class="summary-row"><span>RACE</span><strong>${room.laps} laps · ${room.public ? 'Public' : 'Private'} room</strong></div>
+      </div>`;
+
+    let primary;
+    if (racing) {
+      primary = `<button class="btn primary wide" disabled>RACE IN PROGRESS</button>`;
+    } else if (isHost) {
+      const hint = room.players.length < 2 ? 'WAITING FOR DRIVERS' : room.canStart ? 'START RACE' : 'WAITING FOR READY';
+      primary = `<button class="btn primary wide" data-online="start" ${room.canStart ? '' : 'disabled'}>${hint} <span>→</span></button>`;
+    } else {
+      primary = me?.ready
+        ? `<button class="btn ghost wide" data-online="ready" data-value="0">NOT READY</button>`
+        : `<button class="btn primary wide" data-online="ready" data-value="1">READY <span>✓</span></button>`;
+    }
+
+    root.innerHTML = `
+      <div class="online-room-head">
+        <div><small>${room.public ? 'PUBLIC ROOM' : 'PRIVATE ROOM'} · ${room.players.length}/${room.size}</small>
+          <button class="room-code" data-online="copy" data-value="${esc(room.code)}" title="Copy code">${esc(room.code)}</button></div>
+        <button class="btn ghost" data-online="leave">LEAVE</button>
+      </div>
+      <div class="online-players">${players}${empty}</div>
+      ${hostControls}
+      ${primary}
+      <div class="online-foot">Change your car in the CARS tab before the race starts.</div>`;
   }
 
   /* ───────────────────────── profile / stats ───────────────────────── */
@@ -786,7 +957,9 @@ export class UI {
       const when = new Date(row.at);
       const place = row.mode === 'practice' || row.mode === 'time-trial'
         ? getMode(row.mode).label
-        : `P${row.position}/${row.totalRacers}`;
+        : row.position
+          ? `${row.mode === 'online' ? 'ONLINE · ' : ''}P${row.position}/${row.totalRacers}`
+          : 'DNF';
       return `<div class="history-row">
         <span class="pos">${place}</span>
         <span>${circuit.name}<small>${when.toLocaleDateString()} · ${getDifficulty(row.difficulty).label}</small></span>

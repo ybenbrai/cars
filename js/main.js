@@ -17,6 +17,7 @@ import { UI } from './ui.js';
 import { SaveStore } from './save.js';
 import { AuthService } from './auth.js';
 import { CloudSync } from './cloudSync.js';
+import { OnlineClient, RemoteTrack, FLAG_BOOST, FLAG_DRIFT, FLAG_BRAKE } from './online.js';
 import { AIDriver, AI_NAMES } from './ai.js';
 import {
   CARS, PAINTS, RANK_LABELS, getCar, defaultLook, normalizeLook, formatCredits,
@@ -61,6 +62,7 @@ const input = new Input();
 const audio = new AudioEngine();
 const hud = new HUD();
 const auth = new AuthService();
+const online = new OnlineClient();
 
 /* ───────────────────────── progression state ───────────────────────── */
 
@@ -93,11 +95,21 @@ const ui = new UI({
   onPause: pauseGame,
   onCamera: toggleCamera,
   onResume: resumeGame,
-  onRestart: () => startRace(lastRaceConfig),
-  onQuit: enterGarage,
+  onRestart: () => (race?.online ? backToOnlineLobby() : startRace(lastRaceConfig)),
+  onQuit: () => {
+    leaveOnlineRace();
+    enterGarage();
+  },
   onEndSession: () => endSession(),
-  onAgain: () => startRace(lastRaceConfig),
+  onAgain: () => (race?.online ? backToOnlineLobby() : startRace(lastRaceConfig)),
+  onOnline: (action, payload) => handleOnline(action, payload),
 });
+
+function backToOnlineLobby() {
+  leaveOnlineRace();
+  enterGarage();
+  ui.setTab('online');
+}
 
 /* ───────────────────────── saving / accounts ───────────────────────── */
 
@@ -115,7 +127,10 @@ const cloud = new CloudSync({
 
 function attachStore(next) {
   store = next;
-  store.onChange = () => cloud.schedule();
+  store.onChange = () => {
+    cloud.schedule();
+    syncOnlineCar();
+  };
   ui.setAuthState(auth, store);
   return store;
 }
@@ -145,6 +160,7 @@ async function adoptAccount() {
   } else if (state === 'profile') {
     ui.setAuthState(auth, store);
   }
+  if (ui.tab === 'online') handleOnline('connect');
   return { ok: true };
 }
 
@@ -162,6 +178,7 @@ async function handleRegister(payload) {
 
 async function handleLogout() {
   // Flush a pending push so the last second of progress is not lost.
+  online.disconnect();
   await cloud.flush();
   cloud.reset();
   await auth.logout();
@@ -371,10 +388,39 @@ function startRace(config = {}) {
   if (!lastRaceConfig.mode) lastRaceConfig.mode = setup.mode;
   if (!config.circuitId) lastRaceConfig.circuitId = setup.circuit.id;
 
-  audio.init();
-  audio.setProfile(store.selectedCar.category);
+  // Joining a solo race leaves any online room.
+  if (online.room) online.leaveRoom();
+
   const playerDef = store.selectedCar;
   const playerLook = store.lookFor(playerDef.id);
+  const seed = Math.floor(Math.random() * 1000);
+  const aiDefs = pickAiCars(setup.opponents, playerDef, seed);
+  // Grid: AI fills the front and middle, the player starts at the back.
+  const entrants = [{
+    def: playerDef, look: playerLook, name: store.name, slot: setup.opponents, isPlayer: true,
+  }];
+  for (let i = 0; i < setup.opponents; i++) {
+    const def = aiDefs[i];
+    entrants.push({
+      def,
+      look: aiLook(def, i, seed),
+      name: AI_NAMES[(seed + i * 3) % AI_NAMES.length],
+      slot: i,
+      driverSeed: seed + i * 7,
+    });
+  }
+  launchRace(setup, entrants);
+}
+
+/**
+ * Build the world, cars and race state for a set of entrants and start the
+ * countdown. Entrants are the local player, AI drivers (`driverSeed`) or
+ * remote online players (`remoteId`).
+ */
+function launchRace(setup, entrants, { countdown = 3, online: onlineState = null } = {}) {
+  const playerEntrant = entrants.find((e) => e.isPlayer);
+  audio.init();
+  audio.setProfile(playerEntrant.def.category);
 
   disposeRace();
   const raceWorld = ensureWorld(setup.circuit);
@@ -382,63 +428,45 @@ function startRace(config = {}) {
   hud.setTrack(track);
   track.update(0, 1);
 
-  const totalRacers = setup.opponents + 1;
+  const totalRacers = entrants.length;
   const racers = [];
+  let player = null;
 
-  const makeRacer = (car, options) => {
+  for (const entrant of entrants) {
+    const car = new Car(scene, entrant.def, entrant.look);
+    const slot = track.gridSlot(entrant.slot);
+    car.reset(slot.point, slot.tangent);
+    car.isPlayer = !!entrant.isPlayer;
     const racer = {
       car,
-      isPlayer: !!options.isPlayer,
-      name: options.name,
-      color: options.color,
-      driver: options.driver || null,
+      isPlayer: !!entrant.isPlayer,
+      name: entrant.name,
+      color: entrant.look.paint,
+      driver: null,
+      remote: null,
       crossings: 0,
-      prevDist: 0,
+      prevDist: slot.dist,
       finished: false,
       finishTime: null,
       bestLap: null,
       lastLapStart: 0,
       position: totalRacers,
     };
-    racers.push(racer);
-    car.isPlayer = !!options.isPlayer;
-    if (options.isPlayer) {
+    if (entrant.isPlayer) {
       car.enableHeadlights();
+      player = racer;
+    } else if (entrant.remoteId) {
+      car.isRemote = true;
+      racer.remote = {
+        id: entrant.remoteId, track: new RemoteTrack(), crossings: 0, dist: slot.dist, left: false,
+      };
+    } else {
+      racer.driver = new AIDriver(car, track, setup.difficulty, entrant.driverSeed, entrant.name);
+      racer.driver.input.car = car;
     }
-    return racer;
-  };
-
-  // Grid: AI fills the front and middle, the player starts at the back.
-  const playerSlot = track.gridSlot(totalRacers - 1);
-  const playerCar = new Car(scene, playerDef, playerLook);
-  playerCar.reset(playerSlot.point, playerSlot.tangent);
-  const player = makeRacer(playerCar, {
-    isPlayer: true,
-    name: store.name,
-    color: playerLook.paint,
-  });
-  player.prevDist = playerSlot.dist;
-  player.lastLapStart = 0;
-
-  const seed = Math.floor(Math.random() * 1000);
-  const aiDefs = pickAiCars(setup.opponents, playerDef, seed);
-  for (let i = 0; i < setup.opponents; i++) {
-    const def = aiDefs[i];
-    const look = aiLook(def, i, seed);
-    const car = new Car(scene, def, look);
-    const slot = track.gridSlot(i);
-    car.reset(slot.point, slot.tangent);
-    const name = AI_NAMES[(seed + i * 3) % AI_NAMES.length];
-    const driver = new AIDriver(car, track, setup.difficulty, seed + i * 7, name);
-    const racer = makeRacer(car, {
-      name,
-      color: look.paint,
-      driver,
-    });
-    racer.prevDist = slot.dist;
-    racer.lastLapStart = 0;
-    driver.input.car = car;
+    racers.push(racer);
   }
+  const playerCar = player.car;
 
   race = {
     mode: setup.mode,
@@ -453,9 +481,11 @@ function startRace(config = {}) {
     racers,
     player,
     ai: racers.filter((r) => r.driver),
+    remotes: racers.filter((r) => r.remote),
+    online: onlineState,
     time: 0,
-    countdown: 3,
-    lastCount: 4,
+    countdown,
+    lastCount: Math.ceil(countdown) + 1,
     goTimer: 0,
     lapStart: 0,
     score: 0,
@@ -485,10 +515,9 @@ function startRace(config = {}) {
   ui.setHudVisible(true);
 
   state = 'countdown';
-  race.countdown = 3;
-  race.lastCount = 4;
 
-  hud.setDriver(store.name, setup.mode === 'career' ? setup.event?.name || 'CAREER' : setup.modeLabel);
+  const label = setup.mode === 'career' ? setup.event?.name || 'CAREER' : setup.modeLabel;
+  hud.setDriver(store.name, label);
   hud.setLap(1, race.laps, race.mode === 'practice');
   hud.setLapTime(0);
   hud.setBest(store.bestLapFor(setup.circuit.id));
@@ -501,7 +530,8 @@ function startRace(config = {}) {
   hud.setDrift(false);
   hud.setWrongWay(false);
   hud.clearCountdown();
-  hud.countdown('3');
+  race.lastCount = Math.ceil(countdown);
+  hud.countdown(String(race.lastCount));
   input.releaseAll();
   snapCamera();
 
@@ -550,6 +580,7 @@ function toggleCamera() {
 }
 
 function progressOf(racer) {
+  if (racer.remote) return racer.remote.crossings * race.track.length + racer.remote.dist;
   const dist = racer.car.trackInfo?.dist ?? racer.prevDist ?? 0;
   return racer.crossings * race.track.length + dist;
 }
@@ -624,7 +655,7 @@ function onCross(racer) {
 function trackCrossings() {
   const length = race.track.length;
   for (const racer of race.racers) {
-    if (racer.finished) continue;
+    if (racer.finished || racer.remote) continue;
     const info = racer.car.trackInfo;
     if (!info) continue;
     const prev = racer.prevDist;
@@ -645,6 +676,9 @@ function resolveCollisions() {
     for (let j = i + 1; j < cars.length; j++) {
       const a = cars[i];
       const b = cars[j];
+      // Remote cars are driven by their owners' snapshots: they push the
+      // local car but are never moved by it here.
+      if (a.isRemote && b.isRemote) continue;
       const dx = b.pos.x - a.pos.x;
       const dz = b.pos.z - a.pos.z;
       const d2 = dx * dx + dz * dz;
@@ -652,16 +686,18 @@ function resolveCollisions() {
       const d = Math.sqrt(d2);
       const nx = dx / d;
       const nz = dz / d;
-      const overlap = (min - d) * 0.5;
-      a.pos.x -= nx * overlap;
-      a.pos.z -= nz * overlap;
-      b.pos.x += nx * overlap;
-      b.pos.z += nz * overlap;
+      const overlap = min - d;
+      const shareA = a.isRemote ? 0 : b.isRemote ? 1 : 0.5;
+      const shareB = 1 - shareA;
+      a.pos.x -= nx * overlap * shareA;
+      a.pos.z -= nz * overlap * shareA;
+      b.pos.x += nx * overlap * shareB;
+      b.pos.z += nz * overlap * shareB;
       const rel = (a.vel.x - b.vel.x) * nx + (a.vel.z - b.vel.z) * nz;
       if (rel > 1.2) {
         const push = clamp(rel / 18, 0.06, 1);
-        a.takeHit(push * 0.55, -nx, -nz);
-        b.takeHit(push * 0.55, nx, nz);
+        if (!a.isRemote) a.takeHit(push * (b.isRemote ? 0.8 : 0.55), -nx, -nz);
+        if (!b.isRemote) b.takeHit(push * (a.isRemote ? 0.8 : 0.55), nx, nz);
         if (race.contactCooldown <= 0) {
           race.contactCooldown = 0.18;
           const mid = { x: (a.pos.x + b.pos.x) / 2, z: (a.pos.z + b.pos.z) / 2 };
@@ -734,6 +770,10 @@ function updateWrongWay(dt) {
 
 function finishRace() {
   if (!race || state === 'finished') return;
+  if (race.online) {
+    finishOnlineRace();
+    return;
+  }
   const player = race.player;
   player.finished = true;
   player.finishTime = race.time;
@@ -1004,9 +1044,20 @@ function frame(now) {
   if (!race) return;
 
   if (state === 'paused') {
+    // Online races do not stop for one player: rivals keep moving and this
+    // car keeps reporting its (stationary) position.
+    if (race.online) {
+      if (race.remotes.length) updateRemotes(dt, now);
+      if (!race.player.finished) online.sendState(race.player.car, race.player.crossings, now);
+    }
     audio.idle();
     composer.render();
     return;
+  }
+
+  if (race.remotes.length) updateRemotes(dt, now);
+  if (race.online && !race.player.finished && (state === 'countdown' || state === 'racing')) {
+    online.sendState(race.player.car, race.player.crossings, now);
   }
 
   if (state === 'countdown') {
@@ -1110,6 +1161,284 @@ function frame(now) {
 }
 
 requestAnimationFrame(frame);
+
+/* ───────────────────────── online multiplayer ───────────────────────── */
+
+// Rewards for an online race the player finished, kept outside `race` so
+// they are still paid if the player leaves the results screen early.
+let onlineRun = null;
+
+function updateRemotes(dt, now) {
+  for (const racer of race.remotes) {
+    const sample = racer.remote.track.sample(now);
+    if (!sample) continue;
+    const car = racer.car;
+    car.pos.set(sample.x, 0, sample.z);
+    car.heading = sample.h;
+    car.forward.set(Math.sin(car.heading), 0, Math.cos(car.heading));
+    car.right.set(-Math.cos(car.heading), 0, Math.sin(car.heading));
+    car.speed = Math.abs(sample.s);
+    car.vel.copy(car.forward).multiplyScalar(sample.s);
+    car.boosting = !!(sample.f & FLAG_BOOST);
+    car.drifting = !!(sample.f & FLAG_DRIFT);
+    car.braking = !!(sample.f & FLAG_BRAKE);
+    car.trackInfo = race.track.nearest(car.pos, car.trackInfo?.index);
+    car.wheelSpin += (sample.s * dt) / car.def.body.wheelRadius;
+    car.model.setSpin(car.wheelSpin);
+    car.model.setBraking(car.braking);
+    car.syncTransform();
+    racer.remote.crossings = sample.c;
+    racer.remote.dist = sample.d;
+  }
+}
+
+function startOnlineRace(msg) {
+  if (!store?.profile || !online.id) return;
+  const me = msg.players.find((p) => p.id === online.id);
+  if (!me) return;
+  const circuit = getCircuit(msg.circuitId);
+  const entrants = msg.players.map((p) => {
+    const def = getCar(p.carId);
+    const isPlayer = p.id === online.id;
+    return {
+      def,
+      look: isPlayer ? store.lookFor(def.id) : normalizeLook(def, p.look || {}),
+      name: isPlayer ? store.name : p.name,
+      slot: p.grid,
+      isPlayer,
+      remoteId: isPlayer ? null : p.id,
+    };
+  });
+  const setup = {
+    mode: 'online',
+    modeLabel: 'ONLINE',
+    circuit,
+    laps: msg.laps,
+    difficulty: getDifficulty('normal'),
+    opponents: entrants.length - 1,
+    event: null,
+    eventId: null,
+  };
+  // Start on the server's beat: subtract half the measured round trip.
+  const countdown = Math.max(1, (msg.startIn - online.rtt / 2) / 1000);
+  onlineRun = null;
+  ui.closeAccount?.();
+  launchRace(setup, entrants, { countdown, online: { resolved: false } });
+  hud.toast('ONLINE RACE', `${entrants.length} DRIVERS · ${msg.laps} LAPS`);
+}
+
+function finishOnlineRace() {
+  const player = race.player;
+  player.finished = true;
+  player.finishTime = race.time;
+  state = 'finished';
+  race.finishTimer = 1.7;
+  race.finishOrbit = 0;
+  race.resultsShown = false;
+  player.car.boosting = false;
+  input.releaseAll();
+  hud.setDrift(false);
+  audio.finish();
+  online.sendState(player.car, player.crossings, performance.now(), true);
+  online.finish(player.bestLap);
+  onlineRun = {
+    circuit: race.circuit,
+    laps: race.laps,
+    bestLap: player.bestLap,
+    totalTime: race.time,
+    score: race.score + Math.round(race.driftBank),
+    finished: true,
+  };
+  race.result = onlineResult(null);
+}
+
+/** Results-screen data: provisional until the server's results arrive. */
+function onlineResult(final) {
+  const ordered = updatePositions();
+  const player = race.player;
+  const standings = final
+    ? final.results.map((r) => {
+      const racer = r.id === online.id ? player : race.remotes.find((x) => x.remote.id === r.id);
+      return {
+        position: r.position,
+        name: r.id === online.id ? store.name : r.name,
+        isPlayer: r.id === online.id,
+        color: racer?.color,
+        finished: r.finished,
+        time: r.finished ? r.timeMs / 1000 : null,
+      };
+    })
+    : ordered.map((racer, index) => ({
+      position: index + 1,
+      name: racer.name,
+      isPlayer: racer.isPlayer,
+      color: racer.color,
+      finished: racer.finished,
+      time: racer.finished ? racer.finishTime : null,
+    }));
+  return {
+    mode: 'online',
+    unlocks: final?.unlocks || [],
+    event: null,
+    driver: store.name,
+    // Final results use the server's clock so the total matches the standings.
+    total: final
+      ? (final.results.find((r) => r.id === online.id)?.timeMs ?? null) / 1000 || null
+      : player.finished ? player.finishTime : null,
+    best: player.bestLap,
+    score: race.score + Math.round(race.driftBank),
+    car: store.selectedCar.name,
+    wallet: store.wallet,
+    standings,
+    rewards: final?.rewards || { total: 0, lines: [{ label: 'Waiting for the other drivers…', value: 0 }] },
+    position: final?.position ?? player.position,
+    pending: !final,
+  };
+}
+
+function applyOnlineResults(msg) {
+  const me = msg.results.find((r) => r.id === online.id);
+  const liveRace = race?.online && !race.online.resolved ? race : null;
+  if (!me || (!liveRace && !onlineRun)) return;
+  if (liveRace) liveRace.online.resolved = true;
+
+  // The finish grace period can end the race before this player finished.
+  if (liveRace && !liveRace.player.finished) {
+    state = 'finished';
+    race.finishTimer = 0.8;
+    race.resultsShown = false;
+    input.releaseAll();
+    hud.setDrift(false);
+    onlineRun = {
+      circuit: race.circuit, laps: race.laps, bestLap: race.player.bestLap,
+      totalTime: null, score: race.score + Math.round(race.driftBank), finished: false,
+    };
+  }
+  const run = onlineRun;
+  onlineRun = null;
+  if (!run) return;
+
+  const finished = run.finished && me.finished;
+  const position = finished ? me.position : null;
+  const rankBefore = store.rank;
+  const previousRecord = store.bestLapFor(run.circuit.id);
+  const rewards = finished
+    ? computeRewards({
+      mode: 'online',
+      circuit: run.circuit,
+      laps: run.laps,
+      difficulty: 'normal',
+      position,
+      totalRacers: msg.total,
+      driftScore: run.score,
+      newLapRecord: run.bestLap != null && (!previousRecord || run.bestLap < previousRecord),
+    })
+    : { total: 0, lines: [{ label: 'Did not finish', value: 0 }], position: null };
+  store.completeRace({
+    mode: 'online',
+    circuitId: run.circuit.id,
+    position,
+    totalRacers: msg.total,
+    totalTime: finished ? run.totalTime : null,
+    bestLap: run.bestLap,
+    laps: finished ? run.laps : 0,
+    driftScore: run.score,
+    reward: rewards.total,
+    difficulty: 'normal',
+    eventId: null,
+  });
+  const unlocks = [];
+  if (store.rank > rankBefore) {
+    unlocks.push({ kind: 'rank', name: `RANK UP · ${RANK_LABELS[store.rank].toUpperCase()}` });
+  }
+
+  if (liveRace && race === liveRace) {
+    race.result = onlineResult({ ...msg, rewards, position, unlocks });
+    if (race.resultsShown) ui.renderResults(race.result);
+  } else {
+    ui.notice(finished
+      ? `Online race: P${position}/${msg.total} · +${rewards.total.toLocaleString('en-US')} CR`
+      : 'Online race finished without you.', 'ok');
+    if (state === 'garage') ui.renderGarage(store, auth);
+  }
+}
+
+/** Leaving an online race before the flag counts as a forfeit. */
+function leaveOnlineRace() {
+  if (race?.online && !race.player.finished && !race.online.resolved) {
+    online.forfeit();
+    race.online.resolved = true;
+  }
+}
+
+let lastOnlineCar = '';
+/** Tell the lobby which car (and livery) this driver will race. */
+function syncOnlineCar(force = false) {
+  if (!store) return;
+  // Cars are locked once a race starts; the server would refuse the change.
+  if (online.room && online.room.state !== 'lobby') return;
+  const look = store.lookFor(store.selectedCarId);
+  const key = `${store.selectedCarId}:${JSON.stringify(look)}`;
+  if (!force && key === lastOnlineCar) return;
+  lastOnlineCar = key;
+  online.setCar(store.selectedCarId, look);
+}
+
+async function handleOnline(action, payload = {}) {
+  if (action === 'connect') {
+    if (!auth.isAccount) {
+      ui.renderOnline(online, auth, store);
+      return;
+    }
+    syncOnlineCar(true);
+    await online.connect();
+    ui.renderOnline(online, auth, store);
+    return;
+  }
+  if (!online.connected) {
+    ui.notice('Not connected to the online lobby.', 'error');
+    return;
+  }
+  if (action === 'quick') online.quickMatch();
+  else if (action === 'create') online.createRoom(payload.circuitId, false);
+  else if (action === 'join') online.joinRoom(payload.code);
+  else if (action === 'leave') online.leaveRoom();
+  else if (action === 'ready') online.setReady(payload.ready);
+  else if (action === 'start') online.startRace();
+  else if (action === 'config') online.configure(payload);
+}
+
+online.on('status', () => ui.renderOnline(online, auth, store));
+online.on('room', () => ui.renderOnline(online, auth, store));
+online.on('error', (message) => ui.notice(message, 'error'));
+online.on('start', (msg) => startOnlineRace(msg));
+online.on('state', (msg) => {
+  const racer = race?.remotes.find((r) => r.remote.id === msg.id);
+  racer?.remote.track.push(msg);
+});
+online.on('finished', (msg) => {
+  const racer = race?.remotes.find((r) => r.remote.id === msg.id);
+  if (!racer || racer.finished) return;
+  racer.finished = true;
+  racer.finishTime = msg.timeMs / 1000;
+  if (state === 'racing') hud.toast(`${racer.name} FINISHED`, fmtTime(racer.finishTime));
+});
+online.on('grace', (msg) => {
+  if (race?.online && !race.player.finished) {
+    hud.toast('FINAL CALL', `${Math.round(msg.ms / 1000)}s TO FINISH`);
+  }
+});
+online.on('left', (msg) => {
+  if (!race) return;
+  const racer = race.remotes.find((r) => r.remote.id === msg.id);
+  if (!racer) return;
+  racer.car.dispose();
+  race.racers = race.racers.filter((r) => r !== racer);
+  race.remotes = race.remotes.filter((r) => r !== racer);
+  race.totalRacers = race.racers.length;
+  if (state === 'racing') hud.toast(`${racer.name} LEFT`, '');
+});
+online.on('results', (msg) => applyOnlineResults(msg));
 
 /* ───────────────────────── events / boot ───────────────────────── */
 

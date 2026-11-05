@@ -24,6 +24,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Results screen shows unlocks, promotions and career objective status.
 - Real accounts via the bundled Node server (scrypt hashes, HttpOnly session
   cookie, cloud save sync); local guest mode on static hosts.
+- Online multiplayer: quick match, private rooms with share codes, up to six
+  drivers, live interpolated rival cars, server-ranked results, rematches and
+  online payouts. Built on a dependency-free WebSocket endpoint in the Node
+  server; requires a signed-in account.
 
 ### Fixed
 
@@ -33,6 +37,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Account sign-in was unreachable below 1100 px wide.
 - Signed-in players on a new browser now receive their cloud save on load.
 - Practice sessions no longer count toward rank.
+- Practice sessions no longer write circuit records, and best race times are
+  kept per lap count instead of comparing different distances.
+- A DNF no longer counts as a podium.
 
 ### Security
 
@@ -46,6 +53,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   overwriting newer progress.
 - A failed or corrupt cloud-save read no longer counts as "no save", so it can
   never cause the local copy to overwrite the player's real progress.
+- After a save conflict the cloud copy is always adopted. Previously two tabs
+  on the same account could overwrite each other's progress.
+- Signing out waits for an in-flight cloud upload and any change queued
+  behind it, so the last race is never lost.
 - A malformed unrelated cookie no longer breaks every API request.
 - Sign-up username field now matches the server rule (3–16 characters).
 

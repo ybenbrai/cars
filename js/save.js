@@ -269,8 +269,9 @@ export class SaveStore {
     stats.laps += laps || 0;
     stats.driftScore += Math.round(driftScore || 0);
     if (mode !== 'time-trial' && mode !== 'practice') {
+      // A DNF has no position (null), which must not count as a podium.
       if (position === 1) stats.wins += 1;
-      if (position <= 3) stats.podiums += 1;
+      if (Number.isInteger(position) && position >= 1 && position <= 3) stats.podiums += 1;
     }
     if (mode === 'career' && eventId) {
       const target = CAREER_EVENTS.find((e) => e.id === eventId);
