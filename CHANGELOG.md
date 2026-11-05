@@ -24,6 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Results screen shows unlocks, promotions and career objective status.
 - Real accounts via the bundled Node server (scrypt hashes, HttpOnly session
   cookie, cloud save sync); local guest mode on static hosts.
+- Four camera views cycled with `C`: a new close chase camera (half the old
+  distance, now the default), the original far chase, bumper and cockpit. The
+  choice is remembered.
+- Menu music: a procedural synthwave loop on the profile and garage screens
+  (no audio files; follows the mute button and stops in races and background
+  tabs).
+- Front license plates on every car.
 - Online multiplayer: quick match, private rooms with share codes, up to six
   drivers, live interpolated rival cars, server-ranked results, rematches and
   online payouts. Built on a dependency-free WebSocket endpoint in the Node
@@ -40,6 +47,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Practice sessions no longer write circuit records, and best race times are
   kept per lap count instead of comparing different distances.
 - A DNF no longer counts as a podium.
+- License plates were hidden inside the rear diffuser (and behind the diffuser
+  fins on supercars and hypercars) and were dark text on a dark plate; they are
+  now light plates with a faint plate light, readable from the chase camera.
+- Bonnet smoke now only appears on a heavily damaged car (over 50 % damage)
+  and damage repairs about three times faster, so a couple of wall scrapes no
+  longer leave the car smoking for the rest of the lap.
 
 ### Security
 

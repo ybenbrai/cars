@@ -84,6 +84,7 @@ const ui = new UI({
   onRace: startRace,
   onEditDriver: () => {
     state = 'profile';
+    audio.setMusic(true);
     garage?.setActive(false);
     ui.showProfile(store?.profile || null);
   },
@@ -239,10 +240,12 @@ function enterGarage() {
   disposeRace();
   if (!store?.profile) {
     state = 'profile';
+    audio.setMusic(true);
     ui.showProfile(null);
     return;
   }
   state = 'garage';
+  audio.setMusic(true);
   ui.setRaceMode(false);
   webgl.classList.add('hidden');
   if (!garage) garage = new GarageScene(stageCanvas);
@@ -380,6 +383,7 @@ function pickAiCars(count, playerDef, seed) {
 function startRace(config = {}) {
   if (!store?.profile) {
     state = 'profile';
+    audio.setMusic(true);
     ui.showProfile(store?.profile || null);
     return;
   }
@@ -420,6 +424,7 @@ function startRace(config = {}) {
 function launchRace(setup, entrants, { countdown = 3, online: onlineState = null } = {}) {
   const playerEntrant = entrants.find((e) => e.isPlayer);
   audio.init();
+  audio.setMusic(false);
   audio.setProfile(playerEntrant.def.category);
 
   disposeRace();
@@ -493,7 +498,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     driftBank: 0,
     wrongTime: 0,
     physicsAcc: 0,
-    camMode: 0,
+    camMode: savedCameraMode(),
     shake: 0,
     impactCooldown: 0,
     mapAccum: 0,
@@ -533,6 +538,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   race.lastCount = Math.ceil(countdown);
   hud.countdown(String(race.lastCount));
   input.releaseAll();
+  applyCameraNear();
   snapCamera();
 
   audio.beep('count');
@@ -563,8 +569,9 @@ function snapCamera() {
   if (!race) return;
   const car = race.player.car;
   const f = car.forward;
-  camera.position.copy(car.pos).addScaledVector(f, -9.2);
-  camera.position.y = 3.4;
+  const near = CAMERA_VIEWS[race.camMode]?.id === 'near';
+  camera.position.copy(car.pos).addScaledVector(f, near ? -4.8 : -9.2);
+  camera.position.y = near ? 2.05 : 3.4;
   camLook.copy(car.pos).addScaledVector(f, 6).setY(1.15);
   camera.lookAt(camLook);
   camera.fov = 62;
@@ -572,11 +579,35 @@ function snapCamera() {
   cameraInit = true;
 }
 
+// Camera views, cycled with C (or the ◉ button). The choice is remembered.
+const CAMERA_VIEWS = [
+  { id: 'near', label: 'CHASE · NEAR' },
+  { id: 'far', label: 'CHASE · FAR' },
+  { id: 'bumper', label: 'BUMPER' },
+  { id: 'cockpit', label: 'COCKPIT' },
+];
+
+function savedCameraMode() {
+  const saved = Number(store?.data.settings.camera);
+  return Number.isInteger(saved) && saved >= 0 && saved < CAMERA_VIEWS.length ? saved : 0;
+}
+
+function applyCameraNear() {
+  const view = CAMERA_VIEWS[race.camMode].id;
+  camera.near = view === 'bumper' || view === 'cockpit' ? 0.05 : 0.1;
+  camera.updateProjectionMatrix();
+}
+
 function toggleCamera() {
   if (!race) return;
-  race.camMode = (race.camMode + 1) % 2;
-  camera.near = race.camMode === 1 ? 0.05 : 0.1;
-  camera.updateProjectionMatrix();
+  race.camMode = (race.camMode + 1) % CAMERA_VIEWS.length;
+  applyCameraNear();
+  cameraInit = false;
+  if (store) {
+    store.data.settings.camera = race.camMode;
+    store.save();
+  }
+  hud.toast('CAMERA', CAMERA_VIEWS[race.camMode].label);
 }
 
 function progressOf(racer) {
@@ -947,7 +978,17 @@ function updateCamera(dt) {
   const speedN = clamp(car.speed / car.maxSpeed, 0, 1);
   const f = car.forward;
 
-  if (race.camMode === 1) {
+  const view = CAMERA_VIEWS[race.camMode]?.id || 'near';
+  if (view === 'bumper') {
+    // Low and just ahead of the nose: the fastest-feeling view.
+    tmpVec.copy(car.pos).addScaledVector(f, car.def.body.length / 2 + 0.15);
+    tmpVec.y = 0.62;
+    camera.position.copy(tmpVec);
+    camLook.copy(car.pos).addScaledVector(f, 30).setY(0.9);
+    camera.lookAt(camLook);
+    camera.fov = damp(camera.fov, 72 + speedN * 12 + (car.boosting ? 5 : 0), 4, dt);
+    camera.updateProjectionMatrix();
+  } else if (view === 'cockpit') {
     tmpVec.copy(car.pos).addScaledVector(f, 0.55);
     tmpVec.y = 1.16;
     camera.position.lerp(tmpVec, 1 - Math.exp(-25 * dt));
@@ -956,16 +997,21 @@ function updateCamera(dt) {
     camera.fov = damp(camera.fov, 68 + speedN * 12 + (car.boosting ? 4 : 0), 4, dt);
     camera.updateProjectionMatrix();
   } else {
+    const near = view === 'near';
     if (!cameraInit) snapCamera();
-    const back = 8.4 + speedN * 2.4;
+    // The near view sits at half the far view's distance, lower down.
+    const back = near ? 4.2 + speedN * 1.2 + car.def.body.length * 0.12 : 8.4 + speedN * 2.4;
     desired.copy(car.pos).addScaledVector(f, -back);
-    desired.y = 3.15 + speedN * 0.65;
+    desired.y = near ? 2.15 + speedN * 0.3 : 3.15 + speedN * 0.65;
     desired.addScaledVector(car.right, clamp(-car.lateral * 0.045, -1.1, 1.1));
-    camera.position.lerp(desired, 1 - Math.exp(-4.6 * dt));
+    // A soft spring trails the car by roughly speed / rate metres; the near
+    // view follows much more tightly so it really stays close.
+    camera.position.lerp(desired, 1 - Math.exp(-(near ? 14 : 4.6) * dt));
     if (camera.position.y < 1.2) camera.position.y = 1.2;
 
-    tmpVec.copy(car.pos).addScaledVector(f, 6 + speedN * 4);
-    tmpVec.y = 1.2;
+    // The near view aims lower so the car sits above the speedometer.
+    tmpVec.copy(car.pos).addScaledVector(f, near ? 4 + speedN * 3 : 6 + speedN * 4);
+    tmpVec.y = near ? 0.35 : 1.2;
     camLook.lerp(tmpVec, 1 - Math.exp(-8 * dt));
     camera.lookAt(camLook);
     camera.fov = damp(camera.fov, 61 + speedN * 13 + (car.boosting ? 5 : 0), 3.2, dt);
@@ -1458,7 +1504,20 @@ if (typeof ResizeObserver !== 'undefined') {
 
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && (state === 'racing' || state === 'countdown')) pauseGame();
+  // No menu music from a background tab.
+  if (document.hidden) audio.setMusic(false);
+  else if (state === 'garage' || state === 'profile') audio.setMusic(true);
 });
+
+// Browsers only allow audio after a user gesture: unlock it on the first one
+// so the menu music can start.
+const unlockAudio = () => {
+  audio.init();
+  window.removeEventListener('pointerdown', unlockAudio, true);
+  window.removeEventListener('keydown', unlockAudio, true);
+};
+window.addEventListener('pointerdown', unlockAudio, true);
+window.addEventListener('keydown', unlockAudio, true);
 
 input.onAction = (action) => {
   if (action === 'pause') {
@@ -1490,6 +1549,7 @@ async function boot() {
   if (store.profile) enterGarage();
   else {
     state = 'profile';
+    audio.setMusic(true);
     ui.showProfile(null);
   }
 
@@ -1504,6 +1564,7 @@ window.__sunsetDrift = {
   get race() { return race; },
   get store() { return store; },
   get auth() { return auth; },
+  get audio() { return audio; },
   get lap() { return race ? clamp(race.player.crossings || 1, 1, race.laps) : 1; },
   get nextGate() { return race?.nextGate ?? 1; },
   get raceTime() { return race?.time ?? 0; },

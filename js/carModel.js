@@ -14,16 +14,26 @@ function plateTexture(text) {
   canvas.width = 512;
   canvas.height = 144;
   const ctx = canvas.getContext('2d');
-  ctx.fillStyle = '#101014';
+  // Light plate, dark characters: readable from the chase camera even in the
+  // car's own shadow (the material also adds a faint plate light).
+  ctx.fillStyle = '#f4efe2';
   ctx.fillRect(0, 0, 512, 144);
-  ctx.strokeStyle = '#f2ead9';
-  ctx.lineWidth = 8;
-  ctx.strokeRect(8, 8, 496, 128);
-  ctx.fillStyle = '#f2ead9';
-  ctx.font = '700 74px Inter, Arial, sans-serif';
+  ctx.fillStyle = '#ff7a45';
+  ctx.fillRect(0, 0, 44, 144); // side band
+  ctx.strokeStyle = '#17121e';
+  ctx.lineWidth = 7;
+  ctx.strokeRect(5, 5, 502, 134);
+  const label = (text || 'SUNSET').toUpperCase().slice(0, 9);
+  ctx.fillStyle = '#17121e';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText((text || 'SUNSET').toUpperCase().slice(0, 9), 256, 78);
+  let size = 104;
+  ctx.font = `800 ${size}px Inter, Arial, sans-serif`;
+  while (ctx.measureText(label).width > 430 && size > 50) {
+    size -= 4;
+    ctx.font = `800 ${size}px Inter, Arial, sans-serif`;
+  }
+  ctx.fillText(label, 278, 78);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
@@ -90,7 +100,14 @@ export class CarModel {
     this.rimMat = new THREE.MeshStandardMaterial({ color: look.rim, metalness: 0.95, roughness: 0.24 });
     this.discMat = new THREE.MeshStandardMaterial({ color: 0x4a4d55, metalness: 0.9, roughness: 0.45 });
     this.plateTex = plateTexture(look.plate);
-    this.plateMat = new THREE.MeshStandardMaterial({ map: this.plateTex, roughness: 0.55, metalness: 0.1 });
+    this.plateMat = new THREE.MeshStandardMaterial({
+      map: this.plateTex,
+      emissive: 0xffffff,
+      emissiveMap: this.plateTex,
+      emissiveIntensity: 0.32,
+      roughness: 0.5,
+      metalness: 0,
+    });
     this.stripeMat = new THREE.MeshStandardMaterial({ color: look.stripeColor, metalness: 0.25, roughness: 0.3 });
     this.glowMat = new THREE.MeshBasicMaterial({
       map: sharedGlow || (sharedGlow = glowTexture()),
@@ -191,11 +208,16 @@ export class CarModel {
       stalk.position.set(sx * (b.cabinWidth / 2 + 0.04), cabinY + 0.01, b.cabinZ + b.cabinLength * 0.36);
     }
 
-    // plate
-    const plate = this.add(new THREE.Mesh(new THREE.PlaneGeometry(0.62, 0.17), this.plateMat));
-    plate.position.set(0, 0.52, -L / 2 - 0.045);
+    // plates: mounted on the rear diffuser face (it used to sit inside the
+    // diffuser) and on the nose
+    const plateGeo = new THREE.PlaneGeometry(0.58, 0.163);
+    const plate = this.add(new THREE.Mesh(plateGeo, this.plateMat));
+    plate.position.set(0, 0.405, -L / 2 - 0.116);
     plate.rotation.y = Math.PI;
     plate.castShadow = false;
+    const frontPlate = this.add(new THREE.Mesh(plateGeo, this.plateMat));
+    frontPlate.position.set(0, 0.47, L / 2 + 0.058); // just ahead of the grille trim
+    frontPlate.castShadow = false;
 
     // model-specific garnish
     if (b.vents) {
@@ -557,7 +579,8 @@ export class CarModel {
         add(rbox(0.42, 0.035, 0.24, 0.01), this.carbonMat, sx * W * 0.34, 0.3, L / 2 + 0.12);
       }
       add(rbox(W * 0.94, 0.04, 0.34, 0.02), this.carbonMat, 0, 0.285, L / 2 - 0.02);
-      for (let i = -2; i <= 2; i++) {
+      // Outer fins only: the middle of the diffuser carries the plate.
+      for (const i of [-2, 2]) {
         add(new THREE.BoxGeometry(0.035, 0.16, 0.5), this.carbonMat, i * W * 0.15, 0.34, -L / 2 + 0.1);
       }
       add(rbox(W * 0.5, 0.09, 0.34, 0.03), this.paintMat, 0, b.noseDrop + 0.02, L * 0.3);
@@ -571,7 +594,7 @@ export class CarModel {
       add(rbox(0.3, 0.07, 0.5, 0.02), this.carbonMat, 0, this.roofY + 0.06, b.cabinZ + b.roofLength * 0.2);
       add(rbox(0.06, 0.24, 1.15, 0.02), this.carbonMat, 0, this.roofY - 0.05, -b.roofLength * 0.35);
       add(rbox(W * 0.96, 0.04, 0.32, 0.02), this.carbonMat, 0, 0.28, L / 2 + 0.02);
-      for (let i = -3; i <= 3; i++) {
+      for (const i of [-3, -2, 2, 3]) {
         add(new THREE.BoxGeometry(0.03, 0.22, 0.6), this.carbonMat, i * W * 0.12, 0.35, -L / 2 + 0.08);
       }
       add(new THREE.BoxGeometry(W * 0.92, 0.16, 0.05), this.carbonMat, 0, b.rideHeight + 0.34, L / 2 + 0.005);
@@ -690,6 +713,7 @@ export class CarModel {
       this.plateTex.dispose();
       this.plateTex = newTex;
       this.plateMat.map = newTex;
+      this.plateMat.emissiveMap = newTex;
       this.plateMat.needsUpdate = true;
     }
 

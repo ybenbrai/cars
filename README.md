@@ -85,7 +85,7 @@ game uses ES modules and an import map.
 | Steer | `A` `D` / `←` `→` | Left stick | ◀ ▶ |
 | Handbrake / drift | `Space` | LB / RB | DRIFT |
 | Nitro | `Shift` | B | N2O |
-| Change camera | `C` | Y | — |
+| Cycle camera (near chase, far chase, bumper, cockpit) | `C` | Y | — |
 | Pause / resume | `Esc` / `P` | Start | ❚❚ |
 | Reset to track | `R` | — | — |
 | Mute | `M` | — | ♪ |
@@ -139,7 +139,8 @@ Full stats, physics modifiers, scoring formulas and driving tips are in the
   and a sun-shadow camera that follows the player
 - ACES tone mapping, bloom, soft shadows and speed-sensitive camera FOV
 - Skid marks, tire smoke, dust, sparks and nitro flames
-- Procedural engine, tire, wind, impact and UI audio
+- Procedural engine, tire, wind, impact and UI audio, plus a synthwave menu
+  soundtrack generated live with Web Audio
 
 **Engineering**
 
