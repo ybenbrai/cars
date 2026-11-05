@@ -72,6 +72,16 @@ The workflow runs a preflight check first. Until Pages is enabled, it skips the
 build and deploy jobs and prints a notice instead of failing. After enabling
 Pages, re-run the workflow (or push to `main`) to publish the site.
 
+Direct links:
+
+- [Pages settings](https://github.com/ybenbrai/cars/settings/pages)
+- [All workflows](https://github.com/ybenbrai/cars/actions)
+- [Deploy to GitHub Pages workflow](https://github.com/ybenbrai/cars/actions/workflows/deploy-pages.yml)
+
+After opening the workflow page, use **Run workflow → main → Run workflow**.
+The Actions tab is only available in a desktop browser; it is not exposed in the
+GitHub mobile app.
+
 The workflow uses the official Pages actions and the `github-pages` environment.
 If the repository is renamed or transferred, update the URLs in `index.html`,
 `manifest.webmanifest`, `robots.txt`, `sitemap.xml`, `package.json` and the

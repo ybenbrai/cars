@@ -44,8 +44,9 @@ feel good immediately, but leave enough depth to chase a clean lap.
 
 **<https://ybenbrai.github.io/cars/>**
 
-> The demo goes live after the **Deploy to GitHub Pages** workflow runs. See
-> [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the one-time setup.
+> The demo goes live after the
+> [Deploy to GitHub Pages](https://github.com/ybenbrai/cars/actions/workflows/deploy-pages.yml)
+> workflow runs. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the one-time setup.
 
 ### Locally
 
