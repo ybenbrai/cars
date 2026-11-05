@@ -15,8 +15,28 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  preflight:
+    name: Check Pages configuration
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.pages.outputs.enabled }}
+    steps:
+      - name: Check whether Pages is enabled
+        id: pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh api "repos/${GITHUB_REPOSITORY}/pages" >/dev/null 2>&1; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=GitHub Pages not enabled::Open Settings -> Pages -> Build and deployment and set Source to GitHub Actions, then re-run this workflow."
+          fi
+
   build:
     name: Build static site
+    needs: preflight
+    if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -50,7 +70,8 @@ jobs:
 
   deploy:
     name: Deploy
-    needs: build
+    needs: [preflight, build]
+    if: needs.preflight.outputs.enabled == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
