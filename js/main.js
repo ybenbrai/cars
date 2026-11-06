@@ -768,22 +768,30 @@ function checkGates() {
 }
 
 function updatePads() {
-  const car = race.player.car;
+  const player = race.player.car;
   for (const pad of race.track.pads) {
     pad.active = race.time >= pad.readyAt;
     if (!pad.active) continue;
-    const dx = car.pos.x - pad.point.x;
-    const dz = car.pos.z - pad.point.z;
-    // A bottle is ~0.6 m wide; touching it with any part of the car counts.
-    if (dx * dx + dz * dz < 2.0 * 2.0) {
+    // Everyone racing locally can grab a bottle (online rivals are simulated
+    // on their own screens, so they are skipped here).
+    for (const racer of race.racers) {
+      if (racer.remote || racer.finished) continue;
+      const car = racer.car;
+      const dx = car.pos.x - pad.point.x;
+      const dz = car.pos.z - pad.point.z;
+      // A bottle is ~0.6 m wide; touching it with any part of the car counts.
+      if (dx * dx + dz * dz >= 2.0 * 2.0) continue;
       pad.readyAt = race.time + 4;
       pad.active = false;
       car.boost = Math.min(100, car.boost + 34);
       car.vel.addScaledVector(car.forward, 3);
-      race.shake = Math.max(race.shake, 0.18);
       effects.burst({ x: pad.point.x, z: pad.point.z }, 0.5, 0x5ce1e6);
-      audio.pickup();
-      hud.toast('NITRO', '+34 BOOST');
+      if (car === player) {
+        race.shake = Math.max(race.shake, 0.18);
+        audio.pickup();
+        hud.toast('NITRO', '+34 BOOST');
+      }
+      break;
     }
   }
 }

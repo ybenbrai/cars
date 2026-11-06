@@ -98,8 +98,25 @@ gate out of order does nothing; the car must reach the active gate.
   stops a little less well and loses almost all sideways grip. Braking in a
   straight line stays stable; steering while locked swings the car into a
   slide. Ease off the brake (or slow below ~30 % of top speed) to unlock.
-- AI drivers brake harder (about 2 g) and never lock up, since they judge
-  corners from a short look-ahead.
+- AI drivers brake harder (about 2 g) and never lock up.
+
+## AI rivals
+
+AI drivers plan their speed from the track ahead: for every bend they work out
+the fastest speed the car can actually turn at, then brake only as late as
+their brakes allow. Difficulty sets how close to that limit they drive and how
+much power their car gets:
+
+| Difficulty | Cornering limit | Car power / top speed | Mistakes |
+| --- | --- | --- | --- |
+| Easy | 72 % | 76 % | frequent |
+| Normal | 84 % | 88 % | occasional |
+| Hard | 93 % | 96 % | rare |
+| Expert | 100 % | 100 % (same as yours) | almost none |
+
+For scale, in the Pulse H3 on Sunset Coast the AI laps in about 58 s (Easy),
+50 s (Normal), 46 s (Hard) and 44 s (Expert). AI drivers also collect nitro
+bottles and use nitro on straights.
 
 ## Starting and holding a drift
 

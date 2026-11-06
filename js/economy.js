@@ -4,8 +4,8 @@
 export const DIFFICULTIES = [
   { id: 'easy', label: 'Easy', blurb: 'Relaxed opponents. Learn the circuit.', pace: 0.76, steer: 0.9, mistakes: 0.22, reward: 0.82, color: '#8dffb0' },
   { id: 'normal', label: 'Normal', blurb: 'A fair fight. Mistakes cost positions.', pace: 0.88, steer: 1.0, mistakes: 0.12, reward: 1.0, color: '#5ce1e6' },
-  { id: 'hard', label: 'Hard', blurb: 'They brake late and defend hard.', pace: 0.98, steer: 1.08, mistakes: 0.05, reward: 1.2, color: '#ffc46b' },
-  { id: 'expert', label: 'Expert', blurb: 'Maximum pace. No gifts.', pace: 1.06, steer: 1.14, mistakes: 0.015, reward: 1.45, color: '#ff3d7f' },
+  { id: 'hard', label: 'Hard', blurb: 'They brake late and defend hard.', pace: 0.96, steer: 1.08, mistakes: 0.05, reward: 1.2, color: '#ffc46b' },
+  { id: 'expert', label: 'Expert', blurb: 'Your car, driven at the limit. No gifts.', pace: 1.0, steer: 1.14, mistakes: 0.015, reward: 1.45, color: '#ff3d7f' },
 ];
 
 export const MODES = [

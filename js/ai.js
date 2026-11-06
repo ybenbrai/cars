@@ -21,6 +21,10 @@ const PERSONALITIES = [
   { id: 'metronome', line: 1.2, aggression: 0.3, boost: 0.75 },
 ];
 
+// How close to the car's real cornering limit each difficulty drives
+// (1 = the physical limit), and how late it brakes.
+const LIMIT = { easy: 0.72, normal: 0.84, hard: 0.93, expert: 1.0 };
+
 export class AIDriver {
   constructor(car, track, difficulty, seed = 0, name = 'AI') {
     this.car = car;
@@ -42,6 +46,47 @@ export class AIDriver {
   }
 
   get speed() { return this.car.speed; }
+
+  /** Signed heading change per metre of track around distance `d`. */
+  curvatureAt(d) {
+    const a = this.track.sampleAt(d - 5).tangent;
+    const b = this.track.sampleAt(d + 5).tangent;
+    return Math.abs(wrap(Math.atan2(b.x, b.z) - Math.atan2(a.x, a.z))) / 10;
+  }
+
+  /**
+   * Fastest speed the car can hold on a bend of radius `r`. In this physics
+   * the turn is limited by the steering yaw rate, which fades with speed:
+   * yaw = turnRate * (1 - 0.34 v / vMax), and a circle needs yaw = v / r.
+   */
+  cornerSpeed(r) {
+    const t = this.car.turnRate;
+    const vMax = this.car.maxSpeed;
+    return (t * r) / (1 + (0.34 * t * r) / vMax);
+  }
+
+  /**
+   * Target speed now: the minimum, over the track ahead, of each point's
+   * corner speed plus what the brakes can shed before reaching it.
+   */
+  planSpeed(dist, speed) {
+    const car = this.car;
+    const limit = LIMIT[this.difficulty.id] ?? 0.85;
+    const top = car.maxSpeed * (car.paceScale || 1);
+    // Plan with slightly faded brakes so the car is never caught out.
+    const decel = (car.brakeDecel || 20) * 0.8 * (0.85 + 0.15 * limit);
+    const horizon = Math.min(240, (speed * speed) / (2 * decel) + 25);
+    let allowed = top;
+    for (let d = 0; d <= horizon; d += 5) {
+      const k = this.curvatureAt(dist + d);
+      if (k < 1e-4) continue;
+      // 0.9: margin for the steering controller and the car's slip.
+      const vc = this.cornerSpeed(1 / k) * 0.9 * limit;
+      const v = Math.sqrt(vc * vc + 2 * decel * Math.max(0, d - 3));
+      if (v < allowed) allowed = v;
+    }
+    return Math.max(8, allowed);
+  }
 
   update(dt, others = []) {
     const car = this.car;
@@ -84,15 +129,15 @@ export class AIDriver {
     const diff = wrap(desiredHeading - car.heading);
     let steer = clamp(-diff * 2.35 * this.steerGain, -1, 1);
 
-    // Curvature: compare headings over the next 50 m.
+    // Curvature: compare headings over the next 50 m (used for nitro).
     const h1 = Math.atan2(far.tangent.x, far.tangent.z);
     const h2 = Math.atan2(veryFar.tangent.x, veryFar.tangent.z);
     const curvature = Math.abs(wrap(h2 - h1));
     const localCurve = Math.abs(diff);
 
-    let targetSpeed = car.maxSpeed * clamp(1.08 - curvature * 2.6 - localCurve * 0.5, 0.24, 1);
-    targetSpeed *= 0.92 + (this.difficulty.pace - 0.76) * 0.2;
-    targetSpeed = Math.min(targetSpeed, car.maxSpeed * this.difficulty.pace);
+    let targetSpeed = this.planSpeed(info.dist, speed);
+    // Far off the intended line (after contact, a spin): back off until settled.
+    if (localCurve > 0.3) targetSpeed *= clamp(1 - (localCurve - 0.3) * 0.9, 0.45, 1);
 
     // Mistake modelling: occasional lift, more frequent on easy.
     this.mistakeCooldown -= dt;
@@ -113,8 +158,8 @@ export class AIDriver {
       this.stuckTimer = 0;
     }
 
-    const gas = speed < targetSpeed - 0.8;
-    const brake = speed > targetSpeed + 2.2 || trafficBrake > 0.45;
+    const gas = speed < targetSpeed - 0.4;
+    const brake = speed > targetSpeed + 1.2 || trafficBrake > 0.45;
     const handbrake = this.personality.id === 'drift'
       && localCurve > 0.5
       && speed > 16

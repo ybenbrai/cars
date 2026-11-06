@@ -54,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Practice sessions no longer write circuit records, and best race times are
   kept per lap count instead of comparing different distances.
 - A DNF no longer counts as a podium.
+- AI rivals were far too slow (Expert lapped Sunset Coast in 70 s where a
+  good driver does about 45 s). They now plan speed from the real cornering
+  limit of their car and the braking distance ahead, collect nitro bottles,
+  and Expert races identical machinery at the limit instead of a 6 % power
+  bonus with very cautious cornering.
 - Brakes were about 3.5 g at any speed (100 km/h to a stop in 11 m). They are
   now about 1.2 g, scaled by grip and car weight and fading slightly at speed
   (about 35 m from 100 km/h, 140 m from 180 km/h).
