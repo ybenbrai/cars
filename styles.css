@@ -1302,3 +1302,13 @@ h1 em, h2 em {
   .online-actions { grid-template-columns: 1fr; }
   .room-code { font-size: 24px; }
 }
+
+/* Keep START RACE reachable without scrolling past every circuit. */
+.start-dock {
+  position: sticky; bottom: -26px; z-index: 3;
+  margin: 0 -26px -26px; padding: 16px 26px 26px;
+  background: linear-gradient(180deg, rgba(10, 7, 18, 0) 0, #0a0712 16px);
+}
+@media (max-width: 860px) {
+  .start-dock { bottom: -20px; margin: 0 -18px -20px; padding: 14px 18px 20px; }
+}

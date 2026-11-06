@@ -174,7 +174,12 @@ export class UI {
       if (action === 'buy') this.cb.onBuyCar?.(this.stageCarId);
       else if (action === 'equip') this.cb.onSelectCar?.(this.stageCarId);
     });
-    $('btnRace').addEventListener('click', () => this.setTab('race'));
+    // From any other tab this opens race setup; on the RACE tab it starts the
+    // race (it used to only re-open the tab, so pressing it did nothing).
+    $('btnRace').addEventListener('click', () => {
+      if (this.tab === 'race') this.cb.onRace?.({ ...this.raceConfig });
+      else this.setTab('race');
+    });
 
     $('modeList').addEventListener('click', (e) => {
       const card = e.target.closest('[data-mode]');
@@ -316,6 +321,7 @@ export class UI {
     document.querySelectorAll('.tab-pane').forEach((pane) => {
       pane.classList.toggle('active', pane.id === `tab-${name}`);
     });
+    $('btnRace').innerHTML = name === 'race' ? 'START <span>→</span>' : 'RACE <span>→</span>';
     if (name === 'race') this.renderRaceSetup();
     if (name === 'career') this.renderCareer();
     if (name === 'cars') this.renderCarList();
