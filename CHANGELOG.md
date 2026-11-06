@@ -63,6 +63,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Practice sessions no longer write circuit records, and best race times are
   kept per lap count instead of comparing different distances.
 - A DNF no longer counts as a podium.
+- A failed race start no longer does "nothing": the player sees the reason and
+  returns to the garage, unexpected errors show a message instead of failing
+  silently, and the Profile tab shows the build id.
 - The car vibrated while driving, worst on 120 Hz screens: physics steps at
   120 Hz but frames see 0, 1 or 2 steps, so the car jumped up to 25 cm against
   the camera. Cars are now drawn between physics steps (under 1 cm), and the

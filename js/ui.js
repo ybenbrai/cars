@@ -103,12 +103,12 @@ export class UI {
     this.noticeTimer = null;
   }
 
-  notice(text, kind = '') {
+  notice(text, kind = '', ms = kind === 'error' ? 6000 : 2800) {
     const el = this.noticeEl;
     el.textContent = text;
     el.className = `garage-notice show ${kind}`;
     clearTimeout(this.noticeTimer);
-    this.noticeTimer = setTimeout(() => el.classList.remove('show'), 2800);
+    this.noticeTimer = setTimeout(() => el.classList.remove('show'), ms);
   }
 
   bind() {

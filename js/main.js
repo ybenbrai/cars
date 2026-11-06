@@ -27,6 +27,8 @@ import { getCareerEvent } from './data/career.js';
 import { getDifficulty, getMode, computeRewards } from './economy.js';
 
 const FIXED = 1 / 120;
+// Release id stamped on module URLs by the build (`?v=…`); "dev" locally.
+const BUILD = new URL(import.meta.url).searchParams.get('v') || 'dev';
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const damp = (a, b, l, dt) => a + (b - a) * (1 - Math.exp(-l * dt));
 const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -81,7 +83,7 @@ const ui = new UI({
   onPreviewCar: previewCar,
   onBuyCar: buyCar,
   onLookChange: changeLook,
-  onRace: startRace,
+  onRace: (config) => safeStartRace(config),
   onEditDriver: () => {
     state = 'profile';
     audio.setMusic(true);
@@ -96,13 +98,13 @@ const ui = new UI({
   onPause: pauseGame,
   onCamera: toggleCamera,
   onResume: resumeGame,
-  onRestart: () => (race?.online ? backToOnlineLobby() : startRace(lastRaceConfig)),
+  onRestart: () => (race?.online ? backToOnlineLobby() : safeStartRace(lastRaceConfig)),
   onQuit: () => {
     leaveOnlineRace();
     enterGarage();
   },
   onEndSession: () => endSession(),
-  onAgain: () => (race?.online ? backToOnlineLobby() : startRace(lastRaceConfig)),
+  onAgain: () => (race?.online ? backToOnlineLobby() : safeStartRace(lastRaceConfig)),
   onOnline: (action, payload) => handleOnline(action, payload),
 });
 
@@ -378,6 +380,21 @@ function pickAiCars(count, playerDef, seed) {
   const picked = pool.slice(0, count);
   while (picked.length < count) picked.push(pool[picked.length % pool.length]);
   return picked;
+}
+
+/**
+ * Start a race from a menu button. A failure used to be silent ("nothing
+ * happens"); now the player sees why and lands back in the garage.
+ */
+function safeStartRace(config) {
+  try {
+    startRace(config);
+  } catch (error) {
+    console.error('Could not start the race', error);
+    try { disposeRace(); } catch { /* best effort */ }
+    try { enterGarage(); } catch { /* best effort */ }
+    ui.notice(`Could not start the race: ${error.message} (build ${BUILD})`, 'error', 9000);
+  }
 }
 
 function startRace(config = {}) {
@@ -1542,6 +1559,17 @@ if (typeof ResizeObserver !== 'undefined') {
   }).observe(stageCanvas);
 }
 
+// Never fail silently: show unexpected errors (at most one every 5 s).
+let lastErrorNotice = 0;
+const reportError = (message) => {
+  const now = Date.now();
+  if (now - lastErrorNotice < 5000) return;
+  lastErrorNotice = now;
+  ui.notice(`Something went wrong: ${message} (build ${BUILD}). Try a hard refresh (Cmd/Ctrl+Shift+R).`, 'error', 9000);
+};
+window.addEventListener('error', (event) => reportError(event.message || 'unknown error'));
+window.addEventListener('unhandledrejection', (event) => reportError(event.reason?.message || String(event.reason)));
+
 document.addEventListener('visibilitychange', () => {
   if (document.hidden && (state === 'racing' || state === 'countdown')) pauseGame();
   // No menu music from a background tab.
@@ -1573,6 +1601,8 @@ input.onAction = (action) => {
 };
 
 async function boot() {
+  const tag = document.getElementById('buildTag');
+  if (tag) tag.textContent = `BUILD ${BUILD.toUpperCase()}`;
   await auth.bootstrap();
   if (auth.isAccount) {
     // Returning session: the cloud copy wins if it is newer than this browser's.
@@ -1605,6 +1635,7 @@ window.__sunsetDrift = {
   get store() { return store; },
   get auth() { return auth; },
   get audio() { return audio; },
+  build: BUILD,
   get lap() { return race ? clamp(race.player.crossings || 1, 1, race.laps) : 1; },
   get nextGate() { return race?.nextGate ?? 1; },
   get raceTime() { return race?.time ?? 0; },
