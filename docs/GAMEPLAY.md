@@ -88,6 +88,19 @@ Gates are checked as circles, not planes: radius `12` for the finish line and
 `11` for checkpoints. This keeps detection forgiving at high speed. Passing a
 gate out of order does nothing; the car must reach the active gate.
 
+## Braking and wheel lock
+
+- Brakes stop a sports car at about **1.2 g** (roughly 35 m from 100 km/h),
+  scaled by tyre grip; SUVs, off-roaders and muscle cars stop about 14 % later.
+  Braking fades slightly at high speed, so stopping distance grows quickly.
+- Holding the brake hard for more than about **0.35 s** above roughly 60 % of
+  top speed **locks the wheels**: tyres smoke, screech and leave marks, the car
+  stops a little less well and loses almost all sideways grip. Braking in a
+  straight line stays stable; steering while locked swings the car into a
+  slide. Ease off the brake (or slow below ~30 % of top speed) to unlock.
+- AI drivers brake harder (about 2 g) and never lock up, since they judge
+  corners from a short look-ahead.
+
 ## Starting and holding a drift
 
 - **Handbrake** (`Space`) kicks the rear out at any speed above 8 m/s.
@@ -129,8 +142,9 @@ through a corner, not a series of handbrake stabs.
 - Boost adds acceleration and raises the speed cap by **7 m/s** temporarily.
 - Drifting refills **15 units/second**.
 - Checkpoints grant **+5**, a completed lap grants **+18**.
-- Nitro pickups grant **+38** and a small forward impulse, then respawn after
-  **4 seconds**.
+- Nitro pickups are floating NOS bottles, three across the road at each spot.
+  Driving through one grants **+34** and a small forward impulse; each bottle
+  respawns after **4 s**.
 - Boosting is disabled while off-road.
 
 Nitro is best used on corner exit or the long bottom straight. Using it to cover

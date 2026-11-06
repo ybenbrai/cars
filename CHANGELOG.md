@@ -31,6 +31,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (no audio files; follows the mute button and stops in races and background
   tabs).
 - Front license plates on every car.
+- Nitro pickups are floating NOS bottles (three across the road per spot)
+  instead of arrows painted on the asphalt.
+- Wheel lock: a long hard stop from high speed locks the tyres, with smoke,
+  screech and skid marks; steering while locked slides the car.
 - Drifts can be started by steering hard at speed and held through a corner
   with throttle and steering, instead of ending the moment the handbrake is
   released.
@@ -50,6 +54,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Practice sessions no longer write circuit records, and best race times are
   kept per lap count instead of comparing different distances.
 - A DNF no longer counts as a podium.
+- Brakes were about 3.5 g at any speed (100 km/h to a stop in 11 m). They are
+  now about 1.2 g, scaled by grip and car weight and fading slightly at speed
+  (about 35 m from 100 km/h, 140 m from 180 km/h).
+- A collected nitro pickup stayed dimmed for the rest of the race even after
+  it respawned.
 - Starting a race could do nothing after a deploy: browsers mixed cached old
   modules with new ones (e.g. `audio.setMusic is not a function`). The build
   now stamps every module URL with a release hash.

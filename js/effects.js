@@ -221,10 +221,12 @@ export class Effects {
       const bx = r.x * (car.def.body.width / 2 - 0.08);
       const bz = r.z * (car.def.body.width / 2 - 0.08);
 
-      const smoke = car.drifting && !car.offroad && car.speed > 6;
+      // Locked wheels under hard braking smoke and leave marks too.
+      const locked = car.locked && !car.offroad && car.speed > 6;
+      const smoke = (car.drifting || locked) && !car.offroad && car.speed > 6;
       const dust = car.offroad && car.speed > 4;
       if (smoke) {
-        this.emitAcc += dt * (38 + car.slip * 7);
+        this.emitAcc += dt * (car.drifting ? 38 + car.slip * 7 : 22);
       } else if (dust) {
         this.emitAcc += dt * 34;
       }

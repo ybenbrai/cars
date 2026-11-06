@@ -176,7 +176,7 @@ Full stats, physics modifiers, scoring formulas and driving tips are in the
 │  └─ ws.mjs                  Minimal RFC 6455 WebSocket endpoint
 ├─ js/
 │  ├─ main.js                 State machine, race loop, camera, scoring
-│  ├─ track.js                Circuit geometry, gates, pads, nearest-point lookup
+│  ├─ track.js                Circuit geometry, gates, nitro bottles, nearest-point lookup
 │  ├─ scenery.js              Sky, lights, ground, mesas, grandstands, props
 │  ├─ car.js                  Arcade physics, collisions, nitro
 │  ├─ carModel.js             Procedural car mesh and cosmetics

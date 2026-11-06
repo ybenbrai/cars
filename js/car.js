@@ -4,7 +4,7 @@ import { CarModel } from './carModel.js';
 const BASE = {
   maxSpeed: 56,
   power: 21,
-  brake: 34,
+  brake: 34, // reversing / low-speed only; see `brakeDecel` for real braking
   reverseMax: 12,
   turn: 1.8,
   grip: 10.5,
@@ -55,6 +55,15 @@ export class Car {
     // Off-road ability: rugged cars barely notice dirt.
     const rugged = def.category === 'offroad' || def.category === 'suv';
     this.offroadPace = rugged ? 0.93 : 0.8;
+    // Braking: about 1.2 g for a sports car, scaled by tyre grip; heavy SUVs,
+    // off-roaders and muscle cars stop noticeably later.
+    const heavy = rugged || def.category === 'muscle';
+    this.brakeDecel = 12 * this.physics.grip * (heavy ? 0.86 : 1);
+    // Wheel lock: a long, hard stop from high speed locks the tyres. Locked
+    // tyres stop less well, barely steer and let the car slide.
+    this.locked = false;
+    this.canLock = false; // player cars only; AI drivers never lock up
+    this.brakeHeld = 0;
     this.offroadDrag = rugged ? 0.1 : 0.25;
 
     this.maxSpeed = BASE.maxSpeed * this.physics.speed;
@@ -83,6 +92,8 @@ export class Car {
     this.wheelSpin = 0;
     this.prevSpeed = 0;
     this.driftHold = 0;
+    this.locked = false;
+    this.brakeHeld = 0;
     this.model.setBodyTilt(0, 0);
     this.model.setSteer(0);
     this.model.setSpin(0);
@@ -148,7 +159,17 @@ export class Car {
       const fade = steerAbs < 0.2 || brake ? 2.6 : 1.1;
       this.driftHold = Math.max(0, this.driftHold - fade * dt);
     }
-    const driftSteer = handbrake ? 1.16 : 1 + 0.18 * this.driftHold;
+    // ── wheel lock
+    this.brakeHeld = brake && vF > 0.4 ? this.brakeHeld + dt : 0;
+    if (!this.locked && this.canLock && brake && vF > this.maxSpeed * 0.62 && this.brakeHeld > 0.35) {
+      this.locked = true;
+    } else if (this.locked && (!brake || vF < this.maxSpeed * 0.3)) {
+      // Easing off the pedal (or scrubbing enough speed) lets the tyres roll.
+      this.locked = false;
+    }
+    // Locked: steering still swings the body round, but with almost no
+    // sideways grip the car keeps travelling the old way, so it slides.
+    const driftSteer = (handbrake ? 1.16 : 1 + 0.18 * this.driftHold) * (this.locked ? 0.75 : 1);
     const dir = vF < -0.2 ? -1 : 1;
     const yaw = -this.steer * this.turnRate * speedSteer * highSpeedDamp * driftSteer * dir;
     this.heading += yaw * dt;
@@ -186,7 +207,10 @@ export class Car {
     }
     if (brake) {
       if (nF > 0.4) {
-        nF -= BASE.brake * dt;
+        // Brakes fade a little at speed, so stopping from 200 km/h takes far
+        // longer than from 100 (distance grows with the square of speed).
+        const fade = 1 - 0.22 * clamp(nF / this.maxSpeed, 0, 1);
+        nF = Math.max(0, nF - this.brakeDecel * fade * (this.locked ? 0.82 : 1) * dt);
       } else {
         nF -= 9 * (1 - clamp(-nF / BASE.reverseMax, 0, 1)) * dt;
       }
@@ -205,7 +229,9 @@ export class Car {
     if (nF > maxNow + 1.5) nF -= (nF - maxNow) * 1.6 * dt;
     nF = clamp(nF, -BASE.reverseMax, this.maxSpeed * 1.6);
 
-    const baseGrip = offroad ? BASE.offroadGrip : this.grip;
+    // Locked tyres have little sideways grip either: any cornering speed
+    // turns into a slide.
+    const baseGrip = (offroad ? BASE.offroadGrip : this.grip) * (this.locked ? 0.16 : 1);
     const slideGrip = handbrake ? BASE.grip * 0.15 * p.slide : BASE.grip * 0.3 * p.slide;
     const grip = baseGrip + (Math.min(baseGrip, slideGrip) - baseGrip) * this.driftHold;
     nR *= Math.exp(-grip * dt);
@@ -260,7 +286,7 @@ export class Car {
     this.damage = Math.max(0, this.damage - 0.025 * dt);
 
     this.braking = !!brake || handbrake;
-    this.wheelSpin += (nF * dt) / this.def.body.wheelRadius;
+    if (!this.locked) this.wheelSpin += (nF * dt) / this.def.body.wheelRadius;
     this.model.setSpin(this.wheelSpin);
     this.model.setSteer(this.steer);
     this.model.setBraking(this.braking);

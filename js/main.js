@@ -431,6 +431,11 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   const raceWorld = ensureWorld(setup.circuit);
   const track = raceWorld.track;
   hud.setTrack(track);
+  // The track is reused between races: every bottle starts available.
+  for (const pad of track.pads) {
+    pad.readyAt = 0;
+    pad.active = true;
+  }
   track.update(0, 1);
 
   const totalRacers = entrants.length;
@@ -460,6 +465,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     if (entrant.isPlayer) {
       car.enableHeadlights();
       car.driftAssist = true;
+      car.canLock = true;
       player = racer;
     } else if (entrant.remoteId) {
       car.isRemote = true;
@@ -467,6 +473,9 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
         id: entrant.remoteId, track: new RemoteTrack(), crossings: 0, dist: slot.dist, left: false,
       };
     } else {
+      // The AI judges corners only ~50 m ahead, so it brakes harder (about
+      // 2 g, like a driver who knows every braking point) instead of locking up.
+      car.brakeDecel *= 1.7;
       racer.driver = new AIDriver(car, track, setup.difficulty, entrant.driverSeed, entrant.name);
       racer.driver.input.car = car;
     }
@@ -571,8 +580,8 @@ function snapCamera() {
   const car = race.player.car;
   const f = car.forward;
   const near = CAMERA_VIEWS[race.camMode]?.id === 'near';
-  camera.position.copy(car.pos).addScaledVector(f, near ? -4.8 : -9.2);
-  camera.position.y = near ? 2.05 : 3.4;
+  camera.position.copy(car.pos).addScaledVector(f, near ? -5.5 : -9.2);
+  camera.position.y = near ? 2.45 : 3.4;
   camLook.copy(car.pos).addScaledVector(f, 6).setY(1.15);
   camera.lookAt(camLook);
   camera.fov = 62;
@@ -761,16 +770,20 @@ function checkGates() {
 function updatePads() {
   const car = race.player.car;
   for (const pad of race.track.pads) {
-    if (race.time < pad.readyAt) continue;
+    pad.active = race.time >= pad.readyAt;
+    if (!pad.active) continue;
     const dx = car.pos.x - pad.point.x;
     const dz = car.pos.z - pad.point.z;
-    if (dx * dx + dz * dz < 3.4 * 3.4) {
+    // A bottle is ~0.6 m wide; touching it with any part of the car counts.
+    if (dx * dx + dz * dz < 2.0 * 2.0) {
       pad.readyAt = race.time + 4;
-      car.boost = Math.min(100, car.boost + 38);
-      car.vel.addScaledVector(car.forward, 4.5);
-      race.shake = Math.max(race.shake, 0.22);
+      pad.active = false;
+      car.boost = Math.min(100, car.boost + 34);
+      car.vel.addScaledVector(car.forward, 3);
+      race.shake = Math.max(race.shake, 0.18);
+      effects.burst({ x: pad.point.x, z: pad.point.z }, 0.5, 0x5ce1e6);
       audio.pickup();
-      hud.toast('NITRO PICKUP', '+38 BOOST');
+      hud.toast('NITRO', '+34 BOOST');
     }
   }
 }
@@ -1001,9 +1014,9 @@ function updateCamera(dt) {
     const near = view === 'near';
     if (!cameraInit) snapCamera();
     // The near view sits at half the far view's distance, lower down.
-    const back = near ? 4.2 + speedN * 1.2 + car.def.body.length * 0.12 : 8.4 + speedN * 2.4;
+    const back = near ? 5.1 + speedN * 0.6 + car.def.body.length * 0.1 : 8.4 + speedN * 2.4;
     desired.copy(car.pos).addScaledVector(f, -back);
-    desired.y = near ? 2.15 + speedN * 0.3 : 3.15 + speedN * 0.65;
+    desired.y = near ? 2.45 + speedN * 0.2 : 3.15 + speedN * 0.65;
     desired.addScaledVector(car.right, clamp(-car.lateral * 0.045, -1.1, 1.1));
     // A soft spring trails the car by roughly speed / rate metres; the near
     // view follows much more tightly so it really stays close.
@@ -1011,8 +1024,8 @@ function updateCamera(dt) {
     if (camera.position.y < 1.2) camera.position.y = 1.2;
 
     // The near view aims lower so the car sits above the speedometer.
-    tmpVec.copy(car.pos).addScaledVector(f, near ? 4 + speedN * 3 : 6 + speedN * 4);
-    tmpVec.y = near ? 0.35 : 1.2;
+    tmpVec.copy(car.pos).addScaledVector(f, near ? 2.6 + speedN * 3.4 : 6 + speedN * 4);
+    tmpVec.y = near ? 0.05 : 1.2;
     camLook.lerp(tmpVec, 1 - Math.exp(-8 * dt));
     camera.lookAt(camLook);
     camera.fov = damp(camera.fov, 61 + speedN * 13 + (car.boosting ? 5 : 0), 3.2, dt);
@@ -1181,8 +1194,9 @@ function frame(now) {
         speed: car.speed,
         maxSpeed: car.maxSpeed,
         throttle: input.gas,
-        slip: car.slip,
-        handbrake: input.handbrake,
+        // Locked wheels screech like a slide.
+        slip: car.locked ? Math.max(car.slip, 7) : car.slip,
+        handbrake: input.handbrake || car.locked,
         boosting: car.boosting,
       });
       if (car.boosting) race.shake = Math.max(race.shake, 0.06);

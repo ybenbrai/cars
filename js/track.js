@@ -111,22 +111,40 @@ function bannerTexture(title, subtitle, palette) {
   return tex;
 }
 
-function padTexture() {
+function nitroLabelTexture() {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f4efe2';
+  ctx.fillRect(0, 0, 256, 64);
+  ctx.fillStyle = '#ff3d7f';
+  ctx.fillRect(0, 0, 256, 9);
+  ctx.fillRect(0, 55, 256, 9);
+  ctx.fillStyle = '#17121e';
+  ctx.font = '800 34px Inter, Arial, sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  // Printed twice so it reads from any side as the bottle spins.
+  ctx.fillText('NOS', 64, 33);
+  ctx.fillText('NOS', 192, 33);
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
+function glowRingTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
   canvas.height = 128;
   const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, 256, 128);
-  ctx.strokeStyle = '#8ff7ff';
-  ctx.lineWidth = 12;
-  ctx.lineCap = 'round';
-  for (const x of [64, 128, 192]) {
-    ctx.beginPath();
-    ctx.moveTo(x - 28, 30);
-    ctx.lineTo(x + 16, 64);
-    ctx.lineTo(x - 28, 98);
-    ctx.stroke();
-  }
+  const g = ctx.createRadialGradient(64, 64, 8, 64, 64, 62);
+  g.addColorStop(0, 'rgba(92,225,230,0.0)');
+  g.addColorStop(0.55, 'rgba(92,225,230,0.55)');
+  g.addColorStop(0.72, 'rgba(143,247,255,0.9)');
+  g.addColorStop(1, 'rgba(92,225,230,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 128, 128);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -368,23 +386,66 @@ export function createTrack(scene, circuit) {
   }
   gates[0].material = archTrimMat;
 
-  // ── boost pads
+  // ── nitro bottles
+  // Each pickup spot is a row of three floating NOS bottles across the road,
+  // so the player chooses a line. A bottle respawns 4 s after it is taken.
   const pads = [];
-  const padMat = new THREE.MeshBasicMaterial({
-    map: padTexture(), color: 0x5ce1e6, transparent: true, opacity: 0.85,
-    blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide,
-  });
+  const nitroMats = {
+    body: new THREE.MeshStandardMaterial({ color: 0x1d4fd8, emissive: 0x2b7bff, emissiveIntensity: 0.85, metalness: 0.55, roughness: 0.25 }),
+    label: (() => {
+      const map = nitroLabelTexture();
+      return new THREE.MeshStandardMaterial({ map, emissive: 0xffffff, emissiveMap: map, emissiveIntensity: 0.35, roughness: 0.4 });
+    })(),
+    metal: new THREE.MeshStandardMaterial({ color: 0xd9dde6, metalness: 0.9, roughness: 0.2 }),
+    valve: new THREE.MeshStandardMaterial({ color: 0xff3d7f, emissive: 0xff3d7f, emissiveIntensity: 0.6, roughness: 0.4 }),
+    ring: new THREE.MeshBasicMaterial({ map: glowRingTexture(), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending }),
+  };
+  const nitroGeo = {
+    body: new THREE.CylinderGeometry(0.3, 0.3, 0.9, 22),
+    label: new THREE.CylinderGeometry(0.306, 0.306, 0.34, 22, 1, true),
+    shoulder: new THREE.SphereGeometry(0.3, 22, 10, 0, Math.PI * 2, 0, Math.PI / 2),
+    base: new THREE.SphereGeometry(0.3, 22, 6, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2),
+    neck: new THREE.CylinderGeometry(0.1, 0.12, 0.18, 14),
+    valve: new THREE.CylinderGeometry(0.15, 0.15, 0.1, 14),
+    ring: new THREE.PlaneGeometry(3, 3),
+  };
+  const makeBottle = () => {
+    const bottle = new THREE.Group();
+    const part = (geo, mat, y) => {
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.y = y;
+      mesh.castShadow = true;
+      bottle.add(mesh);
+      return mesh;
+    };
+    part(nitroGeo.body, nitroMats.body, 0);
+    part(nitroGeo.label, nitroMats.label, 0.02);
+    part(nitroGeo.shoulder, nitroMats.body, 0.45);
+    part(nitroGeo.base, nitroMats.body, -0.45);
+    part(nitroGeo.neck, nitroMats.metal, 0.82);
+    part(nitroGeo.valve, nitroMats.valve, 0.95);
+    bottle.rotation.z = 0.18; // a jaunty tilt reads better than upright
+    const holder = new THREE.Group();
+    holder.add(bottle);
+    return holder;
+  };
   for (const t of circuit.pads || [0.08, 0.32, 0.56, 0.8]) {
-    const idx = Math.round(t * N) % N;
+    const idx = Math.floor(t * N) % N;
     const s = samples[idx];
-    const pad = new THREE.Mesh(new THREE.PlaneGeometry(5.6, 3.2), padMat.clone());
-    pad.rotation.x = -Math.PI / 2;
-    pad.rotation.z = -Math.atan2(s.tangent.x, s.tangent.z);
-    pad.position.set(s.point.x, 0.03, s.point.z);
-    pad.userData.base = 0.65;
-    pad.userData.phase = Math.random() * Math.PI * 2;
-    group.add(pad);
-    pads.push({ point: s.point.clone(), mesh: pad, readyAt: 0 });
+    for (const lane of [-1, 0, 1]) {
+      const offset = lane * Math.min(3.2, halfWidth * 0.45);
+      const point = new THREE.Vector3(s.point.x + s.side.x * offset, 0, s.point.z + s.side.z * offset);
+      const mesh = makeBottle();
+      mesh.position.set(point.x, 1.3, point.z);
+      const ring = new THREE.Mesh(nitroGeo.ring, nitroMats.ring.clone());
+      ring.rotation.x = -Math.PI / 2;
+      ring.position.set(point.x, 0.04, point.z);
+      group.add(mesh, ring);
+      pads.push({
+        point, mesh, ring, readyAt: 0, active: true, pop: 1,
+        phase: Math.random() * Math.PI * 2,
+      });
+    }
   }
 
   // ── queries
@@ -489,11 +550,20 @@ export function createTrack(scene, circuit) {
       }
     }
     for (const pad of pads) {
-      const m = pad.mesh.material;
-      const pulse = 0.55 + Math.sin(elapsed * 4 + pad.mesh.userData.phase) * 0.35;
-      m.opacity = pad.readyAt > 0 ? 0.18 : pulse;
-      const scale = pad.readyAt > 0 ? 1 : 1 + Math.sin(elapsed * 4 + pad.mesh.userData.phase) * 0.04;
-      pad.mesh.scale.setScalar(scale);
+      // `active` is set by the race director, which owns the respawn clock.
+      if (pad.active) {
+        pad.pop = Math.min(1, pad.pop + dt * 4);
+        const pop = 1 - (1 - pad.pop) ** 3; // ease-out when it respawns
+        pad.mesh.visible = true;
+        pad.mesh.scale.setScalar(pop * 1.35);
+        pad.mesh.position.y = 1.55 + Math.sin(elapsed * 2.4 + pad.phase) * 0.18;
+        pad.mesh.rotation.y += dt * 1.9;
+        pad.ring.material.opacity = (0.55 + Math.sin(elapsed * 4 + pad.phase) * 0.3) * pop;
+      } else {
+        pad.pop = 0;
+        pad.mesh.visible = false;
+        pad.ring.material.opacity = 0.1;
+      }
     }
   }
 
@@ -506,7 +576,8 @@ export function createTrack(scene, circuit) {
     roadMat.map?.dispose();
     curbMat.map?.dispose();
     checkerMat.map?.dispose();
-    padMat.map?.dispose();
+    nitroMats.label.map?.dispose();
+    nitroMats.ring.map?.dispose();
   }
 
   return {
