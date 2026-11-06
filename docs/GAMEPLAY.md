@@ -115,8 +115,20 @@ much power their car gets:
 | Expert | 100 % | 100 % (same as yours) | almost none |
 
 For scale, in the Pulse H3 on Sunset Coast the AI laps in about 58 s (Easy),
-50 s (Normal), 46 s (Hard) and 44 s (Expert). AI drivers also collect nitro
-bottles and use nitro on straights.
+50 s (Normal), 46 s (Hard) and 44 s (Expert).
+
+Racecraft (applies to every nearby car, including you):
+
+- **Overtaking:** a slower car in their path gets passed on the side with room
+  instead of followed.
+- **Defending** (Normal and up, strongest on Expert): a car closing from behind
+  makes them move across to cover its line.
+- **Leaning** (Normal and up): side by side, aggressive drivers squeeze you
+  towards the edge. Contact damages both cars.
+- **Nitro:** they steer for nitro bottles when their tank is not full, fire
+  nitro on straights where they can still accelerate and to pass or hold off
+  an attack, and keep a reserve for a fight on the higher difficulties. Their
+  exhaust flames show when they boost.
 
 ## Starting and holding a drift
 

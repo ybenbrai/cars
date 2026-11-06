@@ -16,6 +16,7 @@ export class Effects {
     this.damageAcc = 0;
     this.skidIndex = 0;
     this.skidDummy = new THREE.Object3D();
+    this.flameCars = new Set(); // every car that shows nitro flames
     this.buildParticles();
     this.buildSkids();
   }
@@ -99,13 +100,13 @@ export class Effects {
   }
 
   setCar(car) {
-    if (this.flames) {
-      this.flames.removeFromParent();
-      this.flames = null;
-    }
     this.car = car;
-    if (!car) return;
+    if (car) this.attachFlames(car);
+  }
 
+  /** Nitro exhaust flames for any car (player, AI or online rival). */
+  attachFlames(car) {
+    if (car.flames) return;
     const L = car.def.body.length;
     const flames = new THREE.Group();
     flames.position.set(0, 0.47, -L / 2 - 0.04);
@@ -134,7 +135,8 @@ export class Effects {
     }
     flames.visible = false;
     car.group.add(flames);
-    this.flames = flames;
+    car.flames = flames;
+    this.flameCars.add(car);
   }
 
   spawnParticle(x, y, z, vx, vy, vz, size, grow, life, color, alpha) {
@@ -310,15 +312,20 @@ export class Effects {
         this.skidAcc = 0;
       }
 
-      if (this.flames) {
-        const boosting = car.boosting;
-        this.flames.visible = boosting;
-        if (boosting) {
-          const flicker = 0.82 + Math.random() * 0.5;
-          this.flames.children.forEach((mesh, i) => {
-            mesh.scale.z = (i % 2 === 0 ? 1.4 : 1.0) * flicker;
-          });
-        }
+    }
+
+    for (const flameCar of this.flameCars) {
+      const flames = flameCar.flames;
+      if (!flames?.parent) {
+        this.flameCars.delete(flameCar); // car was disposed
+        continue;
+      }
+      flames.visible = flameCar.boosting;
+      if (flameCar.boosting) {
+        const flicker = 0.82 + Math.random() * 0.5;
+        flames.children.forEach((mesh, i) => {
+          mesh.scale.z = (i % 2 === 0 ? 1.4 : 1.0) * flicker;
+        });
       }
     }
 
@@ -366,6 +373,7 @@ export class Effects {
     for (let i = 0; i < MAX_SKIDS; i++) this.skids.setMatrixAt(i, zero);
     this.skids.instanceMatrix.needsUpdate = true;
     this.skidIndex = 0;
-    if (this.flames) this.flames.visible = false;
+    for (const flameCar of this.flameCars) if (flameCar.flames) flameCar.flames.visible = false;
+    this.flameCars.clear();
   }
 }

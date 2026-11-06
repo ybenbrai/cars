@@ -33,6 +33,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Front license plates on every car.
 - Nitro pickups are floating NOS bottles (three across the road per spot)
   instead of arrows painted on the asphalt.
+- AI racecraft: rivals overtake instead of queueing, defend their line against
+  a car closing from behind, lean on a car alongside, steer for nitro bottles
+  and time their nitro; their nitro flames are now visible.
 - Wheel lock: a long hard stop from high speed locks the tyres, with smoke,
   screech and skid marks; steering while locked slides the car.
 - Drifts can be started by steering hard at speed and held through a corner

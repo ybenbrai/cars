@@ -522,6 +522,8 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
 
   effects.reset();
   effects.setCar(playerCar);
+  // Rivals show nitro flames too, so you can see them use it.
+  for (const racer of racers) if (!racer.isPlayer) effects.attachFlames(racer.car);
 
   garage?.setActive(false);
   webgl.classList.remove('hidden');
@@ -646,6 +648,8 @@ function onCross(racer) {
   const player = racer.isPlayer;
 
   if (!player) {
+    // Same lap nitro bonus as the player gets.
+    if (racer.crossings > 1) racer.car.boost = Math.min(100, racer.car.boost + 18);
     if (racer.crossings > race.laps && !racer.finished) {
       racer.finished = true;
       racer.finishTime = race.time;
