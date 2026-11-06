@@ -492,7 +492,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     } else {
       // The AI judges corners only ~50 m ahead, so it brakes harder (about
       // 2 g, like a driver who knows every braking point) instead of locking up.
-      car.brakeDecel *= 1.7;
+      car.brakeDecel *= 2;
       racer.driver = new AIDriver(car, track, setup.difficulty, entrant.driverSeed, entrant.name);
       racer.driver.input.car = car;
     }
@@ -1094,11 +1094,7 @@ function updateHud(dt) {
 
   hud.setLapTime(race.time - (race.player.crossings === 0 ? 0 : race.lapStart));
   hud.setSpeed(car.speedKmh, car.gear, car.maxSpeedKmh);
-  const gear = car.gear;
-  const ratio = gear === 'N' || gear === 'R'
-    ? 0.06
-    : clamp((car.speed % (car.maxSpeed / 6)) / (car.maxSpeed / 6), 0, 1);
-  hud.setRpm(ratio);
+  hud.setRpm(car.rpmRatio);
   hud.setDamage(car.damage);
   hud.setBoost(car.boost);
   hud.setScore(race.score + Math.round(race.driftBank));

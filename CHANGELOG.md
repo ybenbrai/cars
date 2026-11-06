@@ -76,8 +76,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   and Expert races identical machinery at the limit instead of a 6 % power
   bonus with very cautious cornering.
 - Brakes were about 3.5 g at any speed (100 km/h to a stop in 11 m). They are
-  now about 1.2 g, scaled by grip and car weight and fading slightly at speed
-  (about 35 m from 100 km/h, 140 m from 180 km/h).
+  now about 1 g, scaled by grip and car weight, with the force fading with the
+  square of speed: about 41 m from 100 km/h but 160 m from 180 km/h, so
+  high-speed corners need early braking instead of a last-second stab.
+- The rev bar kept climbing past sixth gear and wrapped back to zero at top
+  speed. It now fills through sixth gear and stays on the redline above it.
 - A collected nitro pickup stayed dimmed for the rest of the race even after
   it respawned.
 - Starting a race could do nothing after a deploy: browsers mixed cached old

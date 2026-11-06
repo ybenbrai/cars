@@ -90,9 +90,11 @@ gate out of order does nothing; the car must reach the active gate.
 
 ## Braking and wheel lock
 
-- Brakes stop a sports car at about **1.2 g** (roughly 35 m from 100 km/h),
+- Brakes stop a sports car at about **1 g** (roughly 41 m from 100 km/h),
   scaled by tyre grip; SUVs, off-roaders and muscle cars stop about 14 % later.
-  Braking fades slightly at high speed, so stopping distance grows quickly.
+  Braking force fades with the square of speed, so a stop from 180 km/h needs
+  around **160 m** — nearly four times the distance from 100 km/h. Brake before
+  the corner, not at it.
 - Holding the brake hard for more than about **0.35 s** above roughly 60 % of
   top speed **locks the wheels**: tyres smoke, screech and leave marks, the car
   stops a little less well and loses almost all sideways grip. Braking in a

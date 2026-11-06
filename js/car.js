@@ -12,6 +12,11 @@ const BASE = {
   boostPower: 16,
 };
 
+// Fraction of the brake force lost at top speed. It grows with the square of
+// speed, so low-speed stops stay strong while a high-speed stop needs much
+// more road — late braking into a corner no longer works.
+const BRAKE_FADE = 0.5;
+
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const damp = (a, b, lambda, dt) => a + (b - a) * (1 - Math.exp(-lambda * dt));
 
@@ -65,10 +70,12 @@ export class Car {
     // Off-road ability: rugged cars barely notice dirt.
     const rugged = def.category === 'offroad' || def.category === 'suv';
     this.offroadPace = rugged ? 0.93 : 0.8;
-    // Braking: about 1.2 g for a sports car, scaled by tyre grip; heavy SUVs,
-    // off-roaders and muscle cars stop noticeably later.
+    // Braking: about 1 g for a sports car, scaled by tyre grip; heavy SUVs,
+    // off-roaders and muscle cars stop noticeably later. The force also fades
+    // with speed (see `brakeDecelAt`), so a high-speed stop needs much more
+    // road than a low-speed one.
     const heavy = rugged || def.category === 'muscle';
-    this.brakeDecel = 12 * this.physics.grip * (heavy ? 0.86 : 1);
+    this.brakeDecel = 10 * this.physics.grip * (heavy ? 0.86 : 1);
     // Wheel lock: a long, hard stop from high speed locks the tyres. Locked
     // tyres stop less well, barely steer and let the car slide.
     this.locked = false;
@@ -133,6 +140,59 @@ export class Car {
     this.group.position.copy(this.renderPos);
     this.group.rotation.y = h;
     this.renderForward.set(Math.sin(h), 0, Math.cos(h));
+  }
+
+  /**
+   * Brake deceleration (m/s²) available at a given forward speed. Tyres can
+   * only shed so much energy, so the force fades towards top speed: a stop
+   * from 200 km/h takes far more road than twice the distance from 100 km/h.
+   */
+  brakeDecelAt(speed) {
+    const n = clamp(Math.abs(speed) / this.maxSpeed, 0, 1);
+    return this.brakeDecel * (1 - BRAKE_FADE * n * n);
+  }
+
+  /**
+   * Distance needed to slow from `from` to `to`, integrating the speed-
+   * dependent brake force above. `scale` lets the AI plan with a safety
+   * margin instead of braking at the absolute limit.
+   */
+  brakeDistance(from, to, scale = 1) {
+    from = Math.abs(from);
+    to = Math.min(Math.abs(to), this.maxSpeed);
+    if (from <= to) return 0;
+    const a0 = this.brakeDecel * scale;
+    const vm = this.maxSpeed;
+    const k = BRAKE_FADE;
+    let distance = 0;
+    if (from > vm) {
+      // Above top speed the fade is capped, so the force is constant there.
+      distance += (from * from - vm * vm) / (2 * a0 * (1 - k));
+      from = vm;
+    }
+    if (from <= to) return distance;
+    if (k <= 0) return distance + (from * from - to * to) / (2 * a0);
+    const c = (vm * vm) / (2 * a0 * k);
+    const ratio = (1 - k * (to / vm) ** 2) / (1 - k * (from / vm) ** 2);
+    return distance + c * Math.log(ratio);
+  }
+
+  /** Fastest speed from which `target` can be reached within `distance`. */
+  maxEntrySpeed(target, distance, scale = 1) {
+    target = Math.min(Math.abs(target), this.maxSpeed);
+    if (distance <= 0) return target;
+    const a0 = this.brakeDecel * scale;
+    const vm = this.maxSpeed;
+    const k = BRAKE_FADE;
+    let v;
+    if (k <= 0) {
+      v = Math.sqrt(target * target + 2 * a0 * distance);
+    } else {
+      const c = (vm * vm) / (2 * a0 * k);
+      const remaining = 1 - k * (target / vm) ** 2;
+      v = Math.sqrt(Math.max(0, (vm * vm / k) * (1 - remaining * Math.exp(-distance / c))));
+    }
+    return Math.min(vm, v);
   }
 
   /** Collision response used by the race director for car-to-car contact. */
@@ -236,10 +296,10 @@ export class Car {
     }
     if (brake) {
       if (nF > 0.4) {
-        // Brakes fade a little at speed, so stopping from 200 km/h takes far
-        // longer than from 100 (distance grows with the square of speed).
-        const fade = 1 - 0.22 * clamp(nF / this.maxSpeed, 0, 1);
-        nF = Math.max(0, nF - this.brakeDecel * fade * (this.locked ? 0.82 : 1) * dt);
+        // The brake force fades with speed, so stopping from 200 km/h takes
+        // far more road than twice the distance from 100 km/h.
+        const force = this.brakeDecelAt(nF) * (this.locked ? 0.82 : 1);
+        nF = Math.max(0, nF - force * dt);
       } else {
         nF -= 9 * (1 - clamp(-nF / BASE.reverseMax, 0, 1)) * dt;
       }
@@ -343,6 +403,17 @@ export class Car {
     if (this.prevSpeed < -0.5) return 'R';
     if (this.speed < 0.5) return 'N';
     return String(Math.min(6, 1 + Math.floor(this.speed / (this.maxSpeed / 6))));
+  }
+
+  /**
+   * Engine speed 0–1 inside the current gear. Sixth gear reaches the redline
+   * at top speed and stays there; it must not wrap around and keep climbing.
+   */
+  get rpmRatio() {
+    if (this.prevSpeed < -0.5 || this.speed < 0.5) return 0.06;
+    const span = this.maxSpeed / 6;
+    const gear = Math.min(6, 1 + Math.floor(this.speed / span));
+    return clamp((this.speed - (gear - 1) * span) / span, 0, 1);
   }
 
   dispose() {

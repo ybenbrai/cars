@@ -95,15 +95,15 @@ export class AIDriver {
     const limit = LIMIT[this.difficulty.id] ?? 0.85;
     const top = car.maxSpeed * (car.paceScale || 1);
     // Plan with slightly faded brakes so the car is never caught out.
-    const decel = (car.brakeDecel || 20) * 0.8 * (0.85 + 0.15 * limit);
-    const horizon = Math.min(240, (speed * speed) / (2 * decel) + 25);
+    const safety = 0.8 * (0.85 + 0.15 * limit);
+    const horizon = Math.min(320, car.brakeDistance(speed, 0, safety) + 25);
     let allowed = Infinity;
     for (let d = 0; d <= horizon; d += 5) {
       const k = this.curvatureAt(dist + d);
       if (k < 1e-4) continue;
       // 0.9: margin for the steering controller and the car's slip.
       const vc = this.cornerSpeed(1 / k) * 0.9 * limit;
-      const v = Math.sqrt(vc * vc + 2 * decel * Math.max(0, d - 3));
+      const v = car.maxEntrySpeed(vc, Math.max(0, d - 3), safety);
       if (v < allowed) allowed = v;
     }
     // Uncapped corner limit ahead: nitro can lift the car past `top`.
