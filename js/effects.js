@@ -104,6 +104,69 @@ export class Effects {
     if (car) this.attachFlames(car);
   }
 
+  /**
+   * Exhaust smoke from each pipe tip: soft puffs at idle, a darker trail
+   * under hard acceleration from low speed, and the odd backfire pop when
+   * lifting off at speed. Distant rivals are skipped to save particles.
+   */
+  exhaust(car, dt) {
+    const tips = car.model?.exhausts;
+    if (!tips?.length) return;
+    if (car !== this.car && this.car) {
+      const dx = car.pos.x - this.car.pos.x;
+      const dz = car.pos.z - this.car.pos.z;
+      if (dx * dx + dz * dz > 45 * 45) return;
+    }
+    const speedN = Math.min(1, car.speed / car.maxSpeed);
+    // Visible only when idling or pulling away; at speed exhaust disperses
+    // instantly (and puffs would just stream past the camera).
+    const pulling = car.throttle && speedN < 0.45;
+    const idle = !car.throttle && car.speed < 3;
+    const rate = pulling ? 26 * (1 - speedN / 0.45) + 8 : idle ? 12 : 0; // per pipe per second
+    car.exhaustAcc = Math.min(4, (car.exhaustAcc || 0) + dt * rate);
+    const f = car.renderForward || car.forward;
+    const rx = -f.z;
+    const rz = f.x;
+    const base = car.renderPos || car.pos;
+    const world = (tip) => ({
+      x: base.x + rx * tip.x + f.x * tip.z,
+      z: base.z + rz * tip.x + f.z * tip.z,
+      y: tip.y,
+    });
+    let guard = 0;
+    while (car.exhaustAcc >= 1 && guard++ < 4) {
+      car.exhaustAcc -= 1;
+      for (const tip of tips) {
+        const p = world(tip);
+        const shade = pulling ? 0.5 + Math.random() * 0.1 : 0.66 + Math.random() * 0.1;
+        // Small, soft and many, so the puffs merge into a plume; they mostly
+        // ride along with the car so the plume hangs off the pipe.
+        this.spawnParticle(
+          p.x + (Math.random() - 0.5) * 0.06, p.y, p.z + (Math.random() - 0.5) * 0.06,
+          -f.x * (0.7 + Math.random() * 0.5) + car.vel.x * 0.85 + (Math.random() - 0.5) * 0.25,
+          0.3 + Math.random() * 0.3,
+          -f.z * (0.7 + Math.random() * 0.5) + car.vel.z * 0.85 + (Math.random() - 0.5) * 0.25,
+          pulling ? 0.2 : 0.16,
+          pulling ? 2.6 : 1.9,
+          pulling ? 0.55 + Math.random() * 0.35 : 1.0 + Math.random() * 0.5,
+          new THREE.Color().setHSL(0.65, 0.04, shade),
+          pulling ? 0.3 : 0.2,
+        );
+      }
+    }
+    // Backfire: a quick orange flash and puff when lifting at speed.
+    if (car.liftOff && speedN > 0.5 && Math.random() < 0.55) {
+      for (const tip of tips) {
+        const p = world(tip);
+        this.spawnParticle(p.x, p.y, p.z, -f.x * 3 + car.vel.x * 0.8, 0.2, -f.z * 3 + car.vel.z * 0.8,
+          0.28, 3.2, 0.12, new THREE.Color(0xffa04a), 0.9);
+        this.spawnParticle(p.x, p.y, p.z, -f.x * 2 + car.vel.x * 0.6, 0.5, -f.z * 2 + car.vel.z * 0.6,
+          0.3, 2.2, 0.7, new THREE.Color().setHSL(0.65, 0.05, 0.3), 0.3);
+      }
+      car.backfired = true;
+    }
+  }
+
   /** Nitro exhaust flames for any car (player, AI or online rival). */
   attachFlames(car) {
     if (car.flames) return;
@@ -320,6 +383,7 @@ export class Effects {
         this.flameCars.delete(flameCar); // car was disposed
         continue;
       }
+      this.exhaust(flameCar, dt);
       flames.visible = flameCar.boosting;
       if (flameCar.boosting) {
         const flicker = 0.82 + Math.random() * 0.5;

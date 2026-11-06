@@ -193,10 +193,19 @@ export class CarModel {
     // full-width tail bar + twin pipes
     const tail = this.add(new THREE.Mesh(rbox(W * 0.72, 0.075, 0.05, 0.02), this.tailMat));
     tail.position.set(0, b.tailHeight + 0.02, -L / 2 + 0.005);
+    // Exhaust tips (local positions) for the smoke effect.
+    this.exhausts = [];
+    const pipeBore = new THREE.MeshStandardMaterial({ color: 0x0b0a0d, roughness: 0.9 });
+    this.pipeBore = pipeBore;
     for (const sx of [-1, 1]) {
-      const pipe = this.add(new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.14, 12), this.chromeMat));
+      const pipe = this.add(new THREE.Mesh(new THREE.CylinderGeometry(0.068, 0.068, 0.2, 14), this.chromeMat));
       pipe.rotation.x = Math.PI / 2;
-      pipe.position.set(sx * W * 0.3, 0.42, -L / 2 - 0.06);
+      pipe.position.set(sx * W * 0.3, 0.42, -L / 2 - 0.09);
+      // Dark bore so the tip reads as a pipe, not a chrome button.
+      const bore = this.add(new THREE.Mesh(new THREE.CircleGeometry(0.05, 14), pipeBore));
+      bore.rotation.y = Math.PI;
+      bore.position.set(sx * W * 0.3, 0.42, -L / 2 - 0.192);
+      this.exhausts.push(new THREE.Vector3(sx * W * 0.3, 0.42, -L / 2 - 0.2));
     }
 
     // mirrors
@@ -618,6 +627,7 @@ export class CarModel {
         }
         for (const off of [0.2, 0.34]) {
           add(new THREE.CylinderGeometry(0.05, 0.05, 0.14, 12), this.chromeMat, sx * W * off, 0.4, -L / 2 - 0.06, Math.PI / 2);
+          this.exhausts.push(new THREE.Vector3(sx * W * off, 0.4, -L / 2 - 0.14));
         }
       }
       add(rbox(W * 0.44, 0.14, 0.05, 0.03), this.chromeMat, 0, b.noseDrop - 0.08, L / 2 + 0.01);

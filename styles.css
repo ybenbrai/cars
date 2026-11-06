@@ -593,29 +593,46 @@ h1 em, h2 em {
 .score-block strong { font-size: 22px; font-weight: 700; font-style: italic; letter-spacing: 0.04em; color: var(--gold); font-variant-numeric: tabular-nums; }
 
 .hud-bottom {
-  position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%);
+  /* Analog gauge in the bottom-left corner, clear of the car. */
+  position: absolute; left: 22px; bottom: 18px;
   display: flex; align-items: flex-end; gap: 14px;
 }
-.gauge { position: relative; width: 186px; height: 186px; }
-.gauge-svg { width: 100%; height: 100%; transform: rotate(-90deg); overflow: visible; }
-.gauge-track { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 4; }
+/* On touch screens the steering buttons own the corners: keep it centred. */
+body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
+.gauge { position: relative; width: 210px; height: 210px; }
+.gauge-svg { width: 100%; height: 100%; overflow: visible; }
+.gauge-face {
+  fill: rgba(10, 6, 18, 0.62); stroke: rgba(255, 246, 236, 0.14); stroke-width: 1.5;
+}
+.gauge-track { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 5; stroke-linecap: round; }
 .gauge-arc {
   fill: none; stroke: url(#gaugeGrad); stroke-width: 5; stroke-linecap: round;
-  stroke-dasharray: 490; stroke-dashoffset: 490;
-  filter: drop-shadow(0 0 6px rgba(255, 122, 69, 0.55));
-  transition: stroke-dashoffset 0.08s linear;
+  stroke-dasharray: 100; stroke-dashoffset: 100;
+  filter: drop-shadow(0 0 5px rgba(255, 122, 69, 0.55));
 }
-.gauge-ticks line { stroke: rgba(255, 255, 255, 0.2); stroke-width: 1; }
-.gauge-ticks line.major { stroke: rgba(255, 255, 255, 0.4); stroke-width: 1.5; }
+.gauge-ticks line { stroke: rgba(255, 246, 236, 0.35); stroke-width: 1.2; }
+.gauge-ticks line.major { stroke: rgba(255, 246, 236, 0.85); stroke-width: 2.2; }
+.gauge-ticks line.boost { stroke: var(--cyan); }
+.gauge-ticks text {
+  fill: rgba(255, 246, 236, 0.86); font-family: var(--font-display); font-size: 12px; font-weight: 600;
+  text-anchor: middle;
+}
+.gauge-ticks text.boost { fill: var(--cyan); }
+.needle polygon { fill: #ff5a3c; filter: drop-shadow(0 0 4px rgba(255, 90, 60, 0.8)); }
+.hub { fill: #1a1222; stroke: rgba(255, 246, 236, 0.5); stroke-width: 1.5; }
+.hub-dot { fill: #ff5a3c; }
 .gauge-center {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  position: absolute; left: 0; right: 0; bottom: 24px;
+  display: flex; flex-direction: column; align-items: center;
 }
+.gear-row { display: flex; align-items: center; gap: 8px; margin-top: 4px; }
+.gear-row .gear { margin-top: 0; }
+.gear-row .rpm-bar { margin-top: 0; }
 .speed { display: flex; flex-direction: column; align-items: center; line-height: 0.9; }
 .speed span {
-  font-size: 54px; font-weight: 700; font-style: italic; letter-spacing: -0.04em;
+  font-size: 26px; font-weight: 700; font-style: italic; letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
 }
 .speed em { font-size: 11px; font-style: normal; letter-spacing: 0.26em; color: var(--faint); margin-top: 5px; }
 .gear {
@@ -850,8 +867,10 @@ h1 em, h2 em {
   .map-block { width: 104px; top: 70px; right: 12px; padding: 5px; }
   .score-block strong { font-size: 16px; }
   .hud-bottom { bottom: 6px; gap: 0; }
-  .gauge { width: 132px; height: 132px; }
-  .speed span { font-size: 36px; }
+  .gauge { width: 150px; height: 150px; }
+  .gauge-center { bottom: 14px; }
+  .speed span { font-size: 20px; }
+  .gauge-ticks text { font-size: 13px; }
   .nitro { width: 112px; margin-bottom: 20px; padding: 8px 9px; }
   .live-drift { right: 14px; }
   .live-drift .combo { font-size: 22px; }
@@ -882,8 +901,8 @@ h1 em, h2 em {
   .hud-actions .icon-btn { width: 32px; height: 32px; }
   .lap-block { min-width: 152px; padding: 7px 12px 8px; }
   .lap-time { font-size: 22px; }
-  .gauge { width: 112px; height: 112px; }
-  .speed span { font-size: 30px; }
+  .gauge { width: 130px; height: 130px; }
+  .speed span { font-size: 18px; }
   .speed em { font-size: 10px; }
   .gear { font-size: 11px; margin-top: 4px; }
   .nitro { display: none; }

@@ -66,6 +66,7 @@ export class UI {
   constructor(callbacks) {
     this.cb = callbacks;
     this.touchCapable = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+    document.body.classList.toggle('touch-ui', this.touchCapable);
     this.currentCar = CARS[0];
     this.currentLook = defaultLook(CARS[0]);
     this.store = null;

@@ -105,23 +105,28 @@
       <div id="wrongway" class="wrongway hidden">WRONG WAY</div>
 
       <div class="hud-bottom">
-        <div class="gauge">
-          <svg viewBox="0 0 180 180" class="gauge-svg" aria-hidden="true">
+        <div class="gauge analog">
+          <svg viewBox="0 0 200 200" class="gauge-svg" aria-hidden="true">
             <defs>
-              <linearGradient id="gaugeGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <linearGradient id="gaugeGrad" x1="0%" y1="100%" x2="100%" y2="100%">
                 <stop offset="0%" stop-color="#ffc46b" />
                 <stop offset="55%" stop-color="#ff7a45" />
                 <stop offset="100%" stop-color="#ff3d7f" />
               </linearGradient>
             </defs>
-            <circle class="gauge-track" cx="90" cy="90" r="78"></circle>
-            <circle id="speedArc" class="gauge-arc" cx="90" cy="90" r="78"></circle>
+            <circle class="gauge-face" cx="100" cy="100" r="96"></circle>
+            <path id="gaugeTrack" class="gauge-track" pathLength="100"></path>
+            <path id="speedArc" class="gauge-arc" pathLength="100"></path>
             <g id="gaugeTicks" class="gauge-ticks"></g>
+            <g id="needle" class="needle">
+              <polygon points="100,96.5 176,100 100,103.5 88,100"></polygon>
+            </g>
+            <circle class="hub" cx="100" cy="100" r="8"></circle>
+            <circle class="hub-dot" cx="100" cy="100" r="3"></circle>
           </svg>
           <div class="gauge-center">
             <div class="speed"><span id="speed">0</span><em>KM/H</em></div>
-            <div class="gear" id="gear">N</div>
-            <div class="rpm-bar"><i id="rpmFill"></i></div>
+            <div class="gear-row"><div class="gear" id="gear">N</div><div class="rpm-bar"><i id="rpmFill"></i></div></div>
           </div>
         </div>
         <div class="nitro">

@@ -261,6 +261,29 @@ export class AudioEngine {
     notes.forEach((n, i) => this.tone(n, 0.3, 'triangle', 0.07, i * 0.12));
   }
 
+  /** Exhaust backfire: a short, low crack. */
+  backfire() {
+    if (!this.ready) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    for (const [delay, vol] of [[0, 0.16], [0.07, 0.09]]) {
+      const src = ctx.createBufferSource();
+      src.buffer = this.noiseBuffer;
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'bandpass';
+      filter.frequency.value = 520;
+      filter.Q.value = 0.8;
+      const gain = ctx.createGain();
+      gain.gain.setValueAtTime(vol, t + delay);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + delay + 0.09);
+      src.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.master);
+      src.start(t + delay, Math.random());
+      src.stop(t + delay + 0.1);
+    }
+  }
+
   crash(intensity) {
     if (!this.ready) return;
     const ctx = this.ctx;

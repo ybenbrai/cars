@@ -28,6 +28,8 @@ export class HUD {
       speed: document.getElementById('speed'),
       gear: document.getElementById('gear'),
       speedArc: document.getElementById('speedArc'),
+      gaugeTrack: document.getElementById('gaugeTrack'),
+      needle: document.getElementById('needle'),
       rpmFill: document.getElementById('rpmFill'),
       damageFill: document.getElementById('damageFill'),
       boostFill: document.getElementById('nitroFill'),
@@ -41,15 +43,11 @@ export class HUD {
       wrongway: document.getElementById('wrongway'),
       minimap: document.getElementById('minimap'),
     };
-    this.arcLength = 2 * Math.PI * 78;
-    if (this.el.speedArc) {
-      this.el.speedArc.style.strokeDasharray = String(this.arcLength);
-      this.el.speedArc.style.strokeDashoffset = String(this.arcLength);
-    }
+    this.gaugeMax = 0;
     this.last = {};
     this.toastTimer = null;
     this.map = this.el.minimap ? this.el.minimap.getContext('2d') : null;
-    this.buildTicks();
+    this.buildTicks(240);
   }
 
   /** Swap circuits without rebuilding the HUD DOM. */
@@ -59,25 +57,55 @@ export class HUD {
     this.buildMapBase();
   }
 
-  buildTicks() {
+  /**
+   * Analog dial: a 270° sweep from bottom-left (0) to bottom-right (max),
+   * numbered in 20 or 40 km/h steps. Rebuilt when the car's scale changes.
+   */
+  buildTicks(maxKmh) {
     const g = document.getElementById('gaugeTicks');
     if (!g) return;
+    // Room for nitro (~25 km/h over top speed), rounded to a tidy number.
+    const step = maxKmh * 1.15 > 220 ? 40 : 20;
+    const max = Math.ceil((maxKmh * 1.15) / step) * step;
+    if (max === this.gaugeMax) return;
+    this.gaugeMax = max;
     g.innerHTML = '';
     const ns = 'http://www.w3.org/2000/svg';
-    for (let i = 0; i < 36; i++) {
-      const a = (i / 36) * Math.PI * 2;
-      const major = i % 3 === 0;
-      const r1 = major ? 85 : 87;
-      const r2 = 90;
+    const ang = (v) => ((135 + (v / max) * 270) * Math.PI) / 180;
+    const at = (v, r) => [100 + Math.cos(ang(v)) * r, 100 + Math.sin(ang(v)) * r];
+    const arc = (r) => {
+      const [x0, y0] = at(0, r);
+      const [x1, y1] = at(max, r);
+      return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 1 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+    };
+    this.el.gaugeTrack?.setAttribute('d', arc(88));
+    this.el.speedArc?.setAttribute('d', arc(88));
+    const minor = step / 2;
+    for (let v = 0; v <= max + 0.01; v += minor) {
+      const major = Math.round(v / step) * step === Math.round(v);
+      const [x1, y1] = at(v, major ? 72 : 76);
+      const [x2, y2] = at(v, 82);
       const line = document.createElementNS(ns, 'line');
-      line.setAttribute('x1', String(90 + Math.cos(a) * r1));
-      line.setAttribute('y1', String(90 + Math.sin(a) * r1));
-      line.setAttribute('x2', String(90 + Math.cos(a) * r2));
-      line.setAttribute('y2', String(90 + Math.sin(a) * r2));
+      line.setAttribute('x1', x1.toFixed(2));
+      line.setAttribute('y1', y1.toFixed(2));
+      line.setAttribute('x2', x2.toFixed(2));
+      line.setAttribute('y2', y2.toFixed(2));
       if (major) line.classList.add('major');
+      if (v > maxKmh) line.classList.add('boost');
       g.appendChild(line);
+      if (major) {
+        const [tx, ty] = at(v, 59);
+        const label = document.createElementNS(ns, 'text');
+        label.setAttribute('x', tx.toFixed(1));
+        label.setAttribute('y', (ty + 4).toFixed(1));
+        label.textContent = String(Math.round(v));
+        if (v > maxKmh) label.classList.add('boost');
+        g.appendChild(label);
+      }
     }
+    this.last.speed = null;
   }
+
 
   buildMapBase() {
     if (!this.map || !this.track) return;
@@ -174,11 +202,13 @@ export class HUD {
   }
 
   setSpeed(kmh, gear, maxKmh = 240) {
+    this.buildTicks(maxKmh);
     const rounded = Math.round(kmh);
     if (rounded !== this.last.speed) {
       this.el.speed.textContent = String(rounded);
-      const fraction = Math.min(1, rounded / Math.max(60, maxKmh));
-      this.el.speedArc.style.strokeDashoffset = String(this.arcLength * (1 - fraction));
+      const fraction = Math.min(1, Math.max(0, kmh / this.gaugeMax));
+      this.el.speedArc.style.strokeDashoffset = String(100 * (1 - fraction));
+      this.el.needle?.setAttribute('transform', `rotate(${(135 + fraction * 270).toFixed(2)} 100 100)`);
       this.last.speed = rounded;
     }
     if (gear !== this.last.gear) {

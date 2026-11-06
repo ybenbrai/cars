@@ -575,6 +575,7 @@ function disposeRace() {
 const camLook = new THREE.Vector3();
 const desired = new THREE.Vector3();
 const tmpVec = new THREE.Vector3();
+const tmpRight = new THREE.Vector3();
 let cameraInit = false;
 
 function snapCamera() {
@@ -985,16 +986,18 @@ function resetCar() {
 function updateCamera(dt) {
   if (!race) return;
   const car = race.player.car;
+  // Follow the smoothly drawn car, not the raw 120 Hz physics position.
+  const cpos = car.renderPos;
 
   if (state === 'finished') {
     race.finishOrbit += dt * 0.32;
     const r = 11;
     camera.position.set(
-      car.pos.x + Math.sin(race.finishOrbit + 0.8) * r,
-      car.pos.y + 4.2,
-      car.pos.z + Math.cos(race.finishOrbit + 0.8) * r,
+      cpos.x + Math.sin(race.finishOrbit + 0.8) * r,
+      cpos.y + 4.2,
+      cpos.z + Math.cos(race.finishOrbit + 0.8) * r,
     );
-    camLook.set(car.pos.x, car.pos.y + 1, car.pos.z);
+    camLook.set(cpos.x, cpos.y + 1, cpos.z);
     camera.lookAt(camLook);
     camera.fov = damp(camera.fov, 56, 2, dt);
     camera.updateProjectionMatrix();
@@ -1002,23 +1005,23 @@ function updateCamera(dt) {
   }
 
   const speedN = clamp(car.speed / car.maxSpeed, 0, 1);
-  const f = car.forward;
+  const f = car.renderForward;
 
   const view = CAMERA_VIEWS[race.camMode]?.id || 'near';
   if (view === 'bumper') {
     // Low and just ahead of the nose: the fastest-feeling view.
-    tmpVec.copy(car.pos).addScaledVector(f, car.def.body.length / 2 + 0.15);
+    tmpVec.copy(cpos).addScaledVector(f, car.def.body.length / 2 + 0.15);
     tmpVec.y = 0.62;
     camera.position.copy(tmpVec);
-    camLook.copy(car.pos).addScaledVector(f, 30).setY(0.9);
+    camLook.copy(cpos).addScaledVector(f, 30).setY(0.9);
     camera.lookAt(camLook);
     camera.fov = damp(camera.fov, 72 + speedN * 12 + (car.boosting ? 5 : 0), 4, dt);
     camera.updateProjectionMatrix();
   } else if (view === 'cockpit') {
-    tmpVec.copy(car.pos).addScaledVector(f, 0.55);
+    tmpVec.copy(cpos).addScaledVector(f, 0.55);
     tmpVec.y = 1.16;
     camera.position.lerp(tmpVec, 1 - Math.exp(-25 * dt));
-    camLook.copy(car.pos).addScaledVector(f, 24).setY(1.3);
+    camLook.copy(cpos).addScaledVector(f, 24).setY(1.3);
     camera.lookAt(camLook);
     camera.fov = damp(camera.fov, 68 + speedN * 12 + (car.boosting ? 4 : 0), 4, dt);
     camera.updateProjectionMatrix();
@@ -1027,16 +1030,16 @@ function updateCamera(dt) {
     if (!cameraInit) snapCamera();
     // The near view sits at half the far view's distance, lower down.
     const back = near ? 5.1 + speedN * 0.6 + car.def.body.length * 0.1 : 8.4 + speedN * 2.4;
-    desired.copy(car.pos).addScaledVector(f, -back);
+    desired.copy(cpos).addScaledVector(f, -back);
     desired.y = near ? 2.45 + speedN * 0.2 : 3.15 + speedN * 0.65;
-    desired.addScaledVector(car.right, clamp(-car.lateral * 0.045, -1.1, 1.1));
+    desired.addScaledVector(tmpRight.set(-f.z, 0, f.x), clamp(-car.lateral * 0.045, -1.1, 1.1));
     // A soft spring trails the car by roughly speed / rate metres; the near
     // view follows much more tightly so it really stays close.
     camera.position.lerp(desired, 1 - Math.exp(-(near ? 14 : 4.6) * dt));
     if (camera.position.y < 1.2) camera.position.y = 1.2;
 
     // The near view aims lower so the car sits above the speedometer.
-    tmpVec.copy(car.pos).addScaledVector(f, near ? 2.6 + speedN * 3.4 : 6 + speedN * 4);
+    tmpVec.copy(cpos).addScaledVector(f, near ? 2.6 + speedN * 3.4 : 6 + speedN * 4);
     tmpVec.y = near ? 0.05 : 1.2;
     camLook.lerp(tmpVec, 1 - Math.exp(-8 * dt));
     camera.lookAt(camLook);
@@ -1045,8 +1048,11 @@ function updateCamera(dt) {
   }
 
   if (race.shake > 0.002) {
-    camera.position.x += (Math.random() - 0.5) * race.shake * 0.65;
-    camera.position.y += (Math.random() - 0.5) * race.shake * 0.5;
+    // Smooth, fast wobble rather than a new random offset every frame: a
+    // per-frame random jump reads as the whole picture vibrating.
+    const t = performance.now() / 1000;
+    camera.position.x += (Math.sin(t * 31) * 0.6 + Math.sin(t * 17.3) * 0.4) * race.shake * 0.32;
+    camera.position.y += (Math.sin(t * 27.1 + 1) * 0.6 + Math.sin(t * 13.7) * 0.4) * race.shake * 0.25;
     camera.lookAt(camLook);
     race.shake *= Math.exp(-5.5 * dt);
   }
@@ -1183,6 +1189,9 @@ function frame(now) {
       steps++;
     }
     if (steps === 32) race.physicsAcc = 0;
+    // Draw every locally simulated car between its last two physics steps.
+    const alpha = race.physicsAcc / FIXED;
+    for (const racer of race.racers) if (!racer.remote) racer.car.interpolate(alpha);
     if (state !== 'racing') {
       // finishRace() flipped the state mid-step.
     } else {
@@ -1199,6 +1208,10 @@ function frame(now) {
         race.impactCooldown = 0.55;
       }
       car.impact *= Math.exp(-4.5 * dt);
+      if (car.backfired) {
+        car.backfired = false;
+        audio.backfire();
+      }
 
       updateHud(dt);
 
@@ -1211,7 +1224,7 @@ function frame(now) {
         handbrake: input.handbrake || car.locked,
         boosting: car.boosting,
       });
-      if (car.boosting) race.shake = Math.max(race.shake, 0.06);
+      if (car.boosting) race.shake = Math.max(race.shake, 0.025);
     }
   } else if (state === 'finished') {
     race.finishTimer -= dt;

@@ -25,6 +25,14 @@ export class Car {
 
     this.pos = new THREE.Vector3();
     this.vel = new THREE.Vector3();
+    // Physics runs at a fixed 120 Hz but frames arrive whenever the display
+    // refreshes, so a frame can see 0, 1 or 2 steps. Drawing the car at the
+    // raw step position made it judder against the camera; instead the
+    // renderer blends between the previous and current step (`interpolate`).
+    this.prevPos = new THREE.Vector3();
+    this.prevHeading = 0;
+    this.renderPos = new THREE.Vector3();
+    this.renderForward = new THREE.Vector3(0, 0, 1);
     this.forward = new THREE.Vector3(0, 0, 1);
     this.right = new THREE.Vector3(-1, 0, 0);
     this.heading = 0;
@@ -44,6 +52,8 @@ export class Car {
     this.roll = 0;
     this.pitch = 0;
     this.braking = false;
+    this.throttle = 0;
+    this.liftOff = false;
     this.paceScale = 1;
     this.isPlayer = false;
     // Drift state 0–1. Rises with the handbrake or with hard steering at speed
@@ -99,6 +109,8 @@ export class Car {
     this.model.setSpin(0);
     this.model.setDamage(0);
     this.syncTransform();
+    this.prevPos.copy(this.pos);
+    this.prevHeading = this.heading;
   }
 
   enableHeadlights() {
@@ -108,6 +120,19 @@ export class Car {
   syncTransform() {
     this.group.position.copy(this.pos);
     this.group.rotation.y = this.heading;
+    this.renderPos.copy(this.pos);
+    this.renderForward.copy(this.forward);
+  }
+
+  /** Place the model `alpha` (0–1) of the way from the last step to this one. */
+  interpolate(alpha) {
+    const a = Math.min(1, Math.max(0, alpha));
+    this.renderPos.lerpVectors(this.prevPos, this.pos, a);
+    const dh = Math.atan2(Math.sin(this.heading - this.prevHeading), Math.cos(this.heading - this.prevHeading));
+    const h = this.prevHeading + dh * a;
+    this.group.position.copy(this.renderPos);
+    this.group.rotation.y = h;
+    this.renderForward.set(Math.sin(h), 0, Math.cos(h));
   }
 
   /** Collision response used by the race director for car-to-car contact. */
@@ -122,6 +147,8 @@ export class Car {
   }
 
   update(dt, input, track) {
+    this.prevPos.copy(this.pos);
+    this.prevHeading = this.heading;
     const p = this.physics;
     const pace = this.paceScale || 1;
     const f0x = Math.sin(this.heading);
@@ -132,6 +159,8 @@ export class Car {
     let vR = this.vel.x * r0x + this.vel.z * r0z;
 
     const throttle = input.gas ? 1 : 0;
+    this.liftOff = this.throttle === 1 && throttle === 0; // for exhaust pops
+    this.throttle = throttle;
     const brake = input.brake ? 1 : 0;
     const handbrake = !!input.handbrake;
     const steerTarget = input.steer;

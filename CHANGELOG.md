@@ -33,6 +33,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Front license plates on every car.
 - Nitro pickups are floating NOS bottles (three across the road per spot)
   instead of arrows painted on the asphalt.
+- Analog speedometer in the bottom-left corner: numbered dial scaled to each
+  car (nitro range in cyan), needle, speed sweep, digital speed, gear and rev
+  bar. Stays centred on touch devices, clear of the steering buttons.
+- Exhaust smoke from every pipe when idling and pulling away (rivals nearby
+  too), backfire flashes with a crack when lifting off at speed, and visible
+  pipe bores.
 - AI racecraft: rivals overtake instead of queueing, defend their line against
   a car closing from behind, lean on a car alongside, steer for nitro bottles
   and time their nitro; their nitro flames are now visible.
@@ -57,6 +63,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Practice sessions no longer write circuit records, and best race times are
   kept per lap count instead of comparing different distances.
 - A DNF no longer counts as a podium.
+- The car vibrated while driving, worst on 120 Hz screens: physics steps at
+  120 Hz but frames see 0, 1 or 2 steps, so the car jumped up to 25 cm against
+  the camera. Cars are now drawn between physics steps (under 1 cm), and the
+  camera shake is a smooth wobble instead of a random jump every frame.
 - AI rivals were far too slow (Expert lapped Sunset Coast in 70 s where a
   good driver does about 45 s). They now plan speed from the real cornering
   limit of their car and the braking distance ahead, collect nitro bottles,
