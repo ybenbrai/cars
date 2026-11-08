@@ -10,6 +10,9 @@ import {
 import { CIRCUITS, getCircuit } from './data/circuits.js';
 import { CAREER_EVENTS } from './data/career.js';
 import { practiceRentalFee } from './economy.js';
+import {
+  UPGRADE_PARTS, MAX_UPGRADE_LEVEL, normalizeUpgrades, upgradeCost,
+} from './data/upgrades.js';
 
 const SCHEMA = 2;
 
@@ -30,6 +33,7 @@ function blankSave(displayName = '') {
     looks: {
       [starter.id]: { ...defaultLook(starter), plate: (displayName || 'SUNSET').toUpperCase().slice(0, 9) },
     },
+    upgrades: {},          // carId -> { engine, tyres, brakes, nitro } levels 0–3
     career: {
       completed: [],       // event ids cleared at least once
       bestPositions: {},   // eventId -> best finishing position
@@ -64,6 +68,10 @@ function mergeSave(raw) {
     if (raw.looks?.[car.id]) save.looks[car.id] = normalizeLook(car, raw.looks[car.id]);
   }
   if (!save.looks[save.selectedCarId]) save.looks[save.selectedCarId] = defaultLook(getCar(save.selectedCarId));
+  save.upgrades = {};
+  for (const id of save.ownedCars) {
+    if (raw.upgrades?.[id]) save.upgrades[id] = normalizeUpgrades(raw.upgrades[id]);
+  }
   save.career = {
     completed: Array.isArray(raw.career?.completed)
       ? raw.career.completed.filter((id) => CAREER_EVENTS.some((e) => e.id === id)) : [],
@@ -209,6 +217,31 @@ export class SaveStore {
     this.data.looks[carId] = { ...defaultLook(car), plate: this.name.toUpperCase().slice(0, 9) };
     this.save();
     return { ok: true, car };
+  }
+
+  upgradesFor(carId) {
+    return normalizeUpgrades(this.data.upgrades?.[carId]);
+  }
+
+  /** Buy the next level of one part for an owned car. */
+  buyUpgrade(carId, partId) {
+    const car = getCar(carId);
+    const part = UPGRADE_PARTS.find((p) => p.id === partId);
+    if (!car || !part) return { ok: false, error: 'Unknown upgrade.' };
+    if (!this.owns(carId)) return { ok: false, error: 'Buy the car before tuning it.' };
+    const levels = this.upgradesFor(carId);
+    const next = levels[partId] + 1;
+    if (next > MAX_UPGRADE_LEVEL) return { ok: false, error: `${part.name} is fully upgraded.` };
+    const cost = upgradeCost(car, next);
+    if (this.data.wallet < cost) {
+      return { ok: false, error: `Need ${(cost - this.data.wallet).toLocaleString('en-US')} more credits.` };
+    }
+    this.data.wallet -= cost;
+    this.data.stats.creditsSpent += cost;
+    levels[partId] = next;
+    this.data.upgrades = { ...(this.data.upgrades || {}), [carId]: levels };
+    this.save();
+    return { ok: true, part, level: next, cost };
   }
 
   lookFor(carId) {

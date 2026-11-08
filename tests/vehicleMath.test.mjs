@@ -16,7 +16,7 @@ import {
 const HEAVY = new Set(['offroad', 'suv', 'muscle']);
 
 function carBrake(car) {
-  return 9.5 * car.physics.grip * (HEAVY.has(car.category) ? 0.86 : 1);
+  return 11.5 * car.physics.grip * (HEAVY.has(car.category) ? 0.86 : 1);
 }
 
 test('coasting is always weaker than braking, for every car and speed', () => {
@@ -45,13 +45,13 @@ test('brake force fades with the square of speed', () => {
   assert.equal(brakeDecelAt(max * 2, max, decel), decel * (1 - BRAKE_FADE));
 });
 
-test('a sports car stops in about 43 m from 100 km/h and 163 m from 180', () => {
+test('a sports car stops in about 35 m from 100 km/h and 121 m from 180', () => {
   const max = 56;
-  const decel = 9.5;
+  const decel = 11.5;
   const from100 = brakeDistance({ from: 100 / 3.6, maxSpeed: max, brakeDecel: decel });
   const from180 = brakeDistance({ from: 180 / 3.6, maxSpeed: max, brakeDecel: decel });
-  assert.ok(from100 > 42 && from100 < 44, `100 km/h: ${from100.toFixed(1)} m`);
-  assert.ok(from180 > 160 && from180 < 166, `180 km/h: ${from180.toFixed(1)} m`);
+  assert.ok(from100 > 34 && from100 < 36, `100 km/h: ${from100.toFixed(1)} m`);
+  assert.ok(from180 > 119 && from180 < 124, `180 km/h: ${from180.toFixed(1)} m`);
 });
 
 test('brake distance and max entry speed are inverses', () => {

@@ -147,3 +147,33 @@ test('a refunded practice rental returns the credits', () => {
   assert.equal(store.wallet, STARTING_MONEY);
   assert.equal(store.data.stats.creditsSpent, 0);
 });
+
+test('upgrades cost credits, cap at level 3 and only apply to owned cars', async () => {
+  const { upgradeCost, upgradeMultipliers, upgradeValue } = await import('../js/data/upgrades.js');
+  const store = freshStore();
+  const starter = store.selectedCar;
+  const locked = CARS.find((c) => !store.owns(c.id));
+  assert.equal(store.buyUpgrade(locked.id, 'engine').ok, false);
+
+  store.data.wallet = 1e6;
+  for (let level = 1; level <= 3; level++) {
+    const before = store.wallet;
+    assert.ok(store.buyUpgrade(starter.id, 'brakes').ok);
+    assert.equal(store.wallet, before - upgradeCost(starter, level));
+  }
+  assert.equal(store.buyUpgrade(starter.id, 'brakes').ok, false);
+  assert.equal(store.upgradesFor(starter.id).brakes, 3);
+  assert.ok(upgradeMultipliers(store.upgradesFor(starter.id)).brake > 1.2);
+  assert.ok(upgradeValue(starter, store.upgradesFor(starter.id)) > 0);
+
+  store.data.wallet = 0;
+  assert.equal(store.buyUpgrade(starter.id, 'engine').ok, false);
+});
+
+test('upgrade prices scale with car value', async () => {
+  const { upgradeCost } = await import('../js/data/upgrades.js');
+  const hyper = CARS.find((c) => c.category === 'hyper');
+  const starter = CARS.find((c) => c.starter);
+  assert.ok(upgradeCost(hyper, 1) > upgradeCost(starter, 1) * 10);
+  assert.ok(upgradeCost(starter, 3) > upgradeCost(starter, 1));
+});

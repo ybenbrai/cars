@@ -7,6 +7,7 @@ import {
   maxEntrySpeed,
   assistedDriftTarget,
 } from './vehicleMath.js';
+import { upgradeMultipliers } from './data/upgrades.js';
 
 const BASE = {
   maxSpeed: 56,
@@ -26,9 +27,22 @@ const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const damp = (a, b, lambda, dt) => a + (b - a) * (1 - Math.exp(-lambda * dt));
 
 export class Car {
-  constructor(scene, def, look) {
+  constructor(scene, def, look, upgrades = null) {
     this.def = def;
-    this.physics = def.physics;
+    // Upgrades scale the car's own physics, so every system (AI planning,
+    // braking maths, HUD) sees the tuned car without special cases.
+    const m = upgradeMultipliers(upgrades);
+    this.upgrades = upgrades;
+    this.physics = {
+      ...def.physics,
+      speed: def.physics.speed * m.speed,
+      accel: def.physics.accel * m.accel,
+      grip: def.physics.grip * m.grip,
+      turn: def.physics.turn * m.turn,
+      boost: def.physics.boost * m.boost,
+    };
+    this.nitroBurn = 26 * m.nitroBurn;
+    this.brakeUpgrade = m.brake;
     this.model = new CarModel(def, look);
     this.group = this.model.root;
     scene.add(this.group);
@@ -78,12 +92,12 @@ export class Car {
     // Off-road ability: rugged cars barely notice dirt.
     const rugged = def.category === 'offroad' || def.category === 'suv';
     this.offroadPace = rugged ? 0.93 : 0.8;
-    // Braking: just under 1 g for a sports car, scaled by tyre grip; heavy
+    // Braking: about 1.2 g for a sports car, scaled by tyre grip; heavy
     // SUVs, off-roaders and muscle cars stop noticeably later. The force also
     // fades with speed (see `brakeDecelAt`), so a high-speed stop needs much
     // more road than a low-speed one.
     const heavy = rugged || def.category === 'muscle';
-    this.brakeDecel = 9.5 * this.physics.grip * (heavy ? 0.86 : 1);
+    this.brakeDecel = 11.5 * this.physics.grip * (heavy ? 0.86 : 1) * this.brakeUpgrade;
     // Wheel lock: a long, hard stop from high speed locks the tyres. Locked
     // tyres stop less well, barely steer and let the car slide.
     this.locked = false;
@@ -269,7 +283,7 @@ export class Car {
 
     this.boosting = !!input.boost && this.boost > 0.5 && !this.offroad;
     if (this.boosting) {
-      this.boost = Math.max(0, this.boost - 26 * dt);
+      this.boost = Math.max(0, this.boost - this.nitroBurn * dt);
       nF += BASE.boostPower * p.boost * pace * dt;
     }
 

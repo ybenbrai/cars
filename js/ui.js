@@ -9,6 +9,9 @@ import {
   DIFFICULTIES, MODES, basePurse, getDifficulty, getMode, nextRankProgress,
 } from './economy.js';
 import { fmtTime } from './hud.js';
+import {
+  UPGRADE_PARTS, MAX_UPGRADE_LEVEL, upgradeCost, upgradedStats,
+} from './data/upgrades.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -25,13 +28,16 @@ function statRows(car) {
     </div>`).join('');
 }
 
-function stageStatRows(car) {
-  return STAT_LABELS.map(([key, label]) => `
-    <div class="stage-stat">
+function stageStatRows(car, stats = car.stats) {
+  return STAT_LABELS.map(([key, label]) => {
+    const tuned = stats[key] > car.stats[key];
+    return `
+    <div class="stage-stat ${tuned ? 'tuned' : ''}">
       <span>${label}</span>
-      <i style="--v:${car.stats[key] * 10}%"></i>
-      <b>${car.stats[key]}</b>
-    </div>`).join('');
+      <i style="--v:${stats[key] * 10}%"></i>
+      <b>${stats[key]}</b>
+    </div>`;
+  }).join('');
 }
 
 function group(title, hint, body) {
@@ -487,7 +493,9 @@ export class UI {
 
     $('stageCarName').textContent = car.name;
     $('stageCarClass').textContent = car.klass;
-    $('stageStats').innerHTML = stageStatRows(car);
+    $('stageStats').innerHTML = owned
+      ? stageStatRows(car, upgradedStats(car, this.store.upgradesFor(car.id)))
+      : stageStatRows(car);
 
     const priceEl = $('stageCarPrice');
     if (this.store.selectedCarId === car.id) {
@@ -571,11 +579,12 @@ export class UI {
       `<div class="custom-title" style="margin:2px 0 9px">UNDERGLOW</div>${swatches(UNDERGLOWS, 'underglow', look.underglow, 'underglow')}
        <div class="custom-title" style="margin:16px 0 8px">LICENSE PLATE</div>
        <input class="plate-field" id="plateInput" maxlength="9" value="${esc(look.plate)}" placeholder="SUNSET" aria-label="License plate" />
-       <div class="custom-title" style="margin:16px 0 4px">NOTE</div>
-       <p class="custom-note">Cosmetics only — your car's stats come from its chassis. Upgrades arrive in a future update.</p>`,
+`,
     );
+    const performance = `<div class="custom-group" id="perfGroup">${this.performanceBody(car)}</div>`;
 
-    this.customRoot.innerHTML = paint + finish + rims + body + glass + details;
+    this.customRoot.innerHTML = performance + paint + finish + rims + body + glass + details;
+    this.bindPerformance();
 
     this.customRoot.querySelectorAll('[data-key]').forEach((el) => {
       el.addEventListener('click', () => {
@@ -598,6 +607,46 @@ export class UI {
         this.cb.onLookChange?.({ ...this.currentLook, plate: value || 'SUNSET' });
       });
     }
+  }
+
+  performanceBody(car) {
+    const levels = this.store.upgradesFor(car.id);
+    const rows = UPGRADE_PARTS.map((part) => {
+      const level = levels[part.id];
+      const maxed = level >= MAX_UPGRADE_LEVEL;
+      const cost = maxed ? 0 : upgradeCost(car, level + 1);
+      const short = !maxed && this.store.wallet < cost;
+      const pips = Array.from({ length: MAX_UPGRADE_LEVEL }, (_, i) => `<i class="${i < level ? 'on' : ''}"></i>`).join('');
+      return `<div class="upgrade-row">
+        <div class="upgrade-info">
+          <strong>${part.name}</strong>
+          <span>${esc(part.levels[level])} · ${esc(part.blurb)}</span>
+          <div class="upgrade-pips" aria-label="Level ${level} of ${MAX_UPGRADE_LEVEL}">${pips}</div>
+        </div>
+        <button class="upgrade-buy" data-upgrade="${part.id}" ${maxed || short ? 'disabled' : ''}
+          title="${maxed ? 'Fully upgraded' : esc(part.levels[level + 1])}">
+          ${maxed ? 'MAX' : `${formatCredits(cost)} CR`}
+        </button>
+      </div>`;
+    }).join('');
+    return `<div class="custom-title">PERFORMANCE<span>solo races · online is stock</span></div>${rows}`;
+  }
+
+  bindPerformance() {
+    this.customRoot.querySelectorAll('[data-upgrade]').forEach((el) => {
+      el.addEventListener('click', () => this.cb.onBuyUpgrade?.(this.stageCarId, el.dataset.upgrade));
+    });
+  }
+
+  /** Refresh only the tuning panel, stats and wallet after an upgrade. */
+  refreshPerformance() {
+    const car = getCar(this.stageCarId);
+    const group = $('perfGroup');
+    if (!car || !group) return;
+    group.innerHTML = this.performanceBody(car);
+    this.bindPerformance();
+    $('stageStats').innerHTML = stageStatRows(car, upgradedStats(car, this.store.upgradesFor(car.id)));
+    $('garageCredits').textContent = `${formatCredits(this.store.wallet)} CR`;
   }
 
   syncCustom(look) {

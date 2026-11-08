@@ -18,7 +18,8 @@ import { SaveStore } from './save.js';
 import { AuthService } from './auth.js';
 import { CloudSync } from './cloudSync.js';
 import { OnlineClient, RemoteTrack, FLAG_BOOST, FLAG_DRIFT, FLAG_BRAKE } from './online.js';
-import { AIDriver, AI_NAMES } from './ai.js';
+import { AI_NAMES, createAiDriver } from './ai.js';
+import { upgradeValue } from './data/upgrades.js';
 import {
   CARS, PAINTS, RANK_LABELS, getCar, defaultLook, normalizeLook, formatCredits,
 } from './data/cars.js';
@@ -82,6 +83,7 @@ const ui = new UI({
   onSelectCar: selectCar,
   onPreviewCar: previewCar,
   onBuyCar: buyCar,
+  onBuyUpgrade: buyUpgrade,
   onLookChange: changeLook,
   onRace: (config) => safeStartRace(config),
   onEditDriver: () => {
@@ -292,6 +294,18 @@ function buyCar(carId) {
   ui.notice(`PURCHASED ${result.car.name}`, 'ok');
 }
 
+function buyUpgrade(carId, partId) {
+  if (!store) return;
+  const result = store.buyUpgrade(carId, partId);
+  if (!result.ok) {
+    ui.notice(result.error, 'error');
+    return;
+  }
+  audio.uiClick?.();
+  ui.refreshPerformance();
+  ui.notice(`${result.part.name} · ${result.part.levels[result.level]} INSTALLED`, 'ok');
+}
+
 function changeLook(look) {
   if (!store) return;
   const carId = ui.stageCarId;
@@ -362,11 +376,13 @@ function aiLook(def, index, seed) {
   });
 }
 
-function pickAiCars(count, playerDef, seed) {
+function pickAiCars(count, playerDef, seed, investedValue = playerDef.price) {
   // Rivals are the cars closest in price to the player's (so a hypercar races
   // supercars, not hatchbacks), shuffled by seed so every grid is different.
+  // Upgrades count toward that value, so a fully tuned hatch meets faster
+  // rivals instead of walking away from stock ones.
   const floor = 14000;
-  const ref = Math.max(playerDef.price, floor);
+  const ref = Math.max(investedValue, floor);
   const gap = (car) => Math.abs(Math.log(Math.max(car.price, floor) / ref));
   const rivals = CARS.filter((car) => car.id !== playerDef.id).sort((a, b) => gap(a) - gap(b));
   // Stay within a 2.4x price band; a thin band repeats models in new liveries.
@@ -417,10 +433,13 @@ function startRace(config = {}, { chargeRental = true } = {}) {
   const playerDef = store.selectedCar;
   const playerLook = store.lookFor(playerDef.id);
   const seed = Math.floor(Math.random() * 1000);
-  const aiDefs = pickAiCars(setup.opponents, playerDef, seed);
+  const playerUpgrades = store.upgradesFor(playerDef.id);
+  const aiDefs = pickAiCars(
+    setup.opponents, playerDef, seed, playerDef.price + upgradeValue(playerDef, playerUpgrades),
+  );
   // Grid: AI fills the front and middle, the player starts at the back.
   const entrants = [{
-    def: playerDef, look: playerLook, name: store.name, slot: setup.opponents, isPlayer: true,
+    def: playerDef, look: playerLook, upgrades: playerUpgrades, name: store.name, slot: setup.opponents, isPlayer: true,
   }];
   for (let i = 0; i < setup.opponents; i++) {
     const def = aiDefs[i];
@@ -489,7 +508,8 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   let player = null;
 
   for (const entrant of entrants) {
-    const car = new Car(scene, entrant.def, entrant.look);
+    // Online entrants have no `upgrades`: every online race is stock vs stock.
+    const car = new Car(scene, entrant.def, entrant.look, entrant.upgrades || null);
     const slot = track.gridSlot(entrant.slot);
     car.reset(slot.point, slot.tangent);
     car.isPlayer = !!entrant.isPlayer;
@@ -519,11 +539,9 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
         id: entrant.remoteId, track: new RemoteTrack(), crossings: 0, dist: slot.dist, left: false,
       };
     } else {
-      // The AI judges corners only ~50 m ahead, so it brakes harder (about
-      // 2 g, like a driver who knows every braking point) instead of locking up.
-      car.brakeDecel *= 2;
-      racer.driver = new AIDriver(car, track, setup.difficulty, entrant.driverSeed, entrant.name);
-      racer.driver.input.car = car;
+      // Same brakes as the player: the planner looks far enough ahead and
+      // leans on its safety margin, so no hidden deceleration cheat is needed.
+      racer.driver = createAiDriver(car, track, setup.difficulty, entrant.driverSeed, entrant.name);
     }
     racers.push(racer);
   }

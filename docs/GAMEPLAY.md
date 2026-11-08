@@ -114,10 +114,10 @@ fee under the payout so the deduction never appears out of nowhere.
 
 ## Braking and wheel lock
 
-- Brakes stop a sports car at about **1 g** (roughly 43 m from 100 km/h),
+- Brakes stop a sports car at about **1.2 g** (roughly 35 m from 100 km/h),
   scaled by tyre grip; SUVs, off-roaders and muscle cars stop about 14 % later.
   Braking force fades with the square of speed, so a stop from 180 km/h needs
-  around **163 m** — nearly four times the distance from 100 km/h. Brake before
+  around **121 m** — about three and a half times the distance from 100 km/h. Brake before
   the corner, not at it.
 - Lifting off the throttle is **not** braking: engine, rolling and aero drag
   only slow the car at about 1.2–3 m/s², so it keeps rolling for a long time.
@@ -127,7 +127,9 @@ fee under the payout so the deduction never appears out of nowhere.
   stops a little less well and loses almost all sideways grip. Braking in a
   straight line stays stable; steering while locked swings the car into a
   slide. Ease off the brake (or slow below ~30 % of top speed) to unlock.
-- AI drivers brake harder (about 2 g) and never lock up.
+- AI drivers use the same brakes as the player and never lock up. They plan
+  further ahead and brake with a safety margin instead of secretly braking
+  twice as hard.
 
 ## AI rivals
 
@@ -286,9 +288,19 @@ to that car's defaults.
 - **KAZE S for score, VIPER X for lap times, COMET RS for the start.** FALCON GT
   is the best car to learn the circuit in.
 
-## Planned upgrades
+## Upgrades
 
-The upgrade tab previews the next progression layer: engine, tires, suspension
-and nitro tanks, funded by credits earned from racing. The credits counter is
-already present in the garage header, but it is not yet connected to a shop.
-See [ROADMAP.md](ROADMAP.md) for the intended direction.
+Every owned car can be tuned from the **Customize** tab. Each part has three
+levels; a level costs 7 %, 12 % and 20 % of the car's price (15,000 CR
+minimum), so tuning the starter hatch is cheap and tuning a hypercar is not.
+
+| Part | Per level |
+| --- | --- |
+| Engine | +6 % acceleration, +2.5 % top speed |
+| Tyres | +4 % grip (also adds braking), +2 % turn-in |
+| Brakes | +8 % brake force |
+| Nitro | +8 % boost thrust, 12 % slower burn |
+
+Money spent on upgrades counts toward your car's value when the AI grid is
+picked, so a fully tuned car meets faster rivals instead of lapping stock
+ones. Online races ignore upgrades: everyone races stock.

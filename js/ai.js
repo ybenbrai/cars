@@ -284,3 +284,11 @@ export class AIDriver {
     return this.input;
   }
 }
+
+/**
+ * Put an AI driver in a car. AI cars share the player's physics and brakes;
+ * the planner's long horizon and safety margin are what keep them on the road.
+ */
+export function createAiDriver(car, track, difficulty, seed = 0, name = 'AI') {
+  return new AIDriver(car, track, difficulty, seed, name);
+}

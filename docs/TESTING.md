@@ -32,6 +32,9 @@ npm run build     # clean dist/ build and bundle size report
   brake fade and stopping distances match the designed curve, brake distance and
   entry speed are inverses, and steering only breaks traction after a sustained
   hold.
+- AI planning: rivals keep the player's real brakes (no hidden multiplier) and
+  plan to stop within the car's actual braking distance, with higher difficulty
+  carrying more speed into the same corner.
 - Practice rentals: the 1,000 / 2,000 / 4,000 / 8,000 CR price curve, per-session
   charging, insufficient funds, refunds and free unlocked circuits.
 

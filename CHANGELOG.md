@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Car upgrades: engine, tyres, brakes and nitro, three levels each, bought
+  per car from the Customize tab. Prices scale with the car's value, tuned
+  stats show in green, and upgrade spend raises the AI grid's price band so
+  a tuned car still meets a fair field. Online races stay stock.
 - Eighteen-car catalogue across eight categories, each with its own body style,
   stats, physics, price and rank requirement. New: Kestrel RS open roadster and
   Sovereign GT12 front-engined grand tourer.
@@ -79,9 +83,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   limit of their car and the braking distance ahead, collect nitro bottles,
   and Expert races identical machinery at the limit instead of a 6 % power
   bonus with very cautious cornering.
+- AI cars had a hidden 2x brake force left over from when they only looked
+  50 m ahead. Now that the planner reads the whole braking zone, rivals use
+  the player's real brakes instead of out-braking identical machinery: up to
+  about 3 s over two laps, and a few tenths on the tightest circuit.
 - Brakes were about 3.5 g at any speed (100 km/h to a stop in 11 m). They are
-  now about 1 g, scaled by grip and car weight, with the force fading with the
-  square of speed: about 43 m from 100 km/h but 163 m from 180 km/h, so
+  now about 1.2 g, scaled by grip and car weight, with the force fading with the
+  square of speed: about 35 m from 100 km/h but 121 m from 180 km/h, so
   high-speed corners need early braking instead of a last-second stab.
 - Lifting off the throttle slowed the car faster than pressing the brake
   (about 15 m/s² at 100 km/h). Coasting is now engine, rolling and aero drag
@@ -131,7 +139,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Planned
 
-- Car upgrades: engine, tires, suspension and nitro tanks
 - Additional circuits and time-of-day variants
 - Accessibility options and input remapping
 

@@ -8,7 +8,7 @@ const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 // Fraction of the brake force lost at top speed. It grows with the square of
 // speed, so low-speed stops stay strong while a high-speed stop needs much
 // more road — late braking into a corner no longer works.
-export const BRAKE_FADE = 0.45;
+export const BRAKE_FADE = 0.25;
 
 // Steering must be held this long before it can break traction.
 export const DRIFT_COMMIT_DELAY = 0.9;
