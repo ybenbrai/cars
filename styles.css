@@ -1049,6 +1049,8 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
 .circuit-card:hover { border-color: var(--line-strong); }
 .circuit-card.active { border-color: var(--cyan); background: rgba(92, 225, 230, 0.07); }
 .circuit-card.locked { opacity: 0.55; }
+.circuit-card.rental { border-style: dashed; border-color: rgba(255, 196, 107, 0.55); }
+.circuit-card.rental small { color: var(--gold); }
 .circuit-card strong { display: block; font-family: var(--font-display); font-size: 13px; letter-spacing: 0.06em; }
 .circuit-card small { display: block; margin-top: 4px; font-size: 11px; letter-spacing: 0.12em; color: var(--faint); }
 .circuit-card .circuit-tags { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px; }

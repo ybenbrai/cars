@@ -98,13 +98,13 @@ const ui = new UI({
   onPause: pauseGame,
   onCamera: toggleCamera,
   onResume: resumeGame,
-  onRestart: () => (race?.online ? backToOnlineLobby() : safeStartRace(lastRaceConfig)),
+  onRestart: () => (race?.online ? backToOnlineLobby() : safeStartRace(lastRaceConfig, { chargeRental: false })),
   onQuit: () => {
     leaveOnlineRace();
     enterGarage();
   },
   onEndSession: () => endSession(),
-  onAgain: () => (race?.online ? backToOnlineLobby() : safeStartRace(lastRaceConfig)),
+  onAgain: () => (race?.online ? backToOnlineLobby() : safeStartRace(lastRaceConfig, { chargeRental: false })),
   onOnline: (action, payload) => handleOnline(action, payload),
 });
 
@@ -329,7 +329,9 @@ function resolveRaceConfig(config = {}) {
   const modeId = config.mode || (event ? 'career' : 'quick');
   const mode = getMode(modeId);
   let circuitId = config.circuitId || event?.circuitId || store.data.circuits[0] || fallbackCircuit.id;
-  if (!store.circuitUnlocked(circuitId)) circuitId = fallbackCircuit.id;
+  // Practice opens every circuit: locked ones are rented per session (see
+  // `startRace`). Every other mode still requires the circuit to be unlocked.
+  if (mode.id !== 'practice' && !store.circuitUnlocked(circuitId)) circuitId = fallbackCircuit.id;
   const circuit = getCircuit(circuitId);
   const difficulty = getDifficulty(config.difficulty || event?.difficulty || 'normal');
   const solo = mode.id === 'time-trial' || mode.id === 'practice';
@@ -386,9 +388,9 @@ function pickAiCars(count, playerDef, seed) {
  * Start a race from a menu button. A failure used to be silent ("nothing
  * happens"); now the player sees why and lands back in the garage.
  */
-function safeStartRace(config) {
+function safeStartRace(config, options) {
   try {
-    startRace(config);
+    startRace(config, options);
   } catch (error) {
     console.error('Could not start the race', error);
     try { disposeRace(); } catch { /* best effort */ }
@@ -397,7 +399,7 @@ function safeStartRace(config) {
   }
 }
 
-function startRace(config = {}) {
+function startRace(config = {}, { chargeRental = true } = {}) {
   if (!store?.profile) {
     state = 'profile';
     audio.setMusic(true);
@@ -430,7 +432,23 @@ function startRace(config = {}) {
       driverSeed: seed + i * 7,
     });
   }
-  launchRace(setup, entrants);
+
+  // Practice rents a circuit the player has not unlocked. The fee is charged
+  // once per session: restarting or driving again reuses the same rental.
+  const rentalFee = chargeRental && setup.mode === 'practice'
+    ? store.payPracticeFee(setup.circuit.id)
+    : { ok: true, fee: 0 };
+  if (!rentalFee.ok) {
+    ui.notice(rentalFee.error, 'error');
+    return;
+  }
+
+  try {
+    launchRace(setup, entrants);
+  } catch (error) {
+    if (rentalFee.fee) store.refundPracticeFee(rentalFee.fee);
+    throw error;
+  }
 }
 
 /**

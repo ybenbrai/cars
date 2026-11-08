@@ -10,6 +10,7 @@ import {
   getMode,
   nextRankProgress,
   positionLabel,
+  practiceRentalFee,
 } from '../js/economy.js';
 import { CIRCUITS, getCircuit } from '../js/data/circuits.js';
 import { CAREER_EVENTS, CAREER_SERIES, getCareerEvent } from '../js/data/career.js';
@@ -129,4 +130,17 @@ test('rank progress walks toward the next tier', () => {
   const maxed = nextRankProgress({ wins: 40, races: 10 });
   assert.equal(maxed.next, null);
   assert.equal(maxed.progress, 1);
+});
+
+test('practice rentals double for each rank between the driver and the circuit', () => {
+  assert.equal(practiceRentalFee(getCircuit('sunset-coast'), 0), 0);
+  assert.equal(practiceRentalFee(getCircuit('neon-city'), 0), 1000);
+  assert.equal(practiceRentalFee(getCircuit('dust-basin'), 0), 2000);
+  assert.equal(practiceRentalFee(getCircuit('alpine-pass'), 0), 4000);
+  assert.equal(practiceRentalFee(getCircuit('dockyard'), 0), 8000);
+  // The fee shrinks as the driver ranks up.
+  assert.equal(practiceRentalFee(getCircuit('dockyard'), 1), 4000);
+  assert.equal(practiceRentalFee(getCircuit('dockyard'), 3), 1000);
+  assert.equal(practiceRentalFee(getCircuit('dockyard'), 4), 0);
+  assert.equal(practiceRentalFee(null, 0), 0);
 });

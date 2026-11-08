@@ -101,3 +101,49 @@ test('loading drops legacy mixed-distance totals and junk records', () => {
   assert.deepEqual(rec.bestLaps, [55]);
   assert.equal(store.data.records['no-such-circuit'], undefined);
 });
+
+test('practice charges a per-session rental only for locked circuits', () => {
+  const store = freshStore();
+  assert.equal(store.practiceFee('sunset-coast'), 0);
+  assert.equal(store.practiceFee('neon-city'), 1000);
+  assert.equal(store.practiceFee('dockyard'), 8000);
+  assert.equal(store.practiceFee('no-such-circuit'), 0);
+
+  const first = store.payPracticeFee('neon-city');
+  assert.deepEqual(first, { ok: true, fee: 1000 });
+  assert.equal(store.wallet, STARTING_MONEY - 1000);
+  assert.equal(store.data.stats.creditsSpent, 1000);
+
+  // A new session pays again: the rental is not a permanent unlock.
+  assert.equal(store.payPracticeFee('neon-city').fee, 1000);
+  assert.equal(store.wallet, STARTING_MONEY - 2000);
+  assert.equal(store.practiceFee('neon-city'), 1000);
+});
+
+test('a practice rental is refused when the wallet is short', () => {
+  const store = freshStore();
+  store.data.wallet = 500;
+  const result = store.payPracticeFee('neon-city');
+  assert.equal(result.ok, false);
+  assert.equal(result.fee, 1000);
+  assert.match(result.error, /500/);
+  assert.equal(store.wallet, 500);
+  assert.equal(store.data.stats.creditsSpent, 0);
+});
+
+test('a circuit unlocked without rank is free to practise', () => {
+  const store = freshStore();
+  assert.equal(store.practiceFee('dockyard'), 8000);
+  store.unlockCircuit('dockyard');
+  assert.equal(store.practiceFee('dockyard'), 0);
+  assert.equal(store.payPracticeFee('dockyard').fee, 0);
+});
+
+test('a refunded practice rental returns the credits', () => {
+  const store = freshStore();
+  store.payPracticeFee('alpine-pass');
+  assert.equal(store.wallet, STARTING_MONEY - 4000);
+  store.refundPracticeFee(4000);
+  assert.equal(store.wallet, STARTING_MONEY);
+  assert.equal(store.data.stats.creditsSpent, 0);
+});

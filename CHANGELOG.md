@@ -19,6 +19,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   walls, hoardings and a pit building.
 - Game modes: Career (nine events, four series), Quick Race, Time Trial and
   Practice. Practice times laps and can be ended from pause to bank drift score.
+- Practice opens every circuit. Circuits still locked by rank are rented per
+  session for 1,000–8,000 CR depending on how far ahead they are.
 - Clearing a career event unlocks the circuit used by the next event.
 - Profile tab with rank progress, statistics, personal records and race history.
 - Results screen shows unlocks, promotions and career objective status.
@@ -77,8 +79,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bonus with very cautious cornering.
 - Brakes were about 3.5 g at any speed (100 km/h to a stop in 11 m). They are
   now about 1 g, scaled by grip and car weight, with the force fading with the
-  square of speed: about 41 m from 100 km/h but 160 m from 180 km/h, so
+  square of speed: about 43 m from 100 km/h but 163 m from 180 km/h, so
   high-speed corners need early braking instead of a last-second stab.
+- Lifting off the throttle slowed the car faster than pressing the brake
+  (about 15 m/s² at 100 km/h). Coasting is now engine, rolling and aero drag
+  only — roughly 2 m/s² at 100 km/h — so the pedal is always clearly stronger.
+- Steering alone snapped into a drift after a quick flick. The rear now only
+  steps out after a hard turn is held for about a second, and builds
+  progressively; the handbrake still starts a slide instantly.
 - The rev bar kept climbing past sixth gear and wrapped back to zero at top
   speed. It now fills through sixth gear and stays on the redline above it.
 - A collected nitro pickup stayed dimmed for the rest of the race even after

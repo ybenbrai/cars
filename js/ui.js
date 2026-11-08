@@ -191,6 +191,13 @@ export class UI {
         return;
       }
       this.raceConfig.mode = card.dataset.mode;
+      // Leaving practice: a rented circuit may be locked in the new mode, so
+      // fall back to the first circuit the player actually owns.
+      if (this.raceConfig.mode !== 'practice'
+        && !this.store?.circuitUnlocked(this.raceConfig.circuitId)) {
+        const first = CIRCUITS.find((c) => this.store?.circuitUnlocked(c.id)) || CIRCUITS[0];
+        this.raceConfig.circuitId = first.id;
+      }
       this.renderRaceSetup();
     });
     $('circuitList').addEventListener('click', (e) => {
@@ -570,13 +577,21 @@ export class UI {
     `).join('');
 
     $('circuitList').innerHTML = CIRCUITS.map((circuit) => {
+      const practice = mode.id === 'practice';
       const unlocked = this.store.circuitUnlocked(circuit.id);
+      const open = unlocked || practice;
+      const fee = practice ? this.store.practiceFee(circuit.id) : 0;
       const active = circuit.id === this.raceConfig.circuitId;
       const best = this.store.bestLapFor(circuit.id);
-      const lockText = unlocked ? (best ? `BEST ${fmtTime(best)}` : `${circuit.lengthKm} KM · ${circuit.difficultyLabel}`) : `RANK ${(RANK_LABELS[circuit.unlockRank] || 'LOCKED').toUpperCase()}`;
-      return `<button class="circuit-card ${active ? 'active' : ''} ${unlocked ? '' : 'locked'}" data-circuit="${circuit.id}" ${unlocked ? '' : 'aria-disabled="true"'}>
+      let detail;
+      if (fee) detail = `RENT ${formatCredits(fee)} CR · ${circuit.lengthKm} KM`;
+      else if (unlocked) detail = best ? `BEST ${fmtTime(best)}` : `${circuit.lengthKm} KM · ${circuit.difficultyLabel}`;
+      else detail = `RANK ${(RANK_LABELS[circuit.unlockRank] || 'LOCKED').toUpperCase()}`;
+      const classes = ['circuit-card', active ? 'active' : '', open ? '' : 'locked', fee ? 'rental' : '']
+        .filter(Boolean).join(' ');
+      return `<button class="${classes}" data-circuit="${circuit.id}" ${open ? '' : 'aria-disabled="true"'}>
         <strong>${circuit.name}</strong>
-        <small>${circuit.location} · ${lockText}</small>
+        <small>${circuit.location} · ${detail}</small>
         <div class="circuit-tags">${circuit.features.map((f) => `<span>${f}</span>`).join('')}</div>
       </button>`;
     }).join('');
@@ -602,9 +617,11 @@ export class UI {
     const aiMode = mode.id === 'quick' || mode.id === 'career';
     const laps = mode.id === 'practice' ? 'Free drive' : `${circuit.laps} laps`;
     const opponents = aiMode ? `${this.raceConfig.opponents} AI` : 'Solo';
+    const rental = mode.id === 'practice' ? this.store.practiceFee(circuit.id) : 0;
     $('setupSummary').innerHTML = `
       <div class="summary-row"><span>MODE</span><strong>${mode.label}</strong></div>
       <div class="summary-row"><span>CIRCUIT</span><strong>${circuit.name} · ${circuit.lengthKm} km</strong></div>
+      ${rental ? `<div class="summary-row"><span>TRACK RENTAL</span><strong>${formatCredits(rental)} CR · per session</strong></div>` : ''}
       <div class="summary-row"><span>CAR</span><strong>${car.name}</strong></div>
       <div class="summary-row"><span>RACE</span><strong>${laps} · ${opponents} · ${aiMode ? diff.label : 'No rivals'}</strong></div>
       <div class="summary-row"><span>PAYOUT</span><strong>${mode.id === 'practice' ? 'Drift score only' : `Base ${formatCredits(basePurse({ mode: mode.id, circuit, laps: mode.id === 'time-trial' ? 3 : circuit.laps }))} CR`}</strong></div>`;

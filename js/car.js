@@ -15,7 +15,7 @@ const BASE = {
 // Fraction of the brake force lost at top speed. It grows with the square of
 // speed, so low-speed stops stay strong while a high-speed stop needs much
 // more road — late braking into a corner no longer works.
-const BRAKE_FADE = 0.5;
+const BRAKE_FADE = 0.45;
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const damp = (a, b, lambda, dt) => a + (b - a) * (1 - Math.exp(-lambda * dt));
@@ -66,16 +66,19 @@ export class Car {
     // throttle and steering into the corner, so a drift can be held through
     // a bend instead of ending the moment the handbrake is released.
     this.driftHold = 0;
+    // How long the driver has held a hard steering input. Steering alone only
+    // breaks traction after a sustained hold, not on a quick flick.
+    this.steerHold = 0;
     this.driftAssist = false;
     // Off-road ability: rugged cars barely notice dirt.
     const rugged = def.category === 'offroad' || def.category === 'suv';
     this.offroadPace = rugged ? 0.93 : 0.8;
-    // Braking: about 1 g for a sports car, scaled by tyre grip; heavy SUVs,
-    // off-roaders and muscle cars stop noticeably later. The force also fades
-    // with speed (see `brakeDecelAt`), so a high-speed stop needs much more
-    // road than a low-speed one.
+    // Braking: just under 1 g for a sports car, scaled by tyre grip; heavy
+    // SUVs, off-roaders and muscle cars stop noticeably later. The force also
+    // fades with speed (see `brakeDecelAt`), so a high-speed stop needs much
+    // more road than a low-speed one.
     const heavy = rugged || def.category === 'muscle';
-    this.brakeDecel = 10 * this.physics.grip * (heavy ? 0.86 : 1);
+    this.brakeDecel = 9.5 * this.physics.grip * (heavy ? 0.86 : 1);
     // Wheel lock: a long, hard stop from high speed locks the tyres. Locked
     // tyres stop less well, barely steer and let the car slide.
     this.locked = false;
@@ -109,6 +112,7 @@ export class Car {
     this.wheelSpin = 0;
     this.prevSpeed = 0;
     this.driftHold = 0;
+    this.steerHold = 0;
     this.locked = false;
     this.brakeHeld = 0;
     this.model.setBodyTilt(0, 0);
@@ -233,15 +237,29 @@ export class Car {
     // ── drift state
     const speedAbs = Math.abs(vF);
     const steerAbs = Math.abs(this.steer);
+    // Steering alone does not snap the car sideways: the driver must hold a
+    // hard line for about a second before the rear starts to step out.
+    const hardSteer = throttle && !brake && !this.offroad && speedAbs > 13 && steerAbs > 0.45;
+    this.steerHold = hardSteer ? this.steerHold + dt : Math.max(0, this.steerHold - 3 * dt);
     if (handbrake && speedAbs > 8) {
+      // The handbrake is still the instant way to start a slide.
       this.driftHold = Math.min(1, this.driftHold + 4 * dt);
-    } else if (this.driftAssist && throttle && !brake && !this.offroad && speedAbs > 13 && steerAbs > 0.35
-      && (this.driftHold > 0.25 || steerAbs > 0.6)) {
-      // Hard steering at speed lets the rear step out a little; an existing
-      // drift is held for as long as the driver keeps steering and on the gas.
-      const initiate = clamp((steerAbs - 0.6) / 0.35, 0, 1) * clamp((speedN - 0.35) / 0.4, 0, 1) * 0.55;
-      const target = this.driftHold > 0.25 ? 0.45 + 0.4 * clamp((steerAbs - 0.35) / 0.5, 0, 1) : initiate;
-      this.driftHold += clamp(target - this.driftHold, -1.2 * dt, 2.2 * dt);
+      // A handbrake slide counts as a committed line, so it can be caught by
+      // the throttle and steering once `Space` is released.
+      if (steerAbs > 0.2) this.steerHold = Math.min(2.1, this.steerHold + 2 * dt);
+    } else if (this.driftAssist && throttle && !brake && !this.offroad && speedAbs > 13) {
+      if (steerAbs > 0.2) {
+        // 0 until the line has been held for ~0.9 s, then builds over the next
+        // 1.2 s: a long sweeper gradually loosens the rear, while a quick
+        // direction change keeps full grip.
+        const commit = clamp((this.steerHold - 0.9) / 1.2, 0, 1);
+        const sustain = clamp((steerAbs - 0.2) / 0.45, 0, 1);
+        const target = 0.75 * commit * sustain;
+        const rate = target > this.driftHold ? 1.1 : 1.6;
+        this.driftHold += clamp(target - this.driftHold, -rate * dt, rate * dt);
+      } else {
+        this.driftHold = Math.max(0, this.driftHold - 1.6 * dt);
+      }
     } else {
       // Straightening the wheel or braking regains grip quickly; otherwise
       // the slide fades out gradually.
@@ -305,10 +323,14 @@ export class Car {
       }
     }
     if (!throttle && !brake) {
-      nF -= nF * 0.55 * dt;
+      // Coasting is engine braking + rolling resistance, plus aero drag that
+      // grows with speed. It must never slow the car faster than the pedal.
+      const drag = 1.2 + 0.0006 * nF * nF;
+      const sign = Math.sign(nF);
+      nF -= sign * Math.min(Math.abs(nF) / Math.max(dt, 1e-4), drag) * dt;
     }
     if (handbrake) {
-      nF *= Math.exp(-0.55 * dt);
+      nF *= Math.exp(-0.35 * dt);
     }
     if (offroad) {
       nF *= Math.exp(-this.offroadDrag * dt);

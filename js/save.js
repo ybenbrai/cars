@@ -9,6 +9,7 @@ import {
 } from './data/cars.js';
 import { CIRCUITS, getCircuit } from './data/circuits.js';
 import { CAREER_EVENTS } from './data/career.js';
+import { practiceRentalFee } from './economy.js';
 
 const SCHEMA = 2;
 
@@ -232,6 +233,33 @@ export class SaveStore {
   circuitUnlocked(circuitId) {
     const circuit = getCircuit(circuitId);
     return !!circuit && (this.data.circuits.includes(circuitId) || this.rank >= (circuit.unlockRank || 0));
+  }
+
+  /** Practice rental price; zero when the player already has access. */
+  practiceFee(circuitId) {
+    const circuit = getCircuit(circuitId);
+    if (!circuit || this.circuitUnlocked(circuitId)) return 0;
+    return practiceRentalFee(circuit, this.rank);
+  }
+
+  payPracticeFee(circuitId) {
+    const fee = this.practiceFee(circuitId);
+    if (!fee) return { ok: true, fee: 0 };
+    if (this.data.wallet < fee) {
+      const missing = (fee - this.data.wallet).toLocaleString('en-US');
+      return { ok: false, fee, error: `Track rental needs ${missing} more credits.` };
+    }
+    this.data.wallet -= fee;
+    this.data.stats.creditsSpent += fee;
+    this.save();
+    return { ok: true, fee };
+  }
+
+  refundPracticeFee(fee) {
+    if (!fee) return;
+    this.data.wallet += fee;
+    this.data.stats.creditsSpent = Math.max(0, this.data.stats.creditsSpent - fee);
+    this.save();
   }
 
   addCredits(amount, reason = 'race') {

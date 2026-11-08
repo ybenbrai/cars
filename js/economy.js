@@ -23,7 +23,7 @@ export const MODES = [
   },
   {
     id: 'practice', label: 'PRACTICE', short: 'Free drive',
-    blurb: 'No opponents, no timer, no pressure. Learn the lines and stack drift score.',
+    blurb: 'No opponents, no timer, no pressure. Every circuit is open: unlocked ones are free, locked ones are rented per session.',
   },
 ];
 
@@ -36,6 +36,17 @@ export function getMode(id) {
 }
 
 const POSITION_FACTOR = [1.85, 1.3, 0.98, 0.76, 0.58, 0.44, 0.34, 0.26];
+
+// Practice lets you rent a circuit you have not unlocked yet. The price
+// doubles for each rank between you and the circuit's requirement.
+const PRACTICE_RENTAL_FEES = [1000, 2000, 4000, 8000];
+
+export function practiceRentalFee(circuit, rank = 0) {
+  if (!circuit) return 0;
+  const gap = Math.max(0, (circuit.unlockRank || 0) - (rank || 0));
+  if (!gap) return 0;
+  return PRACTICE_RENTAL_FEES[Math.min(gap - 1, PRACTICE_RENTAL_FEES.length - 1)];
+}
 
 export function basePurse({ mode, circuit, laps }) {
   const km = circuit?.lengthKm || 0.6;

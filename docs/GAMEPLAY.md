@@ -88,13 +88,35 @@ Gates are checked as circles, not planes: radius `12` for the finish line and
 `11` for checkpoints. This keeps detection forgiving at high speed. Passing a
 gate out of order does nothing; the car must reach the active gate.
 
+## Practice sessions
+
+Practice has no opponents and no lap limit, and **every circuit is open** even
+when it is still locked in the other modes. An unlocked circuit is free; a
+locked one is rented **per session**, at a price that doubles for every rank
+between you and the circuit's requirement:
+
+| Rank gap | Rental |
+| ---: | ---: |
+| 1 | 1,000 CR |
+| 2 | 2,000 CR |
+| 3 | 4,000 CR |
+| 4 | 8,000 CR |
+
+The fee is taken when the session starts. `RESTART SESSION` and `DRIVE AGAIN`
+reuse the same rental, but quitting to the garage ends it, so a new practice
+session on a locked circuit pays again. Career, Quick Race and Time Trial keep
+the normal circuit unlock rules.
+
 ## Braking and wheel lock
 
-- Brakes stop a sports car at about **1 g** (roughly 41 m from 100 km/h),
+- Brakes stop a sports car at about **1 g** (roughly 43 m from 100 km/h),
   scaled by tyre grip; SUVs, off-roaders and muscle cars stop about 14 % later.
   Braking force fades with the square of speed, so a stop from 180 km/h needs
-  around **160 m** — nearly four times the distance from 100 km/h. Brake before
+  around **163 m** — nearly four times the distance from 100 km/h. Brake before
   the corner, not at it.
+- Lifting off the throttle is **not** braking: engine, rolling and aero drag
+  only slow the car at about 1.2–3 m/s², so it keeps rolling for a long time.
+  The pedal is always several times stronger, even at top speed.
 - Holding the brake hard for more than about **0.35 s** above roughly 60 % of
   top speed **locks the wheels**: tyres smoke, screech and leave marks, the car
   stops a little less well and loses almost all sideways grip. Braking in a
@@ -135,8 +157,10 @@ Racecraft (applies to every nearby car, including you):
 ## Starting and holding a drift
 
 - **Handbrake** (`Space`) kicks the rear out at any speed above 8 m/s.
-- **Steering hard at speed** with the throttle on also lets the rear step out:
-  hold a turn at high speed and the car slides; tap the key and it grips.
+- **Steering hard at speed** with the throttle on can also break traction, but
+  only after the driver has **held the turn for about a second**: the rear then
+  steps out progressively over the next second or so. A quick flick of the
+  wheel keeps full grip, so normal cornering stays clean.
 - **Holding a drift:** once sliding, keep the throttle on and keep steering into
   the corner. The drift lasts as long as you do, even after releasing `Space`.
 - **Ending a drift:** straighten the wheel or brake and grip returns within
@@ -191,7 +215,8 @@ step:
    car turn rate and a high-speed damping factor.
 3. Re-project the old velocity onto the **new** heading. The leftover lateral
    component is the slide.
-4. Apply throttle, braking, handbrake drag, off-road drag and speed limits.
+4. Apply throttle, braking, coasting, handbrake drag, off-road drag and speed
+   limits.
 5. Damp lateral velocity with grip. The handbrake drops grip to 15%, which is
    what makes the rear step out.
 6. Move the car, query the nearest track sample, apply off-road detection and
@@ -207,7 +232,8 @@ trail-braking works; holding `S` from a standstill engages reverse.
 - Track half-width: `7.4 m`.
 - Off-road begins outside `7.55 m` from the centerline.
 - Walls sit at `10.4 m`.
-- Off-road limits speed to 58% and applies extra drag and low grip.
+- Off-road limits speed to 80% (93% for SUVs and off-roaders) and applies
+  extra drag and low grip.
 - Wall contact projects the car back inside the corridor, reflects the normal
   velocity and damps the rest, so you scrub speed instead of sticking.
 
