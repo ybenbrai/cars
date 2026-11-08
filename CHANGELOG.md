@@ -20,7 +20,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Game modes: Career (nine events, four series), Quick Race, Time Trial and
   Practice. Practice times laps and can be ended from pause to bank drift score.
 - Practice opens every circuit. Circuits still locked by rank are rented per
-  session for 1,000–8,000 CR depending on how far ahead they are.
+  session for 1,000–8,000 CR depending on how far ahead they are. A confirmation
+  dialog shows the fee before charging, the HUD carries a rental badge for the
+  session, and the results sheet lists the deduction.
 - Clearing a career event unlocks the circuit used by the next event.
 - Profile tab with rank progress, statistics, personal records and race history.
 - Results screen shows unlocks, promotions and career objective status.

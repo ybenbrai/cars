@@ -81,6 +81,8 @@ export class UI {
       pause: $('screen-pause'),
       account: $('screen-account'),
     };
+    this.rentalEl = $('screen-rental');
+    this.pendingRental = null;
     this.hud = $('hud');
     this.touch = $('touch');
     this.customRoot = $('customControls');
@@ -178,7 +180,7 @@ export class UI {
     // From any other tab this opens race setup; on the RACE tab it starts the
     // race (it used to only re-open the tab, so pressing it did nothing).
     $('btnRace').addEventListener('click', () => {
-      if (this.tab === 'race') this.cb.onRace?.({ ...this.raceConfig });
+      if (this.tab === 'race') this.requestRace({ ...this.raceConfig });
       else this.setTab('race');
     });
 
@@ -217,7 +219,7 @@ export class UI {
       $('opponentCount').textContent = String(this.raceConfig.opponents);
       this.renderSummary();
     });
-    $('btnStartRace').addEventListener('click', () => this.cb.onRace?.({ ...this.raceConfig }));
+    $('btnStartRace').addEventListener('click', () => this.requestRace({ ...this.raceConfig }));
 
     $('careerList').addEventListener('click', (e) => {
       const button = e.target.closest('[data-event]');
@@ -265,6 +267,18 @@ export class UI {
     $('btnQuit').addEventListener('click', () => this.cb.onQuit?.());
     $('btnEndSession').addEventListener('click', () => this.cb.onEndSession?.());
     $('btnAgain').addEventListener('click', () => this.cb.onAgain?.());
+    $('btnConfirmRental').addEventListener('click', () => {
+      const config = this.pendingRental;
+      this.closeRental();
+      if (config) this.cb.onRace?.(config);
+    });
+    $('btnCancelRental').addEventListener('click', () => this.closeRental());
+    this.rentalEl.addEventListener('click', (e) => {
+      if (e.target === this.rentalEl) this.closeRental();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !this.rentalEl.classList.contains('hidden')) this.closeRental();
+    });
 
     $('onlinePanel').addEventListener('click', (e) => {
       const button = e.target.closest('[data-online]');
@@ -323,6 +337,41 @@ export class UI {
     if (name !== 'account') this.screens.account?.classList.add('hidden');
   }
 
+  /**
+   * Start a race, asking first when Practice would rent a locked circuit.
+   * The fee itself is charged by the game when the session actually starts.
+   */
+  requestRace(config) {
+    if (!this.store) return;
+    const circuit = getCircuit(config.circuitId);
+    if (!circuit) return;
+    const fee = config.mode === 'practice' ? this.store.practiceFee(circuit.id) : 0;
+    if (!fee) {
+      this.cb.onRace?.(config);
+      return;
+    }
+    const gap = Math.max(1, (circuit.unlockRank || 0) - this.store.rank);
+    const enough = this.store.wallet >= fee;
+    $('rentalCircuit').textContent = circuit.name;
+    $('rentalFee').textContent = `${formatCredits(fee)} CR`;
+    $('btnRentalFee').textContent = `${formatCredits(fee)} CR`;
+    const confirm = $('btnConfirmRental');
+    confirm.disabled = !enough;
+    const note = $('rentalNote');
+    note.className = `rental-note${enough ? '' : ' warn'}`;
+    note.textContent = enough
+      ? `One session · ${gap} rank${gap === 1 ? '' : 's'} ahead · wallet ${formatCredits(this.store.wallet)} CR`
+      : `Needs ${formatCredits(fee - this.store.wallet)} more CR. Quit and earn some first.`;
+    this.pendingRental = config;
+    this.rentalEl.classList.remove('hidden');
+    setTimeout(() => confirm.focus(), 40);
+  }
+
+  closeRental() {
+    this.pendingRental = null;
+    this.rentalEl?.classList.add('hidden');
+  }
+
   setTab(name) {
     this.tab = name;
     document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
@@ -349,6 +398,7 @@ export class UI {
     document.body.classList.toggle('racing', on);
     this.setHudVisible(on);
     this.setTouchVisible(on);
+    if (on) this.closeRental();
     if (!on) {
       this.setHudVisible(false);
       this.setTouchVisible(false);
@@ -372,6 +422,7 @@ export class UI {
   renderGarage(store, auth) {
     this.store = store;
     this.auth = auth || this.auth;
+    this.closeRental();
     this.setHudVisible(false);
     this.setTouchVisible(false);
 
@@ -793,9 +844,11 @@ export class UI {
     `).join('');
 
     const lines = data.rewards?.lines || [];
+    const rental = data.rental;
     $('resultRewards').innerHTML = [
       ...lines.map((line) => `<div class="reward-line ${line.value < 0 ? 'minus' : ''}"><span>${esc(line.label)}</span><b>${line.value < 0 ? '−' : '+'}${formatCredits(Math.abs(line.value))}</b></div>`),
       `<div class="reward-line total"><span>TOTAL PAYOUT</span><b>+${formatCredits(data.rewards?.total || 0)}</b></div>`,
+      ...(rental ? [`<div class="reward-line minus rental"><span>TRACK RENTAL · ${esc(rental.circuit)}</span><b>−${formatCredits(rental.fee)}</b></div>`] : []),
     ].join('');
 
     this.show('results');

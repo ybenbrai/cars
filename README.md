@@ -180,6 +180,7 @@ Full stats, physics modifiers, scoring formulas and driving tips are in the
 │  ├─ track.js                Circuit geometry, gates, nitro bottles, nearest-point lookup
 │  ├─ scenery.js              Sky, lights, ground, mesas, grandstands, props
 │  ├─ car.js                  Arcade physics, collisions, nitro
+│  ├─ vehicleMath.js          Braking, coasting and drift math shared with tests
 │  ├─ carModel.js             Procedural car mesh and cosmetics
 │  ├─ garageScene.js          Garage turntable renderer
 │  ├─ effects.js              Skid marks, particles, flames

@@ -1,5 +1,12 @@
 import * as THREE from 'three';
 import { CarModel } from './carModel.js';
+import {
+  brakeDecelAt,
+  brakeDistance,
+  coastDrag,
+  maxEntrySpeed,
+  assistedDriftTarget,
+} from './vehicleMath.js';
 
 const BASE = {
   maxSpeed: 56,
@@ -12,10 +19,8 @@ const BASE = {
   boostPower: 16,
 };
 
-// Fraction of the brake force lost at top speed. It grows with the square of
-// speed, so low-speed stops stay strong while a high-speed stop needs much
-// more road — late braking into a corner no longer works.
-const BRAKE_FADE = 0.45;
+// Brake fade, coasting drag and drift-entry timing live in vehicleMath.js so
+// the car, the AI and the tests share the exact same curves.
 
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 const damp = (a, b, lambda, dt) => a + (b - a) * (1 - Math.exp(-lambda * dt));
@@ -152,8 +157,7 @@ export class Car {
    * from 200 km/h takes far more road than twice the distance from 100 km/h.
    */
   brakeDecelAt(speed) {
-    const n = clamp(Math.abs(speed) / this.maxSpeed, 0, 1);
-    return this.brakeDecel * (1 - BRAKE_FADE * n * n);
+    return brakeDecelAt(speed, this.maxSpeed, this.brakeDecel);
   }
 
   /**
@@ -162,41 +166,12 @@ export class Car {
    * margin instead of braking at the absolute limit.
    */
   brakeDistance(from, to, scale = 1) {
-    from = Math.abs(from);
-    to = Math.min(Math.abs(to), this.maxSpeed);
-    if (from <= to) return 0;
-    const a0 = this.brakeDecel * scale;
-    const vm = this.maxSpeed;
-    const k = BRAKE_FADE;
-    let distance = 0;
-    if (from > vm) {
-      // Above top speed the fade is capped, so the force is constant there.
-      distance += (from * from - vm * vm) / (2 * a0 * (1 - k));
-      from = vm;
-    }
-    if (from <= to) return distance;
-    if (k <= 0) return distance + (from * from - to * to) / (2 * a0);
-    const c = (vm * vm) / (2 * a0 * k);
-    const ratio = (1 - k * (to / vm) ** 2) / (1 - k * (from / vm) ** 2);
-    return distance + c * Math.log(ratio);
+    return brakeDistance({ from, to, maxSpeed: this.maxSpeed, brakeDecel: this.brakeDecel, scale });
   }
 
   /** Fastest speed from which `target` can be reached within `distance`. */
   maxEntrySpeed(target, distance, scale = 1) {
-    target = Math.min(Math.abs(target), this.maxSpeed);
-    if (distance <= 0) return target;
-    const a0 = this.brakeDecel * scale;
-    const vm = this.maxSpeed;
-    const k = BRAKE_FADE;
-    let v;
-    if (k <= 0) {
-      v = Math.sqrt(target * target + 2 * a0 * distance);
-    } else {
-      const c = (vm * vm) / (2 * a0 * k);
-      const remaining = 1 - k * (target / vm) ** 2;
-      v = Math.sqrt(Math.max(0, (vm * vm / k) * (1 - remaining * Math.exp(-distance / c))));
-    }
-    return Math.min(vm, v);
+    return maxEntrySpeed({ target, distance, maxSpeed: this.maxSpeed, brakeDecel: this.brakeDecel, scale });
   }
 
   /** Collision response used by the race director for car-to-car contact. */
@@ -252,9 +227,7 @@ export class Car {
         // 0 until the line has been held for ~0.9 s, then builds over the next
         // 1.2 s: a long sweeper gradually loosens the rear, while a quick
         // direction change keeps full grip.
-        const commit = clamp((this.steerHold - 0.9) / 1.2, 0, 1);
-        const sustain = clamp((steerAbs - 0.2) / 0.45, 0, 1);
-        const target = 0.75 * commit * sustain;
+        const target = assistedDriftTarget(steerAbs, this.steerHold);
         const rate = target > this.driftHold ? 1.1 : 1.6;
         this.driftHold += clamp(target - this.driftHold, -rate * dt, rate * dt);
       } else {
@@ -325,7 +298,7 @@ export class Car {
     if (!throttle && !brake) {
       // Coasting is engine braking + rolling resistance, plus aero drag that
       // grows with speed. It must never slow the car faster than the pedal.
-      const drag = 1.2 + 0.0006 * nF * nF;
+      const drag = coastDrag(nF);
       const sign = Math.sign(nF);
       nF -= sign * Math.min(Math.abs(nF) / Math.max(dt, 1e-4), drag) * dt;
     }

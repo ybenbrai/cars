@@ -42,6 +42,8 @@ export class HUD {
       toast: document.getElementById('toast'),
       wrongway: document.getElementById('wrongway'),
       minimap: document.getElementById('minimap'),
+      rental: document.getElementById('hudRental'),
+      rentalText: document.getElementById('hudRentalText'),
     };
     this.gaugeMax = 0;
     this.last = {};
@@ -55,6 +57,13 @@ export class HUD {
     this.track = track;
     this.lastMapCircuit = null;
     this.buildMapBase();
+  }
+
+  /** Show or hide the practice rental badge (`{ circuit, fee }` or null). */
+  setRental(rental) {
+    if (!this.el.rental) return;
+    this.el.rental.classList.toggle('hidden', !rental);
+    if (rental) this.el.rentalText.textContent = `${rental.circuit} · ${fmtCredits(rental.fee)} CR`;
   }
 
   /**

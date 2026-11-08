@@ -107,6 +107,11 @@ reuse the same rental, but quitting to the garage ends it, so a new practice
 session on a locked circuit pays again. Career, Quick Race and Time Trial keep
 the normal circuit unlock rules.
 
+Before charging, the garage asks you to confirm the rental and shows how many
+ranks ahead the circuit is plus your wallet balance. During the session a
+`TRACK RENTAL` badge sits under the lap counter, and the results sheet lists the
+fee under the payout so the deduction never appears out of nowhere.
+
 ## Braking and wheel lock
 
 - Brakes stop a sports car at about **1 g** (roughly 43 m from 100 km/h),

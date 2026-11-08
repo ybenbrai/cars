@@ -28,6 +28,12 @@ npm run build     # clean dist/ build and bundle size report
   unsupported methods, 404s, malformed percent-encoding and traversal attempts.
 - Car catalogue: unique ids, complete data, stat ranges, physics ranges, default
   looks, cosmetic palettes and `normalizeLook()` repair/sanitization behavior.
+- Handling math: coasting is always weaker than braking for every car and speed,
+  brake fade and stopping distances match the designed curve, brake distance and
+  entry speed are inverses, and steering only breaks traction after a sustained
+  hold.
+- Practice rentals: the 1,000 / 2,000 / 4,000 / 8,000 CR price curve, per-session
+  charging, insufficient funds, refunds and free unlocked circuits.
 
 The test runner is Node's built-in `node:test`; there are no test dependencies.
 
@@ -50,6 +56,7 @@ Run through the relevant rows before a release or a large pull request.
 | Touch controls | — | — | — | ☐ | ☐ |
 | Gamepad | ☐ | ☐ | ☐ | — | ☐ |
 | Pause / resume / restart | ☐ | ☐ | ☐ | ☐ | ☐ |
+| Practice rental confirmation, HUD badge and results receipt | ☐ | ☐ | ☐ | ☐ | ☐ |
 | Three-lap finish / results | ☐ | ☐ | ☐ | ☐ | ☐ |
 | Persistence after reload | ☐ | ☐ | ☐ | ☐ | ☐ |
 

@@ -524,6 +524,20 @@ h1 em, h2 em {
   animation: rise 0.5s var(--ease) both;
 }
 .modal.small { width: min(400px, 100%); text-align: center; }
+.rental-modal .pause-copy strong { color: var(--gold); letter-spacing: 0.08em; }
+.rental-price {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  margin-top: 18px; padding: 13px 18px;
+  background: rgba(255, 196, 107, 0.07);
+  border: 1px dashed rgba(255, 196, 107, 0.42);
+}
+.rental-price span { font-family: var(--font-display); font-size: 11px; letter-spacing: 0.2em; color: var(--faint); }
+.rental-price strong { font-family: var(--font-display); font-size: 25px; font-style: italic; color: var(--gold); }
+.rental-note {
+  margin: 10px 0 22px; min-height: 16px;
+  font-size: 12px; letter-spacing: 0.1em; line-height: 1.5; color: var(--faint);
+}
+.rental-note.warn { color: var(--hot); }
 .modal h2 { font-size: clamp(46px, 7vw, 76px); margin: 12px 0 24px; }
 .modal.small h2 { margin-bottom: 14px; }
 .result-driver {
@@ -557,6 +571,17 @@ h1 em, h2 em {
 .hud-driver { display: flex; flex-direction: column; gap: 4px; padding-top: 2px; }
 .hud-label { font-size: 11px; font-weight: 600; letter-spacing: 0.24em; color: var(--faint); }
 .hud-driver strong { font-size: 14.5px; letter-spacing: 0.12em; text-transform: uppercase; text-shadow: 0 2px 10px rgba(0,0,0,.5); }
+.hud-rental {
+  position: absolute; top: 104px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 7px 16px 8px; text-align: center; pointer-events: none;
+  background: rgba(10, 6, 18, 0.44);
+  border: 1px dashed rgba(255, 196, 107, 0.42);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+}
+.hud-rental strong { font-family: var(--font-display); font-size: 11.5px; letter-spacing: 0.14em; color: var(--gold); }
 .lap-block {
   position: absolute; left: 50%; transform: translateX(-50%);
   text-align: center; min-width: 210px;
@@ -862,6 +887,7 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
 
   .hud-top { top: 12px; left: 12px; right: 12px; }
   .hud-driver { display: none; }
+  .hud-rental { top: 88px; padding: 5px 11px 6px; }
   .lap-block { padding: 8px 16px 9px; min-width: 170px; }
   .lap-time { font-size: 25px; }
   .map-block { width: 104px; top: 70px; right: 12px; padding: 5px; }
@@ -1123,6 +1149,7 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
 .reward-line span { color: var(--muted); }
 .reward-line b { font-family: var(--font-display); font-size: 12px; color: var(--gold); }
 .reward-line.minus b { color: var(--muted); }
+.reward-line.rental b { color: var(--hot); }
 .reward-line.total { background: rgba(255, 122, 69, 0.12); }
 .reward-line.total span { color: var(--ink); }
 .wallet-total {

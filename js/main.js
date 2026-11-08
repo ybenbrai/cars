@@ -435,18 +435,29 @@ function startRace(config = {}, { chargeRental = true } = {}) {
 
   // Practice rents a circuit the player has not unlocked. The fee is charged
   // once per session: restarting or driving again reuses the same rental.
-  const rentalFee = chargeRental && setup.mode === 'practice'
-    ? store.payPracticeFee(setup.circuit.id)
-    : { ok: true, fee: 0 };
-  if (!rentalFee.ok) {
-    ui.notice(rentalFee.error, 'error');
-    return;
+  let rental = null;
+  let paidFee = 0;
+  if (chargeRental) {
+    const payment = setup.mode === 'practice'
+      ? store.payPracticeFee(setup.circuit.id)
+      : { ok: true, fee: 0 };
+    if (!payment.ok) {
+      ui.notice(payment.error, 'error');
+      return;
+    }
+    paidFee = payment.fee;
+    if (paidFee) {
+      rental = { circuitId: setup.circuit.id, circuit: setup.circuit.name, fee: paidFee };
+    }
+  } else {
+    // A restart or "drive again" keeps the rental bought for this session.
+    rental = race?.rental || null;
   }
 
   try {
-    launchRace(setup, entrants);
+    launchRace(setup, entrants, { rental });
   } catch (error) {
-    if (rentalFee.fee) store.refundPracticeFee(rentalFee.fee);
+    if (paidFee) store.refundPracticeFee(paidFee);
     throw error;
   }
 }
@@ -456,7 +467,7 @@ function startRace(config = {}, { chargeRental = true } = {}) {
  * countdown. Entrants are the local player, AI drivers (`driverSeed`) or
  * remote online players (`remoteId`).
  */
-function launchRace(setup, entrants, { countdown = 3, online: onlineState = null } = {}) {
+function launchRace(setup, entrants, { countdown = 3, online: onlineState = null, rental = null } = {}) {
   const playerEntrant = entrants.find((e) => e.isPlayer);
   audio.init();
   audio.setMusic(false);
@@ -522,6 +533,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     mode: setup.mode,
     modeLabel: setup.modeLabel,
     circuit: setup.circuit,
+    rental,
     track,
     laps: setup.laps,
     difficulty: setup.difficulty,
@@ -559,6 +571,8 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   effects.setCar(playerCar);
   // Rivals show nitro flames too, so you can see them use it.
   for (const racer of racers) if (!racer.isPlayer) effects.attachFlames(racer.car);
+
+  hud.setRental(rental);
 
   garage?.setActive(false);
   webgl.classList.remove('hidden');
@@ -603,6 +617,7 @@ function disposeRace() {
   hud.clearCountdown();
   hud.setWrongWay(false);
   hud.setDrift(false);
+  hud.setRental(null);
 }
 
 /* ───────────────────────── race simulation ───────────────────────── */
@@ -946,6 +961,7 @@ function finishRace() {
   race.result = {
     mode: race.mode,
     unlocks,
+    rental: race.rental,
     event: race.event ? { name: race.event.name, cleared: !!eventCleared, objective: race.event.objective } : null,
     driver: store.name,
     total,

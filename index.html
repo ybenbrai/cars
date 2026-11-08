@@ -87,6 +87,11 @@
         </div>
       </header>
 
+      <div id="hudRental" class="hud-rental hidden">
+        <span class="hud-label">TRACK RENTAL</span>
+        <strong id="hudRentalText">—</strong>
+      </div>
+
       <aside class="map-block">
         <canvas id="minimap" width="360" height="360"></canvas>
         <div class="score-block">
@@ -357,6 +362,24 @@
         <p class="auth-status" id="authStatus" role="status"></p>
         <div class="account-session" id="accountSession"></div>
         <p class="micro">Passwords are hashed on the server with scrypt. This browser only keeps an HttpOnly session cookie and your game progress — never your password.</p>
+      </div>
+    </section>
+
+    <!-- ═══════════════ TRACK RENTAL ═══════════════ -->
+    <section id="screen-rental" class="screen overlay hidden">
+      <div class="modal small rental-modal">
+        <div class="eyebrow">TRACK RENTAL</div>
+        <h2>RENT THE<br /><em>ROAD.</em></h2>
+        <p class="pause-copy"><strong id="rentalCircuit">—</strong> is still locked in the other modes. Rent it for this practice session?</p>
+        <div class="rental-price">
+          <span>SESSION FEE</span>
+          <strong id="rentalFee">0 CR</strong>
+        </div>
+        <p class="rental-note" id="rentalNote"></p>
+        <div class="modal-actions column">
+          <button class="btn primary" id="btnConfirmRental">RENT · <span id="btnRentalFee">0 CR</span></button>
+          <button class="btn ghost" id="btnCancelRental">CANCEL</button>
+        </div>
       </div>
     </section>
 

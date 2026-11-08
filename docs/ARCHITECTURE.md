@@ -48,6 +48,7 @@ gameplay modules do not reach into the DOM except where noted.
 | `js/track.js` | Closed Catmull-Rom circuit, road/curb geometry, start arch, gates, boost pads, nearest-point query |
 | `js/scenery.js` | Sky dome, sun, lighting, environment map, ground, mesas, palms, rocks, grandstands, props |
 | `js/car.js` | Arcade vehicle physics, wall collisions, off-road handling, nitro, drift state |
+| `js/vehicleMath.js` | Pure braking, coasting and drift-entry math shared by the car, AI and tests |
 | `js/carModel.js` | Procedural car mesh, materials, wheels, spoilers, stripes, plate, underglow, body tilt |
 | `js/garageScene.js` | Independent WebGL renderer and turntable scene for the garage |
 | `js/effects.js` | Skid marks, drift smoke, dust, sparks, nitro flames |
