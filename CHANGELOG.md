@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Time Trial ghost: your best Time Trial lap on each circuit replays as a
+  see-through car. Any faster lap replaces it on the spot ("GHOST BEATEN").
+  Ghosts are stored per account and circuit in the browser.
 - Car upgrades: engine, tyres, brakes and nitro, three levels each, bought
   per car from the Customize tab. Prices scale with the car's value, tuned
   stats show in green, and upgrade spend raises the AI grid's price band so

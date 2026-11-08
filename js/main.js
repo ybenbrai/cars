@@ -21,6 +21,9 @@ import { OnlineClient, RemoteTrack, FLAG_BOOST, FLAG_DRIFT, FLAG_BRAKE } from '.
 import { AI_NAMES, createAiDriver } from './ai.js';
 import { upgradeValue } from './data/upgrades.js';
 import {
+  GhostRecorder, GhostCar, loadGhost, saveGhostIfFaster,
+} from './ghost.js';
+import {
   CARS, PAINTS, RANK_LABELS, getCar, defaultLook, normalizeLook, formatCredits,
 } from './data/cars.js';
 import { CIRCUITS, getCircuit } from './data/circuits.js';
@@ -583,7 +586,16 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     result: null,
     contactCooldown: 0,
     nextGate: 1,
+    ghostRec: null,
+    ghostCar: null,
   };
+
+  // Time Trial races your own best lap on this circuit as a see-through car.
+  if (setup.mode === 'time-trial') {
+    race.ghostRec = new GhostRecorder();
+    const ghost = loadGhost(store.accountId, setup.circuit.id);
+    if (ghost) setGhost(ghost);
+  }
 
   effects.reset();
   effects.setCar(playerCar);
@@ -623,12 +635,29 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   audio.beep('count');
 }
 
+function setGhost(ghost) {
+  race.ghostCar?.dispose();
+  const def = getCar(ghost.carId) || race.player.car.def;
+  race.ghostCar = new GhostCar(scene, def, normalizeLook(def, { paint: ghost.paint }), ghost);
+}
+
+/** Record the player's lap for the ghost and replay the stored best lap. */
+function updateGhost() {
+  if (!race.ghostRec) return;
+  const player = race.player;
+  const onLap = player.crossings >= 1 && !player.finished;
+  const lapTime = race.time - race.lapStart;
+  if (onLap) race.ghostRec.sample(lapTime, player.car);
+  race.ghostCar?.update(lapTime, onLap);
+}
+
 function disposeRace() {
   if (!race) {
     effects.setCar(null);
     return;
   }
   effects.setCar(null);
+  race.ghostCar?.dispose();
   for (const racer of race.racers) racer.car.dispose();
   race = null;
   input.releaseAll();
@@ -743,11 +772,21 @@ function onCross(racer) {
   if (racer.crossings === 1) {
     race.lapStart = race.time;
     hud.setLap(1, race.laps);
+    race.ghostRec?.start();
     return;
   }
 
   const lapTime = race.time - race.lapStart;
   race.lapStart = race.time;
+  let ghostBeaten = false;
+  if (race.ghostRec) {
+    const lap = race.ghostRec.finish(lapTime, racer.car.def.id, racer.color);
+    if (saveGhostIfFaster(store.accountId, race.circuit.id, lap)) {
+      ghostBeaten = !!race.ghostCar;
+      setGhost(lap);
+    }
+    race.ghostRec.start();
+  }
   if (!racer.bestLap || lapTime < racer.bestLap) racer.bestLap = lapTime;
 
   const previousRecord = store.bestLapFor(race.circuit.id);
@@ -761,7 +800,8 @@ function onCross(racer) {
     return;
   }
 
-  hud.toast(isRecord ? 'NEW BEST LAP' : `LAP ${completed} COMPLETE`, fmtTime(lapTime));
+  const lapTitle = isRecord ? 'NEW BEST LAP' : ghostBeaten ? 'GHOST BEATEN' : `LAP ${completed} COMPLETE`;
+  hud.toast(lapTitle, fmtTime(lapTime));
   hud.setLap(completed + 1, race.laps);
   race.player.car.boost = Math.min(100, race.player.car.boost + 18);
 }
@@ -1261,6 +1301,7 @@ function frame(now) {
       // finishRace() flipped the state mid-step.
     } else {
       checkGates();
+      updateGhost();
       updatePads();
       updateDrift(dt);
       updateWrongWay(dt);

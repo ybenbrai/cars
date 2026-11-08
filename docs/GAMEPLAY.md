@@ -288,6 +288,14 @@ to that car's defaults.
 - **KAZE S for score, VIPER X for lap times, COMET RS for the start.** FALCON GT
   is the best car to learn the circuit in.
 
+## Time Trial ghost
+
+Time Trial records every lap you drive. Your fastest Time Trial lap on each
+circuit is kept as a ghost: a see-through copy of your car that starts each
+lap with you and drives that exact line. Beat it and the new lap becomes the
+ghost straight away. Ghosts stay in this browser (about 20 KB per circuit) and
+are not part of the cloud save.
+
 ## Upgrades
 
 Every owned car can be tuned from the **Customize** tab. Each part has three
