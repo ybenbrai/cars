@@ -148,9 +148,9 @@ export class Input {
     return this.enabled && (this.held.has('ShiftLeft') || this.held.has('ShiftRight') || this.touch.boost || this.pad.boost);
   }
 
-  /** Hold E for a rear-view look over the shoulder. */
+  /** Hold B for a rear-view look over the shoulder. */
   get lookBack() {
-    return this.enabled && this.held.has('KeyE');
+    return this.enabled && this.held.has('KeyB');
   }
 
   releaseAll() {

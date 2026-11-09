@@ -88,7 +88,7 @@ game uses ES modules and an import map.
 | Handbrake / drift | `Space` | LB / RB | DRIFT |
 | Nitro | `Shift` | B | N2O |
 | Cycle camera (near chase, far chase, bumper, cockpit) | `C` | Y | — |
-| Look back | Hold `E` | — | — |
+| Look back | Hold `B` | — | — |
 | Pause / resume | `Esc` / `P` | Start | ❚❚ |
 | Reset to track | `R` | — | — |
 | Mute | `M` | — | ♪ |

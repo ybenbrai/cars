@@ -1157,7 +1157,7 @@ function updateCamera(dt) {
 
   const speedN = clamp(car.speed / car.maxSpeed, 0, 1);
   const f = car.renderForward;
-  // Hold E to swing the view around and look back down the road. The camera
+  // Hold B to swing the view around and look back down the road. The camera
   // keeps its normal chase spring, just on the other side of the car.
   const dir = input.lookBack ? tmpBack.set(-f.x, 0, -f.z) : f;
 
