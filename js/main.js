@@ -569,6 +569,10 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     time: 0,
     countdown,
     lastCount: Math.ceil(countdown) + 1,
+    launchRev: 0.06,
+    launchClock: 0,
+    lastGear: 'N',
+    lastShiftAt: -1,
     goTimer: 0,
     lapStart: 0,
     score: 0,
@@ -1187,6 +1191,19 @@ function updateHud(dt) {
   hud.setLapTime(race.time - (race.player.crossings === 0 ? 0 : race.lapStart));
   hud.setSpeed(car.speedKmh, car.gear, car.maxSpeedKmh);
   hud.setRpm(car.rpmRatio);
+
+  // Gearbox feel: a tach/gear flash and a mechanical clack on every shift.
+  if (car.gear !== race.lastGear) {
+    const gearNumber = (gear) => (gear === 'R' ? -1 : gear === 'N' ? 0 : Number(gear) || 0);
+    const up = gearNumber(car.gear) > gearNumber(race.lastGear);
+    if (car.gear !== 'R' && race.time - race.lastShiftAt > 0.22) {
+      race.lastShiftAt = race.time;
+      hud.flashShift(car.gear);
+      audio.shift(up);
+    }
+    race.lastGear = car.gear;
+  }
+
   hud.setDamage(car.damage);
   hud.setBoost(car.boost);
   hud.setScore(race.score + Math.round(race.driftBank));
@@ -1245,6 +1262,7 @@ function frame(now) {
 
   if (state === 'countdown') {
     race.countdown -= dt;
+    race.launchClock += dt;
     const n = Math.ceil(race.countdown);
     if (n !== race.lastCount && n > 0) {
       race.lastCount = n;
@@ -1257,8 +1275,19 @@ function frame(now) {
       race.lapStart = 0;
       hud.countdown('GO!', true);
       audio.beep('go');
+      audio.releaseLaunch();
       race.goTimer = 0.9;
     }
+
+    // Start-line launch control: hold throttle to build revs against the
+    // limiter. The tach shivers and the engine stutters until the lights go out.
+    const revving = input.gas && !input.brake;
+    race.launchRev = damp(race.launchRev, revving ? 0.94 : 0.06, revving ? 6.5 : 9, dt);
+    const shiver = revving ? Math.sin(race.launchClock * 54) * 0.02 : 0;
+    const launchRpm = clamp(race.launchRev + shiver, 0, 1);
+    hud.setRpm(launchRpm);
+    audio.launch(launchRpm, revving, dt);
+
     hud.setBoost(race.player.car.boost);
     hud.setDamage(race.player.car.damage);
     hud.drawMap(race.player.car, race.racers.map((r) => ({ pos: r.car.pos, isPlayer: r.isPlayer, color: r.color })), 1, 0);
@@ -1324,6 +1353,8 @@ function frame(now) {
       audio.update({
         speed: car.speed,
         maxSpeed: car.maxSpeed,
+        gear: car.gear,
+        rpm: car.rpmRatio,
         throttle: input.gas,
         // Locked wheels screech like a slide.
         slip: car.locked ? Math.max(car.slip, 7) : car.slip,

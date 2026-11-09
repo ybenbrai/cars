@@ -693,6 +693,81 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
   color: var(--orange);
   border: 1px solid rgba(255, 122, 69, 0.35); padding: 2px 8px;
 }
+.gear.shift { animation: gearKick 0.34s var(--ease); }
+
+/* compact tachometer pod bolted to the speed gauge */
+.tach {
+  position: relative;
+  width: 112px; height: 112px;
+  margin-left: -26px; margin-bottom: 10px;
+  align-self: flex-end;
+  transform-origin: 60% 90%;
+  transition: filter 0.2s var(--ease);
+}
+.tach-svg { width: 100%; height: 100%; overflow: visible; }
+.tach-face {
+  fill: rgba(10, 6, 18, 0.86);
+  stroke: rgba(255, 246, 236, 0.18); stroke-width: 2;
+}
+.tach-track { fill: none; stroke: rgba(255, 255, 255, 0.1); stroke-width: 7; stroke-linecap: round; }
+.tach-redline {
+  fill: none; stroke: rgba(255, 61, 127, 0.8); stroke-width: 7; stroke-linecap: round;
+}
+.tach-arc {
+  fill: none; stroke: url(#rpmGrad); stroke-width: 7; stroke-linecap: round;
+  stroke-dasharray: 100; stroke-dashoffset: 94;
+  filter: drop-shadow(0 0 5px rgba(255, 196, 107, 0.55));
+  transition: stroke-dashoffset 0.06s linear;
+}
+.tach-ticks line { stroke: rgba(255, 246, 236, 0.38); stroke-width: 1.2; }
+.tach-ticks line.major { stroke: rgba(255, 246, 236, 0.86); stroke-width: 2; }
+.tach-ticks line.red { stroke: var(--hot); }
+.tach-value {
+  fill: var(--ink); font-family: var(--font-display);
+  font-size: 15px; font-weight: 700; font-style: italic;
+  text-anchor: middle; font-variant-numeric: tabular-nums;
+}
+.tach-label {
+  fill: var(--faint); font-family: var(--font-display);
+  font-size: 6.6px; font-weight: 600; letter-spacing: 0.2em;
+  text-anchor: middle;
+}
+.tach-x1000 {
+  fill: var(--faint); font-family: var(--font-display);
+  font-size: 4.6px; letter-spacing: 0.16em; text-anchor: middle;
+  opacity: 0.7;
+}
+.tach-shift {
+  position: absolute; left: 50%; bottom: 3%;
+  transform: translate(-50%, 4px);
+  font-family: var(--font-display);
+  font-size: 8px; font-weight: 700; letter-spacing: 0.18em;
+  color: var(--gold); opacity: 0; pointer-events: none;
+  text-shadow: 0 0 12px rgba(255, 196, 107, 0.9);
+}
+.tach.redline .tach-value { fill: var(--hot); }
+.tach.redline {
+  filter: drop-shadow(0 0 12px rgba(255, 61, 127, 0.45));
+}
+.tach.shift { animation: tachKick 0.34s var(--ease); }
+.tach.shift .tach-arc { filter: drop-shadow(0 0 10px rgba(255, 61, 127, 0.95)); }
+.tach.shift .tach-shift { animation: shiftPop 0.34s var(--ease); }
+@keyframes tachKick {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.08) rotate(-1.5deg); }
+  100% { transform: scale(1); }
+}
+@keyframes gearKick {
+  0% { border-color: var(--gold); color: var(--gold); transform: translateY(0) scale(1); }
+  35% { border-color: var(--hot); color: var(--hot); transform: translateY(-2px) scale(1.14); }
+  100% { border-color: rgba(255, 122, 69, 0.35); color: var(--orange); transform: none; }
+}
+@keyframes shiftPop {
+  0% { opacity: 0; transform: translate(-50%, 6px) scale(0.8); }
+  25% { opacity: 1; transform: translate(-50%, 0) scale(1); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -5px) scale(0.94); }
+}
 .nitro {
   width: 150px; margin-bottom: 34px;
   padding: 10px 12px 11px;
@@ -922,6 +997,8 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
   .hud-bottom { bottom: 6px; gap: 0; }
   .gauge { width: 150px; height: 150px; }
   .gauge-center { bottom: 14px; }
+  .tach { width: 84px; height: 84px; margin-left: -16px; margin-bottom: 8px; }
+  .tach-value { font-size: 17px; }
   .speed span { font-size: 20px; }
   .gauge-ticks text { font-size: 13px; }
   .nitro { width: 112px; margin-bottom: 20px; padding: 8px 9px; }
@@ -955,6 +1032,10 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
   .lap-block { min-width: 152px; padding: 7px 12px 8px; }
   .lap-time { font-size: 22px; }
   .gauge { width: 130px; height: 130px; }
+  .tach { width: 66px; height: 66px; margin-left: -10px; margin-bottom: 6px; }
+  .tach-value { font-size: 19px; }
+  .tach-label { font-size: 8px; }
+  .tach-x1000 { display: none; }
   .speed span { font-size: 18px; }
   .speed em { font-size: 10px; }
   .gear { font-size: 11px; margin-top: 4px; }

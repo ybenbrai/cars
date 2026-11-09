@@ -31,6 +31,13 @@ export class HUD {
       gaugeTrack: document.getElementById('gaugeTrack'),
       needle: document.getElementById('needle'),
       rpmFill: document.getElementById('rpmFill'),
+      tach: document.getElementById('tach'),
+      rpmArc: document.getElementById('rpmArc'),
+      rpmTrack: document.getElementById('rpmTrack'),
+      rpmRedline: document.getElementById('rpmRedline'),
+      rpmTicks: document.getElementById('rpmTicks'),
+      rpmValue: document.getElementById('rpmValue'),
+      shiftFlash: document.getElementById('shiftFlash'),
       damageFill: document.getElementById('damageFill'),
       boostFill: document.getElementById('nitroFill'),
       boostPct: document.getElementById('nitroPct'),
@@ -50,6 +57,7 @@ export class HUD {
     this.toastTimer = null;
     this.map = this.el.minimap ? this.el.minimap.getContext('2d') : null;
     this.buildTicks(240);
+    this.buildTach();
   }
 
   /** Swap circuits without rebuilding the HUD DOM. */
@@ -113,6 +121,47 @@ export class HUD {
       }
     }
     this.last.speed = null;
+  }
+
+  /**
+   * Compact tachometer pod bolted to the right of the speed gauge. It is drawn
+   * once; setRpm() only moves the arc and the digital readout.
+   */
+  buildTach() {
+    if (!this.el.rpmArc) return;
+    const ns = 'http://www.w3.org/2000/svg';
+    const start = 150;
+    const sweep = 240;
+    const ang = (v) => ((start + v * sweep) * Math.PI) / 180;
+    const at = (v, r) => [50 + Math.cos(ang(v)) * r, 50 + Math.sin(ang(v)) * r];
+    const arc = (from, to, r) => {
+      const [x0, y0] = at(from, r);
+      const [x1, y1] = at(to, r);
+      const large = (to - from) * sweep > 180 ? 1 : 0;
+      return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+    };
+    this.el.rpmTrack?.setAttribute('d', arc(0, 1, 40));
+    this.el.rpmRedline?.setAttribute('d', arc(0.86, 1, 40));
+    this.el.rpmArc?.setAttribute('d', arc(0, 1, 40));
+
+    if (this.el.rpmTicks) {
+      this.el.rpmTicks.innerHTML = '';
+      for (let i = 0; i <= 8; i++) {
+        const v = i / 8;
+        const major = i % 2 === 0;
+        const [x1, y1] = at(v, major ? 31 : 34);
+        const [x2, y2] = at(v, 37);
+        const line = document.createElementNS(ns, 'line');
+        line.setAttribute('x1', x1.toFixed(2));
+        line.setAttribute('y1', y1.toFixed(2));
+        line.setAttribute('x2', x2.toFixed(2));
+        line.setAttribute('y2', y2.toFixed(2));
+        if (major) line.classList.add('major');
+        if (v >= 0.86) line.classList.add('red');
+        this.el.rpmTicks.appendChild(line);
+      }
+    }
+    this.setRpm(0.06);
   }
 
 
@@ -226,13 +275,35 @@ export class HUD {
     }
   }
 
-  /** 0–1 normalised engine speed, drawn as a thin bar under the gear. */
+  /** 0–1 normalised engine speed, drawn on the tach pod and the thin bar. */
   setRpm(ratio) {
-    const v = Math.round(Math.max(0, Math.min(1, ratio)) * 100);
+    const clamped = Math.max(0, Math.min(1, ratio));
+    const v = Math.round(clamped * 100);
     if (v !== this.last.rpm) {
-      this.el.rpmFill.style.width = `${v}%`;
+      if (this.el.rpmFill) this.el.rpmFill.style.width = `${v}%`;
+      if (this.el.rpmArc) this.el.rpmArc.style.strokeDashoffset = String(100 * (1 - clamped));
+      if (this.el.rpmValue) this.el.rpmValue.textContent = (clamped * 8).toFixed(1);
+      this.el.tach?.classList.toggle('redline', clamped > 0.86);
       this.last.rpm = v;
     }
+  }
+
+  /** Brief mechanical flash whenever the gearbox selects a new gear. */
+  flashShift(gear) {
+    const tach = this.el.tach;
+    if (!tach) return;
+    if (this.el.shiftFlash) this.el.shiftFlash.textContent = gear && gear !== 'N' && gear !== 'R' ? `▲ ${gear}` : 'SHIFT';
+    tach.classList.remove('shift');
+    this.el.gear?.classList.remove('shift');
+    // Force a style flush so the animation can restart on back-to-back shifts.
+    void tach.offsetWidth;
+    tach.classList.add('shift');
+    this.el.gear?.classList.add('shift');
+    clearTimeout(this.shiftTimer);
+    this.shiftTimer = setTimeout(() => {
+      tach.classList.remove('shift');
+      this.el.gear?.classList.remove('shift');
+    }, 360);
   }
 
   setDamage(value) {

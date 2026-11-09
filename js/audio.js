@@ -24,6 +24,7 @@ export class AudioEngine {
     this.lastSpeed = 0;
     this.profile = PROFILES.sports;
     this.profileId = 'sports';
+    this.launchPhase = 0;
     this.music = null;
     this.wantMusic = false;
   }
@@ -176,10 +177,18 @@ export class AudioEngine {
     const t = this.ctx.currentTime;
     const speedN = Math.min(1, state.speed / (state.maxSpeed || 56));
     const profile = this.profile;
-    const gearSpan = 5.6;
-    const pos = speedN * gearSpan;
-    const gear = Math.min(5, Math.floor(pos));
-    const rpm = pos - gear;
+    let gear = 0;
+    let rpm = 0;
+    if (Number.isFinite(state.rpm)) {
+      rpm = Math.max(0, Math.min(1, state.rpm));
+      const number = Number(state.gear);
+      gear = Number.isFinite(number) && number >= 1 ? Math.min(5, number - 1) : 0;
+    } else {
+      const gearSpan = 5.6;
+      const pos = speedN * gearSpan;
+      gear = Math.min(5, Math.floor(pos));
+      rpm = pos - gear;
+    }
     const freq = profile.base + rpm * (profile.span * 0.82) + gear * (profile.span * 0.13);
     const throttle = state.throttle ? 1 : 0;
     const targetGain = (0.095 + throttle * 0.055 + speedN * 0.03) * profile.gain;
@@ -212,6 +221,68 @@ export class AudioEngine {
     this.tire.tireGain.gain.setTargetAtTime(0, t, 0.1);
     this.wind.windGain.gain.setTargetAtTime(0, t, 0.2);
     this.nitro.nitroGain.gain.setTargetAtTime(0, t, 0.1);
+  }
+
+  /**
+   * Stationary revving for the start line. `ratio` is 0–1 on the tach; with the
+   * throttle pinned the gain is gated into a hard, uneven stutter so it reads
+   * as launch control rather than a smooth idle.
+   */
+  launch(ratio, throttle, dt = 1 / 60) {
+    if (!this.ready) return;
+    const t = this.ctx.currentTime;
+    const rev = Math.max(0, Math.min(1, ratio));
+    const profile = this.profile;
+    this.launchPhase += dt * (5.4 + rev * 5.6);
+    const cycle = this.launchPhase % 1;
+    const pulsing = throttle && rev > 0.2;
+    const gate = pulsing
+      ? cycle < 0.5 ? 1 : cycle < 0.64 ? 0.16 : 0.78
+      : 1;
+    const freq = profile.base + rev * profile.span * 1.26;
+
+    const e = this.engine;
+    e.oscA.frequency.setTargetAtTime(freq, t, 0.03);
+    e.oscB.frequency.setTargetAtTime(freq * 0.5, t, 0.04);
+    e.sub.frequency.setTargetAtTime(freq * 0.5, t, 0.04);
+    e.engineGain.gain.setTargetAtTime(
+      (0.075 + rev * 0.11) * gate * profile.gain,
+      t,
+      pulsing ? 0.012 : 0.08,
+    );
+    e.filter.frequency.setTargetAtTime((320 + rev * 2200) * profile.bright, t, 0.05);
+
+    this.tire.tireGain.gain.setTargetAtTime(pulsing ? 0.03 : 0, t, 0.08);
+    this.wind.windGain.gain.setTargetAtTime(0, t, 0.15);
+    this.nitro.nitroGain.gain.setTargetAtTime(0, t, 0.1);
+  }
+
+  /** Hand control back to the normal driving loop after the lights go out. */
+  releaseLaunch() {
+    this.launchPhase = 0;
+  }
+
+  /** Gearbox clack plus a small exhaust note when a new gear engages. */
+  shift(up = true) {
+    if (!this.ready) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    this.tone(up ? 280 : 190, 0.05, 'square', 0.016);
+    this.tone(up ? 96 : 74, 0.09, 'triangle', 0.028);
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = up ? 2400 : 1600;
+    filter.Q.value = 1.1;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(0.045, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.05);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.master);
+    src.start(t, Math.random());
+    src.stop(t + 0.06);
   }
 
   tone(freq, duration = 0.12, type = 'sine', volume = 0.08, delay = 0) {

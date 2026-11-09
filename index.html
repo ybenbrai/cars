@@ -134,6 +134,26 @@
             <div class="gear-row"><div class="gear" id="gear">N</div><div class="rpm-bar"><i id="rpmFill"></i></div></div>
           </div>
         </div>
+        <div class="tach" id="tach" aria-label="Engine RPM">
+          <svg viewBox="0 0 100 100" class="tach-svg" aria-hidden="true">
+            <defs>
+              <linearGradient id="rpmGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#8dffb0" />
+                <stop offset="55%" stop-color="#ffc46b" />
+                <stop offset="100%" stop-color="#ff7a45" />
+              </linearGradient>
+            </defs>
+            <circle class="tach-face" cx="50" cy="50" r="47"></circle>
+            <path id="rpmTrack" class="tach-track" pathLength="100"></path>
+            <path id="rpmRedline" class="tach-redline" pathLength="100"></path>
+            <path id="rpmArc" class="tach-arc" pathLength="100"></path>
+            <g id="rpmTicks" class="tach-ticks"></g>
+            <text class="tach-value" id="rpmValue" x="50" y="49">0.5</text>
+            <text class="tach-label" x="50" y="60">RPM</text>
+            <text class="tach-x1000" x="50" y="70">×1000</text>
+          </svg>
+          <span class="tach-shift" id="shiftFlash">SHIFT</span>
+        </div>
         <div class="nitro">
           <div class="nitro-head"><span>NITRO</span><span id="nitroPct">0%</span></div>
           <div class="nitro-bar"><i id="nitroFill"></i></div>
