@@ -148,9 +148,14 @@
             <path id="rpmRedline" class="tach-redline" pathLength="100"></path>
             <path id="rpmArc" class="tach-arc" pathLength="100"></path>
             <g id="rpmTicks" class="tach-ticks"></g>
-            <text class="tach-value" id="rpmValue" x="50" y="49">0.5</text>
-            <text class="tach-label" x="50" y="60">RPM</text>
-            <text class="tach-x1000" x="50" y="70">×1000</text>
+            <g id="rpmNumbers" class="tach-numbers"></g>
+            <g id="rpmNeedle" class="tach-needle">
+              <polygon points="50,48.6 86,50 50,51.4 46,50"></polygon>
+            </g>
+            <circle class="tach-hub" cx="50" cy="50" r="4.4"></circle>
+            <circle class="tach-hub-dot" cx="50" cy="50" r="1.7"></circle>
+            <text class="tach-value" id="rpmValue" x="50" y="61">0.5</text>
+            <text class="tach-label" x="50" y="71">RPM ×1000</text>
           </svg>
           <span class="tach-shift" id="shiftFlash">SHIFT</span>
         </div>
@@ -301,6 +306,25 @@
             <button class="btn ghost" id="btnStageAction">EQUIPPED</button>
             <button class="btn primary race-btn" id="btnRace">RACE <span>→</span></button>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ WHAT'S NEW ═══════════════ -->
+    <section id="screen-whatsnew" class="screen overlay hidden">
+      <div class="modal small whats-new">
+        <button class="modal-close" id="btnCloseWhatsNew" aria-label="Close update notes">✕</button>
+        <div class="eyebrow" id="whatsNewVersion">UPDATE NOTES</div>
+        <h2>FRESH<br /><em>RUBBER.</em></h2>
+        <ul class="whats-new-list">
+          <li><span>NEW</span>Round RPM dial with numbers, needle and a proper redline.</li>
+          <li><span>NEW</span>Drifting at the limiter now shakes the tach and stutters the engine.</li>
+          <li><span>NEW</span>Hold E to look back over your shoulder.</li>
+          <li><span>FIX</span>Car-to-car contact no longer lets bodies sink into each other.</li>
+          <li><span>FIX</span>Wall hits recoil and scrub speed instead of stopping the car dead.</li>
+        </ul>
+        <div class="modal-actions">
+          <button class="btn primary" id="btnDismissWhatsNew">LET'S DRIVE <span>→</span></button>
         </div>
       </div>
     </section>

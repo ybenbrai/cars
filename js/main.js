@@ -29,6 +29,7 @@ import {
 import { CIRCUITS, getCircuit } from './data/circuits.js';
 import { getCareerEvent } from './data/career.js';
 import { getDifficulty, getMode, computeRewards } from './economy.js';
+import { bodyCircles, deepestContact } from './collisionMath.js';
 
 const FIXED = 1 / 120;
 // Release id stamped on module URLs by the build (`?v=…`); "dev" locally.
@@ -676,6 +677,7 @@ function disposeRace() {
 const camLook = new THREE.Vector3();
 const desired = new THREE.Vector3();
 const tmpVec = new THREE.Vector3();
+const tmpBack = new THREE.Vector3();
 const tmpRight = new THREE.Vector3();
 let cameraInit = false;
 
@@ -683,10 +685,11 @@ function snapCamera() {
   if (!race) return;
   const car = race.player.car;
   const f = car.forward;
+  const dir = input.lookBack ? tmpBack.set(-f.x, 0, -f.z) : f;
   const near = CAMERA_VIEWS[race.camMode]?.id === 'near';
-  camera.position.copy(car.pos).addScaledVector(f, near ? -5.5 : -9.2);
+  camera.position.copy(car.pos).addScaledVector(dir, near ? -5.5 : -9.2);
   camera.position.y = near ? 2.45 : 3.4;
-  camLook.copy(car.pos).addScaledVector(f, 6).setY(1.15);
+  camLook.copy(car.pos).addScaledVector(dir, 6).setY(1.15);
   camera.lookAt(camLook);
   camera.fov = 62;
   camera.updateProjectionMatrix();
@@ -827,9 +830,13 @@ function trackCrossings() {
   }
 }
 
+// Scratch circle arrays: every pair is rebuilt because an earlier contact in
+// the same step may already have moved one of the cars.
+const contactA = [];
+const contactB = [];
+
 function resolveCollisions() {
   const cars = race.racers.map((r) => r.car);
-  const min = 2.35;
   for (let i = 0; i < cars.length; i++) {
     for (let j = i + 1; j < cars.length; j++) {
       const a = cars[i];
@@ -837,20 +844,18 @@ function resolveCollisions() {
       // Remote cars are driven by their owners' snapshots: they push the
       // local car but are never moved by it here.
       if (a.isRemote && b.isRemote) continue;
-      const dx = b.pos.x - a.pos.x;
-      const dz = b.pos.z - a.pos.z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 > min * min || d2 < 1e-6) continue;
-      const d = Math.sqrt(d2);
-      const nx = dx / d;
-      const nz = dz / d;
-      const overlap = min - d;
+      // Three circles down each body beat the old single centre circle: a
+      // long car's nose can no longer sink into the car ahead, while cars
+      // running side by side are not shoved apart before their panels touch.
+      const hit = deepestContact(bodyCircles(a, contactA), bodyCircles(b, contactB));
+      if (!hit) continue;
+      const { nx, nz, penetration } = hit;
       const shareA = a.isRemote ? 0 : b.isRemote ? 1 : 0.5;
       const shareB = 1 - shareA;
-      a.pos.x -= nx * overlap * shareA;
-      a.pos.z -= nz * overlap * shareA;
-      b.pos.x += nx * overlap * shareB;
-      b.pos.z += nz * overlap * shareB;
+      a.pos.x -= nx * penetration * shareA;
+      a.pos.z -= nz * penetration * shareA;
+      b.pos.x += nx * penetration * shareB;
+      b.pos.z += nz * penetration * shareB;
       const rel = (a.vel.x - b.vel.x) * nx + (a.vel.z - b.vel.z) * nz;
       if (rel > 1.2) {
         const push = clamp(rel / 18, 0.06, 1);
@@ -858,7 +863,7 @@ function resolveCollisions() {
         if (!b.isRemote) b.takeHit(push * (a.isRemote ? 0.8 : 0.55), nx, nz);
         if (race.contactCooldown <= 0) {
           race.contactCooldown = 0.18;
-          const mid = { x: (a.pos.x + b.pos.x) / 2, z: (a.pos.z + b.pos.z) / 2 };
+          const mid = { x: hit.x, z: hit.z };
           effects.burst(mid, push, 0xffb23d);
           if (a.isPlayer || b.isPlayer) {
             audio.crash(push);
@@ -1119,6 +1124,9 @@ function updateCamera(dt) {
 
   const speedN = clamp(car.speed / car.maxSpeed, 0, 1);
   const f = car.renderForward;
+  // Hold E to swing the view around and look back down the road. The camera
+  // keeps its normal chase spring, just on the other side of the car.
+  const dir = input.lookBack ? tmpBack.set(-f.x, 0, -f.z) : f;
 
   const view = CAMERA_VIEWS[race.camMode]?.id || 'near';
   if (view === 'bumper') {
@@ -1126,7 +1134,7 @@ function updateCamera(dt) {
     tmpVec.copy(cpos).addScaledVector(f, car.def.body.length / 2 + 0.15);
     tmpVec.y = 0.62;
     camera.position.copy(tmpVec);
-    camLook.copy(cpos).addScaledVector(f, 30).setY(0.9);
+    camLook.copy(cpos).addScaledVector(dir, 30).setY(0.9);
     camera.lookAt(camLook);
     camera.fov = damp(camera.fov, 72 + speedN * 12 + (car.boosting ? 5 : 0), 4, dt);
     camera.updateProjectionMatrix();
@@ -1134,7 +1142,7 @@ function updateCamera(dt) {
     tmpVec.copy(cpos).addScaledVector(f, 0.55);
     tmpVec.y = 1.16;
     camera.position.lerp(tmpVec, 1 - Math.exp(-25 * dt));
-    camLook.copy(cpos).addScaledVector(f, 24).setY(1.3);
+    camLook.copy(cpos).addScaledVector(dir, 24).setY(1.3);
     camera.lookAt(camLook);
     camera.fov = damp(camera.fov, 68 + speedN * 12 + (car.boosting ? 4 : 0), 4, dt);
     camera.updateProjectionMatrix();
@@ -1143,7 +1151,7 @@ function updateCamera(dt) {
     if (!cameraInit) snapCamera();
     // The near view sits at half the far view's distance, lower down.
     const back = near ? 5.1 + speedN * 0.6 + car.def.body.length * 0.1 : 8.4 + speedN * 2.4;
-    desired.copy(cpos).addScaledVector(f, -back);
+    desired.copy(cpos).addScaledVector(dir, -back);
     desired.y = near ? 2.45 + speedN * 0.2 : 3.15 + speedN * 0.65;
     desired.addScaledVector(tmpRight.set(-f.z, 0, f.x), clamp(-car.lateral * 0.045, -1.1, 1.1));
     // A soft spring trails the car by roughly speed / rate metres; the near
@@ -1152,7 +1160,7 @@ function updateCamera(dt) {
     if (camera.position.y < 1.2) camera.position.y = 1.2;
 
     // The near view aims lower so the car sits above the speedometer.
-    tmpVec.copy(cpos).addScaledVector(f, near ? 2.6 + speedN * 3.4 : 6 + speedN * 4);
+    tmpVec.copy(cpos).addScaledVector(dir, near ? 2.6 + speedN * 3.4 : 6 + speedN * 4);
     tmpVec.y = near ? 0.05 : 1.2;
     camLook.lerp(tmpVec, 1 - Math.exp(-8 * dt));
     camera.lookAt(camLook);
@@ -1190,7 +1198,9 @@ function updateHud(dt) {
 
   hud.setLapTime(race.time - (race.player.crossings === 0 ? 0 : race.lapStart));
   hud.setSpeed(car.speedKmh, car.gear, car.maxSpeedKmh);
-  hud.setRpm(car.rpmRatio);
+  const rpm = car.rpmRatio;
+  const limiter = state === 'racing' && car.drifting && !car.offroad && rpm > 0.86 && car.throttle > 0;
+  hud.setRpm(rpm, limiter);
 
   // Gearbox feel: a tach/gear flash and a mechanical clack on every shift.
   if (car.gear !== race.lastGear) {
@@ -1341,6 +1351,14 @@ function frame(now) {
         audio.crash(car.impact);
         race.shake = Math.max(race.shake, car.impact * 0.9);
         race.impactCooldown = 0.55;
+        if (car.wallHit > 0.1) {
+          // Sparks where the body met the barrier, not at the car's centre.
+          const point = {
+            x: car.pos.x + car.wallNormal.x * 1.1,
+            z: car.pos.z + car.wallNormal.z * 1.1,
+          };
+          effects.burst(point, car.wallHit, 0xffc46b);
+        }
       }
       car.impact *= Math.exp(-4.5 * dt);
       if (car.backfired) {
@@ -1350,17 +1368,20 @@ function frame(now) {
 
       updateHud(dt);
 
+      const rpm = car.rpmRatio;
+      const limiter = car.drifting && !car.offroad && rpm > 0.86 && input.gas;
       audio.update({
         speed: car.speed,
         maxSpeed: car.maxSpeed,
         gear: car.gear,
-        rpm: car.rpmRatio,
+        rpm,
+        limiter,
         throttle: input.gas,
         // Locked wheels screech like a slide.
         slip: car.locked ? Math.max(car.slip, 7) : car.slip,
         handbrake: input.handbrake || car.locked,
         boosting: car.boosting,
-      });
+      }, dt);
       if (car.boosting) race.shake = Math.max(race.shake, 0.025);
     }
   } else if (state === 'finished') {
@@ -1763,6 +1784,7 @@ window.__sunsetDrift = {
   get scene() { return scene; },
   get camera() { return camera; },
   get ui() { return ui; },
+  get hud() { return hud; },
   startRace,
   enterGarage,
   save: () => store?.toJSON(),

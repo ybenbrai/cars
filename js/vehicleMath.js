@@ -91,3 +91,29 @@ export function assistedDriftTarget(steerAbs, steerHold) {
   const sustain = clamp((steerAbs - 0.2) / 0.45, 0, 1);
   return DRIFT_MAX * driftCommit(steerHold) * sustain;
 }
+
+/**
+ * Wall contact response. Only the velocity component heading into the barrier
+ * is reflected (with a little restitution and an extra shove); the tangential
+ * component survives, so brushing a wall never stops the car dead.
+ *
+ * `nx`/`nz` point out of the track towards the wall. Returns the new velocity,
+ * the incoming normal speed, the 0–1 impact strength and whether it bounced.
+ */
+export function wallResponse(vx, vz, nx, nz) {
+  const vn = vx * nx + vz * nz;
+  if (vn <= 0) return { vx, vz, vn, hit: 0, bounces: false };
+  const hit = clamp(vn / 16, 0, 1);
+  const tx = vx - nx * vn;
+  const tz = vz - nz * vn;
+  const restitution = 0.18 + hit * 0.22;
+  const shock = hit > 0.04 ? hit * hit * 2.6 : 0;
+  const tangent = 1 - hit * 0.22;
+  return {
+    vx: tx * tangent - nx * (vn * restitution + shock),
+    vz: tz * tangent - nz * (vn * restitution + shock),
+    vn,
+    hit,
+    bounces: true,
+  };
+}

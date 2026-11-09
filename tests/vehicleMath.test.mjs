@@ -11,6 +11,7 @@ import {
   coastDrag,
   driftCommit,
   maxEntrySpeed,
+  wallResponse,
 } from '../js/vehicleMath.js';
 
 const HEAVY = new Set(['offroad', 'suv', 'muscle']);
@@ -88,4 +89,27 @@ test('coast drag grows smoothly with speed', () => {
     assert.ok(current > previous);
     previous = current;
   }
+});
+
+test('a head-on wall hit recoils instead of stopping the car dead', () => {
+  const incoming = 16; // m/s straight into the barrier, normal +x
+  const result = wallResponse(incoming, 0, 1, 0);
+  assert.equal(result.bounces, true);
+  assert.ok(result.vx < -6, `expected a real recoil, got ${result.vx}`);
+  assert.equal(result.hit, 1);
+});
+
+test('a glancing wall hit keeps almost all of the road speed', () => {
+  const result = wallResponse(0.5, 20, 1, 0);
+  assert.ok(result.bounces);
+  assert.ok(result.hit < 0.05);
+  // Tangential speed down the wall is barely scrubbed.
+  assert.ok(Math.abs(result.vz - 20) < 0.2, `glancing hit lost too much speed: ${result.vz}`);
+});
+
+test('a car already moving away from the wall is left alone', () => {
+  const result = wallResponse(-3, 5, 1, 0);
+  assert.equal(result.bounces, false);
+  assert.equal(result.vx, -3);
+  assert.equal(result.vz, 5);
 });

@@ -36,6 +36,8 @@ export class HUD {
       rpmTrack: document.getElementById('rpmTrack'),
       rpmRedline: document.getElementById('rpmRedline'),
       rpmTicks: document.getElementById('rpmTicks'),
+      rpmNumbers: document.getElementById('rpmNumbers'),
+      rpmNeedle: document.getElementById('rpmNeedle'),
       rpmValue: document.getElementById('rpmValue'),
       shiftFlash: document.getElementById('shiftFlash'),
       damageFill: document.getElementById('damageFill'),
@@ -140,17 +142,17 @@ export class HUD {
       const large = (to - from) * sweep > 180 ? 1 : 0;
       return `M ${x0.toFixed(2)} ${y0.toFixed(2)} A ${r} ${r} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
     };
-    this.el.rpmTrack?.setAttribute('d', arc(0, 1, 40));
-    this.el.rpmRedline?.setAttribute('d', arc(0.86, 1, 40));
-    this.el.rpmArc?.setAttribute('d', arc(0, 1, 40));
+    this.el.rpmTrack?.setAttribute('d', arc(0, 1, 42));
+    this.el.rpmRedline?.setAttribute('d', arc(0.86, 1, 42));
+    this.el.rpmArc?.setAttribute('d', arc(0, 1, 42));
 
     if (this.el.rpmTicks) {
       this.el.rpmTicks.innerHTML = '';
-      for (let i = 0; i <= 8; i++) {
-        const v = i / 8;
+      for (let i = 0; i <= 16; i++) {
+        const v = i / 16;
         const major = i % 2 === 0;
-        const [x1, y1] = at(v, major ? 31 : 34);
-        const [x2, y2] = at(v, 37);
+        const [x1, y1] = at(v, major ? 32 : 35);
+        const [x2, y2] = at(v, 38);
         const line = document.createElementNS(ns, 'line');
         line.setAttribute('x1', x1.toFixed(2));
         line.setAttribute('y1', y1.toFixed(2));
@@ -161,6 +163,21 @@ export class HUD {
         this.el.rpmTicks.appendChild(line);
       }
     }
+
+    if (this.el.rpmNumbers) {
+      this.el.rpmNumbers.innerHTML = '';
+      for (let i = 0; i <= 8; i++) {
+        const v = i / 8;
+        const [x, y] = at(v, 27.5);
+        const label = document.createElementNS(ns, 'text');
+        label.setAttribute('x', x.toFixed(1));
+        label.setAttribute('y', (y + 2).toFixed(1));
+        label.textContent = String(i);
+        if (i >= 7) label.classList.add('red');
+        this.el.rpmNumbers.appendChild(label);
+      }
+    }
+    this.el.rpmNeedle?.setAttribute('transform', 'rotate(150 50 50)');
     this.setRpm(0.06);
   }
 
@@ -275,17 +292,19 @@ export class HUD {
     }
   }
 
-  /** 0–1 normalised engine speed, drawn on the tach pod and the thin bar. */
-  setRpm(ratio) {
+  /** 0–1 normalised engine speed, drawn on the tach dial and the thin bar. */
+  setRpm(ratio, limiter = false) {
     const clamped = Math.max(0, Math.min(1, ratio));
     const v = Math.round(clamped * 100);
     if (v !== this.last.rpm) {
       if (this.el.rpmFill) this.el.rpmFill.style.width = `${v}%`;
       if (this.el.rpmArc) this.el.rpmArc.style.strokeDashoffset = String(100 * (1 - clamped));
       if (this.el.rpmValue) this.el.rpmValue.textContent = (clamped * 8).toFixed(1);
-      this.el.tach?.classList.toggle('redline', clamped > 0.86);
+      this.el.rpmNeedle?.setAttribute('transform', `rotate(${(150 + clamped * 240).toFixed(2)} 50 50)`);
       this.last.rpm = v;
     }
+    this.el.tach?.classList.toggle('redline', clamped > 0.86);
+    this.el.tach?.classList.toggle('limiter', !!limiter);
   }
 
   /** Brief mechanical flash whenever the gearbox selects a new gear. */

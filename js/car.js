@@ -6,6 +6,7 @@ import {
   coastDrag,
   maxEntrySpeed,
   assistedDriftTarget,
+  wallResponse,
 } from './vehicleMath.js';
 import { upgradeMultipliers } from './data/upgrades.js';
 
@@ -68,6 +69,8 @@ export class Car {
     this.boost = 45;
     this.boosting = false;
     this.impact = 0;
+    this.wallHit = 0;
+    this.wallNormal = { x: 0, z: 0 };
     this.damage = 0;
     this.offroad = false;
     this.trackInfo = null;
@@ -125,6 +128,9 @@ export class Car {
     this.boosting = false;
     this.boost = 45;
     this.impact = 0;
+    this.wallHit = 0;
+    this.wallNormal.x = 0;
+    this.wallNormal.z = 0;
     this.damage = 0;
     this.offroad = false;
     this.trackInfo = null;
@@ -202,6 +208,7 @@ export class Car {
   update(dt, input, track) {
     this.prevPos.copy(this.pos);
     this.prevHeading = this.heading;
+    this.wallHit = 0;
     const p = this.physics;
     const pace = this.paceScale || 1;
     const f0x = Math.sin(this.heading);
@@ -346,25 +353,30 @@ export class Car {
     const limit = track.wallOffset - 0.95;
     if (Math.abs(near.signed) > limit) {
       const sign = Math.sign(near.signed);
+      const nx = near.side.x * sign;
+      const nz = near.side.z * sign;
       this.pos.set(
         near.point.x + near.side.x * sign * limit,
         0,
         near.point.z + near.side.z * sign * limit,
       );
-      const nx = near.side.x * sign;
-      const nz = near.side.z * sign;
       const vn = this.vel.x * nx + this.vel.z * nz;
       if (vn > 0) {
-        this.vel.x -= nx * vn * 1.4;
-        this.vel.z -= nz * vn * 1.4;
+        // Reflect only the part of the velocity going into the wall. The rest
+        // keeps sliding along it, so brushing a barrier does not stop the car
+        // dead. A short extra shove provides the visible recoil.
+        const bounce = wallResponse(this.vel.x, this.vel.z, nx, nz);
+        this.vel.x = bounce.vx;
+        this.vel.z = bounce.vz;
+        this.wallHit = bounce.hit;
+        this.wallNormal.x = nx;
+        this.wallNormal.z = nz;
+        if (bounce.hit > 0.08) {
+          this.damage = clamp(this.damage + bounce.hit * 0.08, 0, 1);
+          this.model.setDamage(this.damage);
+        }
+        this.impact = Math.max(this.impact, bounce.hit);
       }
-      this.vel.multiplyScalar(0.88);
-      const hit = Math.min(1, Math.abs(vn) / 16);
-      if (hit > 0.08) {
-        this.damage = clamp(this.damage + hit * 0.08, 0, 1);
-        this.model.setDamage(this.damage);
-      }
-      this.impact = Math.max(this.impact, hit);
     }
 
     this.speed = this.vel.length();
@@ -417,12 +429,17 @@ export class Car {
   /**
    * Engine speed 0–1 inside the current gear. Sixth gear reaches the redline
    * at top speed and stays there; it must not wrap around and keep climbing.
+   * A slide spins the rear wheels faster than the road, so drifting pushes the
+   * needle towards the limiter even at modest road speed.
    */
   get rpmRatio() {
     if (this.prevSpeed < -0.5 || this.speed < 0.5) return 0.06;
     const span = this.maxSpeed / 6;
     const gear = Math.min(6, 1 + Math.floor(this.speed / span));
-    return clamp((this.speed - (gear - 1) * span) / span, 0, 1);
+    const base = clamp((this.speed - (gear - 1) * span) / span, 0, 1);
+    const wheelspin = clamp((this.slip - 1) / 6.8, 0, 1);
+    const driftRev = wheelspin * (this.throttle > 0 ? 1 : 0.66);
+    return clamp(Math.max(base, driftRev), 0, 1);
   }
 
   dispose() {

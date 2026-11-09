@@ -583,6 +583,26 @@ h1 em, h2 em {
 .pause-copy { color: var(--muted); font-size: 14.5px; margin-bottom: 26px; }
 .modal .btn.primary { margin-top: 0; }
 
+/* first-run patch notes */
+.whats-new { width: min(470px, 100%); text-align: left; position: relative; }
+.whats-new h2 { font-size: clamp(38px, 6vw, 58px); margin-bottom: 18px; }
+.whats-new-list {
+  list-style: none; margin: 0 0 26px; padding: 0;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.whats-new-list li {
+  display: flex; align-items: flex-start; gap: 10px;
+  font-size: 13px; line-height: 1.5; color: var(--muted);
+}
+.whats-new-list span {
+  flex-shrink: 0; margin-top: 1px; padding: 2px 5px;
+  font-family: var(--font-display); font-size: 9px; font-weight: 700; letter-spacing: 0.14em;
+  color: var(--gold); border: 1px solid rgba(255, 196, 107, 0.42);
+}
+.whats-new-list li:nth-child(n + 4) span {
+  color: var(--cyan); border-color: rgba(92, 225, 230, 0.42);
+}
+
 /* ─────────── HUD ─────────── */
 
 #hud {
@@ -698,13 +718,13 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
 /* compact tachometer pod bolted to the speed gauge */
 .tach {
   position: relative;
-  width: 112px; height: 112px;
-  margin-left: -26px; margin-bottom: 10px;
+  width: 124px; height: 124px;
+  margin-left: -24px; margin-bottom: 12px;
   align-self: flex-end;
   transform-origin: 60% 90%;
   transition: filter 0.2s var(--ease);
 }
-.tach-svg { width: 100%; height: 100%; overflow: visible; }
+.tach-svg { width: 100%; height: 100%; overflow: visible; transform-origin: 50% 50%; }
 .tach-face {
   fill: rgba(10, 6, 18, 0.86);
   stroke: rgba(255, 246, 236, 0.18); stroke-width: 2;
@@ -722,20 +742,31 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
 .tach-ticks line { stroke: rgba(255, 246, 236, 0.38); stroke-width: 1.2; }
 .tach-ticks line.major { stroke: rgba(255, 246, 236, 0.86); stroke-width: 2; }
 .tach-ticks line.red { stroke: var(--hot); }
+.tach-numbers text {
+  fill: rgba(255, 246, 236, 0.88);
+  font-family: var(--font-display);
+  font-size: 6.2px; font-weight: 600; text-anchor: middle;
+  font-variant-numeric: tabular-nums;
+}
+.tach-numbers text.red { fill: var(--hot); }
+.tach-needle polygon {
+  fill: var(--gold);
+  filter: drop-shadow(0 0 2px rgba(255, 196, 107, 0.9));
+}
+.tach-hub { fill: #1a1024; stroke: rgba(255, 246, 236, 0.35); stroke-width: 0.8; }
+.tach-hub-dot { fill: var(--gold); }
 .tach-value {
   fill: var(--ink); font-family: var(--font-display);
-  font-size: 15px; font-weight: 700; font-style: italic;
+  font-size: 13px; font-weight: 700; font-style: italic;
   text-anchor: middle; font-variant-numeric: tabular-nums;
 }
 .tach-label {
   fill: var(--faint); font-family: var(--font-display);
-  font-size: 6.6px; font-weight: 600; letter-spacing: 0.2em;
+  font-size: 4.8px; font-weight: 600; letter-spacing: 0.16em;
   text-anchor: middle;
 }
 .tach-x1000 {
-  fill: var(--faint); font-family: var(--font-display);
-  font-size: 4.6px; letter-spacing: 0.16em; text-anchor: middle;
-  opacity: 0.7;
+  display: none;
 }
 .tach-shift {
   position: absolute; left: 50%; bottom: 3%;
@@ -749,9 +780,26 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
 .tach.redline {
   filter: drop-shadow(0 0 12px rgba(255, 61, 127, 0.45));
 }
+.tach.redline .tach-needle polygon { fill: var(--hot); }
+.tach.limiter {
+  filter: drop-shadow(0 0 18px rgba(255, 61, 127, 0.7));
+}
+.tach.limiter .tach-svg {
+  animation: tachShiver 0.1s steps(2, end) infinite;
+}
+.tach.limiter .tach-arc {
+  filter: drop-shadow(0 0 9px rgba(255, 61, 127, 1));
+}
 .tach.shift { animation: tachKick 0.34s var(--ease); }
 .tach.shift .tach-arc { filter: drop-shadow(0 0 10px rgba(255, 61, 127, 0.95)); }
 .tach.shift .tach-shift { animation: shiftPop 0.34s var(--ease); }
+@keyframes tachShiver {
+  0% { transform: translate(0, 0) rotate(0deg); }
+  25% { transform: translate(-1.2px, 0.6px) rotate(-0.9deg); }
+  50% { transform: translate(1px, -0.6px) rotate(0.7deg); }
+  75% { transform: translate(-0.6px, -0.4px) rotate(-0.4deg); }
+  100% { transform: translate(0.8px, 0.5px) rotate(0.6deg); }
+}
 @keyframes tachKick {
   0% { transform: scale(1); }
   30% { transform: scale(1.08) rotate(-1.5deg); }

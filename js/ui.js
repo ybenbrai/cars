@@ -15,6 +15,11 @@ import {
 
 const $ = (id) => document.getElementById(id);
 
+// Bump this id whenever the patch-notes modal should appear again.
+const WHATS_NEW_KEY = 'sunset-drift-whats-new';
+const WHATS_NEW_VERSION = '2026-11-rpm-collisions';
+const WHATS_NEW_LABEL = "WHAT'S NEW · NOV 2026";
+
 function esc(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
@@ -99,6 +104,7 @@ export class UI {
       opponents: 3,
     };
     this.buildNotice();
+    this.whatsNewShown = false;
     this.bind();
   }
 
@@ -117,6 +123,35 @@ export class UI {
     el.className = `garage-notice show ${kind}`;
     clearTimeout(this.noticeTimer);
     this.noticeTimer = setTimeout(() => el.classList.remove('show'), ms);
+  }
+
+  /**
+   * One short patch-notes card for the first launch after an update. The
+   * version id lives in localStorage, separate from cloud saves, so every
+   * browser sees the new notes once even when progress is synced elsewhere.
+   */
+  maybeShowWhatsNew() {
+    if (this.whatsNewShown) return;
+    let seen = '';
+    try {
+      seen = localStorage.getItem(WHATS_NEW_KEY) || '';
+    } catch {
+      // Private mode without storage: still show the notes this session.
+    }
+    if (seen === WHATS_NEW_VERSION) return;
+    this.whatsNewShown = true;
+    const versionEl = $('whatsNewVersion');
+    if (versionEl) versionEl.textContent = WHATS_NEW_LABEL;
+    $('screen-whatsnew')?.classList.remove('hidden');
+  }
+
+  dismissWhatsNew() {
+    try {
+      localStorage.setItem(WHATS_NEW_KEY, WHATS_NEW_VERSION);
+    } catch {
+      // Ignore unavailable storage.
+    }
+    $('screen-whatsnew')?.classList.add('hidden');
   }
 
   bind() {
@@ -326,6 +361,8 @@ export class UI {
       }
     });
     $('btnToGarage').addEventListener('click', () => this.cb.onQuit?.());
+    $('btnCloseWhatsNew').addEventListener('click', () => this.dismissWhatsNew());
+    $('btnDismissWhatsNew').addEventListener('click', () => this.dismissWhatsNew());
   }
 
   submitProfile() {
@@ -446,6 +483,7 @@ export class UI {
     this.renderCareer();
     this.renderProfile();
     this.show('garage');
+    this.maybeShowWhatsNew();
   }
 
   renderFilters() {

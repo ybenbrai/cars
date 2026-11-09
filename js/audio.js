@@ -25,6 +25,7 @@ export class AudioEngine {
     this.profile = PROFILES.sports;
     this.profileId = 'sports';
     this.launchPhase = 0;
+    this.limiterPhase = 0;
     this.music = null;
     this.wantMusic = false;
   }
@@ -172,7 +173,7 @@ export class AudioEngine {
     return this.setMuted(!this.muted);
   }
 
-  update(state) {
+  update(state, dt = 1 / 60) {
     if (!this.ready) return;
     const t = this.ctx.currentTime;
     const speedN = Math.min(1, state.speed / (state.maxSpeed || 56));
@@ -191,13 +192,24 @@ export class AudioEngine {
     }
     const freq = profile.base + rpm * (profile.span * 0.82) + gear * (profile.span * 0.13);
     const throttle = state.throttle ? 1 : 0;
-    const targetGain = (0.095 + throttle * 0.055 + speedN * 0.03) * profile.gain;
+
+    // Drifting on the limiter gets the same hard, uneven stutter as launch
+    // control: vv-v-vv-v instead of a smooth, polite engine note.
+    let gate = 1;
+    if (state.limiter) {
+      this.limiterPhase += dt * (10.5 + rpm * 5);
+      const cycle = this.limiterPhase % 1;
+      gate = cycle < 0.5 ? 1 : cycle < 0.64 ? 0.14 : 0.72;
+    } else {
+      this.limiterPhase = 0;
+    }
+    const targetGain = (0.095 + throttle * 0.055 + speedN * 0.03) * profile.gain * gate;
 
     const e = this.engine;
     e.oscA.frequency.setTargetAtTime(freq, t, 0.04);
     e.oscB.frequency.setTargetAtTime(freq * 0.5, t, 0.06);
     e.sub.frequency.setTargetAtTime(freq * 0.5, t, 0.06);
-    e.engineGain.gain.setTargetAtTime(targetGain, t, 0.12);
+    e.engineGain.gain.setTargetAtTime(targetGain, t, state.limiter ? 0.012 : 0.12);
     e.filter.frequency.setTargetAtTime(
       (240 + speedN * 1500 + throttle * 320) * profile.bright,
       t,
