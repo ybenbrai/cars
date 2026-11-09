@@ -62,9 +62,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   drivers, live interpolated rival cars, server-ranked results, rematches and
   online payouts. Built on a dependency-free WebSocket endpoint in the Node
   server; requires a signed-in account.
+- Mobile landscape layout: a rotate hint in portrait, best-effort orientation
+  lock, safe-area padding and a compact set of see-through steering and pedal
+  buttons in the screen corners.
+- Numbered circular tachometer with a needle, plus a drift-limiter shake and
+  engine stutter when a slide pins the RPM at the redline.
+- Hold `E` for a rear-view look in every camera mode.
+- A short "what's new" card on the first launch after an update.
 
 ### Fixed
 
+- Wall hits no longer feel like the car stopped dead: the nose turns with the
+  barrier and the car keeps most of its speed along the wall, with only a short
+  recoil on impact.
+- Cars could sink nose-first into each other; contact now uses a capsule of
+  three circles per body and sparks at the real touch point.
 - Text inputs no longer lose letters such as "A" to driving controls.
 - Typography and contrast: minimum 10–11 px labels, brighter muted text.
 - Car-card stat bars rendered empty; mobile garage overflowed horizontally.

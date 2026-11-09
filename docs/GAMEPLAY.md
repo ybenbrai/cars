@@ -36,8 +36,10 @@ major feature, not a hidden progression system.
 | Mute | `M` | — | ♪ |
 
 Touch controls appear automatically when the primary pointer is coarse or the
-device reports touch points. The game also pauses itself when the tab loses
-visibility during a race or countdown.
+device reports touch points. They are designed for landscape: a portrait phone
+shows a rotate hint and the race pauses underneath it, while the on-screen
+buttons stay see-through so the road is never hidden. The game also pauses
+itself when the tab loses visibility during a race or countdown.
 
 ## The cars
 

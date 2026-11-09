@@ -66,6 +66,7 @@ composer.addPass(new OutputPass());
 
 const effects = new Effects(scene);
 const input = new Input();
+const portrait = window.matchMedia('(orientation: portrait)');
 const audio = new AudioEngine();
 const hud = new HUD();
 const auth = new AuthService();
@@ -426,6 +427,7 @@ function startRace(config = {}, { chargeRental = true } = {}) {
     ui.showProfile(store?.profile || null);
     return;
   }
+  lockLandscape();
   const setup = resolveRaceConfig({ ...lastRaceConfig, ...config });
   lastRaceConfig = { ...config, ...(config.eventId ? { eventId: config.eventId } : {}) };
   if (!lastRaceConfig.mode) lastRaceConfig.mode = setup.mode;
@@ -482,6 +484,32 @@ function startRace(config = {}, { chargeRental = true } = {}) {
   } catch (error) {
     if (paidFee) store.refundPracticeFee(paidFee);
     throw error;
+  }
+
+  // Phones play sideways. If the device is still upright, pause under the
+  // rotate hint so the race does not run on unseen.
+  if (input.touchCapable && portrait.matches) pauseGame();
+}
+
+/** Best-effort fullscreen + landscape lock on touch devices. */
+function lockLandscape() {
+  if (!input.touchCapable) return;
+  const lock = () => {
+    try {
+      screen.orientation?.lock?.('landscape')?.catch?.(() => {});
+    } catch {
+      // Not supported (notably iOS Safari); the rotate hint handles it.
+    }
+  };
+  try {
+    const root = document.documentElement;
+    if (!document.fullscreenElement && root.requestFullscreen) {
+      root.requestFullscreen({ navigationUI: 'hide' }).then(lock, lock);
+    } else {
+      lock();
+    }
+  } catch {
+    lock();
   }
 }
 
@@ -1766,6 +1794,14 @@ async function boot() {
 
   setTimeout(() => document.getElementById('loader').classList.add('done'), 320);
 }
+
+// Turning the phone upright mid-race pauses it under the rotate hint; turning
+// it back leaves the pause screen up so the player chooses when to resume.
+portrait.addEventListener?.('change', (event) => {
+  if (event.matches && input.touchCapable && (state === 'racing' || state === 'countdown')) {
+    pauseGame();
+  }
+});
 
 boot();
 

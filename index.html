@@ -317,11 +317,11 @@
         <div class="eyebrow" id="whatsNewVersion">UPDATE NOTES</div>
         <h2>FRESH<br /><em>RUBBER.</em></h2>
         <ul class="whats-new-list">
+          <li><span>NEW</span>Mobile landscape layout with light, see-through corner controls.</li>
           <li><span>NEW</span>Round RPM dial with numbers, needle and a proper redline.</li>
-          <li><span>NEW</span>Drifting at the limiter now shakes the tach and stutters the engine.</li>
-          <li><span>NEW</span>Hold E to look back over your shoulder.</li>
+          <li><span>NEW</span>Drifting at the limiter shakes the tach and stutters the engine.</li>
+          <li><span>FIX</span>Wall hits now glance and slide along the barrier instead of pinning the car.</li>
           <li><span>FIX</span>Car-to-car contact no longer lets bodies sink into each other.</li>
-          <li><span>FIX</span>Wall hits recoil and scrub speed instead of stopping the car dead.</li>
         </ul>
         <div class="modal-actions">
           <button class="btn primary" id="btnDismissWhatsNew">LET'S DRIVE <span>→</span></button>
@@ -450,6 +450,10 @@
       </div>
       <div class="touch-side right">
         <div class="touch-row">
+          <button class="tbtn util tap" id="touchCam" aria-label="Change camera">◉</button>
+          <button class="tbtn util tap" id="touchPause" aria-label="Pause">❚❚</button>
+        </div>
+        <div class="touch-row">
           <button class="tbtn util" data-action="handbrake" aria-label="Handbrake">DRIFT</button>
           <button class="tbtn util" data-action="boost" aria-label="Nitro">N2O</button>
         </div>
@@ -458,6 +462,13 @@
           <button class="tbtn pedal gas" data-action="gas" aria-label="Accelerate">GAS</button>
         </div>
       </div>
+    </div>
+
+    <!-- Landscape hint: shown on touch devices held in portrait. -->
+    <div id="rotate" role="status" aria-live="polite">
+      <div class="rotate-phone" aria-hidden="true"></div>
+      <strong>ROTATE TO LANDSCAPE</strong>
+      <span>Sunset Drift plays best sideways.</span>
     </div>
 
     <div id="loader">

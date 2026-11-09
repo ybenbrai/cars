@@ -93,9 +93,9 @@ export function assistedDriftTarget(steerAbs, steerHold) {
 }
 
 /**
- * Wall contact response. Only the velocity component heading into the barrier
- * is reflected (with a little restitution and an extra shove); the tangential
- * component survives, so brushing a wall never stops the car dead.
+ * Wall contact response. Arcade rules: the speed running along the barrier is
+ * kept almost intact, and only a small slice of the normal component bounces
+ * back, so a hit gives a visible recoil without throwing the car to a stop.
  *
  * `nx`/`nz` point out of the track towards the wall. Returns the new velocity,
  * the incoming normal speed, the 0–1 impact strength and whether it bounced.
@@ -106,9 +106,11 @@ export function wallResponse(vx, vz, nx, nz) {
   const hit = clamp(vn / 16, 0, 1);
   const tx = vx - nx * vn;
   const tz = vz - nz * vn;
-  const restitution = 0.18 + hit * 0.22;
-  const shock = hit > 0.04 ? hit * hit * 2.6 : 0;
-  const tangent = 1 - hit * 0.22;
+  // A scrape should not scrub a meaningful amount of road speed.
+  const tangent = 1 - hit * 0.08;
+  // Head-on hits bounce a little; angled hits barely push back at all.
+  const restitution = 0.1 + hit * 0.16;
+  const shock = hit > 0.45 ? (hit - 0.45) * 1.8 : 0;
   return {
     vx: tx * tangent - nx * (vn * restitution + shock),
     vz: tz * tangent - nz * (vn * restitution + shock),
@@ -116,4 +118,29 @@ export function wallResponse(vx, vz, nx, nz) {
     hit,
     bounces: true,
   };
+}
+
+/**
+ * Rotate the car towards the wall tangent after a hit, so an angled impact
+ * turns into a slide along the barrier instead of pinning the nose and
+ * cancelling every metre the throttle tries to make. The rotation is capped
+ * per step to keep it smooth at 120 Hz.
+ *
+ * `tx`/`tz` are the track tangent (either direction). The car follows whichever
+ * way it is actually travelling, falling back to the direction it is facing.
+ */
+export function wallAlign(heading, vx, vz, tx, tz, hit) {
+  const along = vx * tx + vz * tz;
+  let dir;
+  if (Math.abs(along) > 0.4) {
+    dir = along > 0 ? 1 : -1;
+  } else {
+    const fx = Math.sin(heading);
+    const fz = Math.cos(heading);
+    dir = fx * tx + fz * tz >= 0 ? 1 : -1;
+  }
+  const target = Math.atan2(tx * dir, tz * dir);
+  const delta = Math.atan2(Math.sin(target - heading), Math.cos(target - heading));
+  const blend = Math.min(0.5, 0.1 + hit * 0.5);
+  return heading + clamp(delta * blend, -0.04, 0.04);
 }

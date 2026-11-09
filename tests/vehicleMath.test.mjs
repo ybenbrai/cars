@@ -11,6 +11,7 @@ import {
   coastDrag,
   driftCommit,
   maxEntrySpeed,
+  wallAlign,
   wallResponse,
 } from '../js/vehicleMath.js';
 
@@ -91,12 +92,24 @@ test('coast drag grows smoothly with speed', () => {
   }
 });
 
-test('a head-on wall hit recoils instead of stopping the car dead', () => {
+test('a head-on wall hit recoils a little instead of stopping the car dead', () => {
   const incoming = 16; // m/s straight into the barrier, normal +x
   const result = wallResponse(incoming, 0, 1, 0);
   assert.equal(result.bounces, true);
-  assert.ok(result.vx < -6, `expected a real recoil, got ${result.vx}`);
+  assert.ok(result.vx < -1.5, `expected a visible recoil, got ${result.vx}`);
+  assert.ok(result.vx > -6, `recoil should not fire the car backwards, got ${result.vx}`);
   assert.equal(result.hit, 1);
+});
+
+test('an angled wall hit keeps most of the speed along the barrier', () => {
+  // 30 m/s at 45°: half into the wall, half along it.
+  const into = 30 * Math.SQRT1_2;
+  const along = 30 * Math.SQRT1_2;
+  const result = wallResponse(into, along, 1, 0);
+  assert.ok(result.bounces);
+  assert.ok(result.vz > along * 0.85, `tangential speed was scrubbed too hard: ${result.vz}`);
+  const speed = Math.hypot(result.vx, result.vz);
+  assert.ok(speed > 19, `angled hit should retain speed, got ${speed.toFixed(1)} m/s`);
 });
 
 test('a glancing wall hit keeps almost all of the road speed', () => {
@@ -105,6 +118,27 @@ test('a glancing wall hit keeps almost all of the road speed', () => {
   assert.ok(result.hit < 0.05);
   // Tangential speed down the wall is barely scrubbed.
   assert.ok(Math.abs(result.vz - 20) < 0.2, `glancing hit lost too much speed: ${result.vz}`);
+});
+
+test('a wall hit turns the nose towards the barrier direction of travel', () => {
+  // Heading 30° into a wall whose tangent runs +z; the car should rotate a
+  // little towards +z (heading 0), not the other way.
+  const heading = 0.5;
+  const vx = Math.sin(heading) * 20;
+  const vz = Math.cos(heading) * 20;
+  const turned = wallAlign(heading, vx, vz, 0, 1, 0.8);
+  assert.ok(turned < heading, `expected a turn towards +z, got ${turned}`);
+  assert.ok(heading - turned <= 0.04 + 1e-9, 'one step must be smooth, not a snap');
+});
+
+test('the wall alignment follows the direction the car is travelling', () => {
+  // Tangent points +z, but the car is sliding backwards (-z). It must align
+  // with the direction of travel, not flip the car around.
+  const heading = Math.PI - 0.4;
+  const vx = Math.sin(heading) * 20;
+  const vz = Math.cos(heading) * 20;
+  const turned = wallAlign(heading, vx, vz, 0, 1, 0.5);
+  assert.ok(turned > heading, `expected a turn towards -z travel, got ${turned}`);
 });
 
 test('a car already moving away from the wall is left alone', () => {

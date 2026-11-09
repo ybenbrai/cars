@@ -68,6 +68,8 @@ export class Input {
   bindTouch() {
     document.querySelectorAll('.tbtn').forEach((button) => {
       const action = button.dataset.action;
+      // Camera and pause are one-shot taps owned by the UI, not held pedals.
+      if (!action) return;
       const press = (e) => {
         e.preventDefault();
         this.touch[action] = true;

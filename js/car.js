@@ -7,6 +7,7 @@ import {
   maxEntrySpeed,
   assistedDriftTarget,
   wallResponse,
+  wallAlign,
 } from './vehicleMath.js';
 import { upgradeMultipliers } from './data/upgrades.js';
 
@@ -371,6 +372,22 @@ export class Car {
         this.wallHit = bounce.hit;
         this.wallNormal.x = nx;
         this.wallNormal.z = nz;
+        // Turn the nose down the barrier: without this the car keeps driving
+        // into the wall, every frame cancels the throttle, and the hit feels
+        // as if the car has stopped dead. The rotation is deliberately small
+        // per step so a scrape slides instead of snapping.
+        if (near.tangent) {
+          this.heading = wallAlign(
+            this.heading,
+            this.vel.x,
+            this.vel.z,
+            near.tangent.x,
+            near.tangent.z,
+            bounce.hit,
+          );
+          this.forward.set(Math.sin(this.heading), 0, Math.cos(this.heading));
+          this.right.set(-Math.cos(this.heading), 0, Math.sin(this.heading));
+        }
         if (bounce.hit > 0.08) {
           this.damage = clamp(this.damage + bounce.hit * 0.08, 0, 1);
           this.model.setDamage(this.damage);

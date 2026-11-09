@@ -92,8 +92,10 @@ game uses ES modules and an import map.
 | Reset to track | `R` | — | — |
 | Mute | `M` | — | ♪ |
 
-Touch controls appear automatically on coarse-pointer devices. The game pauses
-itself when the tab loses visibility.
+Touch controls appear automatically on coarse-pointer devices. They are built
+for landscape: phones are asked to rotate (and locked where the browser allows
+it), with light, see-through steering and pedal buttons in the corners. The
+game pauses itself when the tab loses visibility.
 
 ## Cars
 
