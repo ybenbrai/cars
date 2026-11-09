@@ -16,9 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   per car from the Customize tab. Prices scale with the car's value, tuned
   stats show in green, and upgrade spend raises the AI grid's price band so
   a tuned car still meets a fair field. Online races stay stock.
-- Eighteen-car catalogue across eight categories, each with its own body style,
-  stats, physics, price and rank requirement. New: Kestrel RS open roadster and
-  Sovereign GT12 front-engined grand tourer.
+- Nineteen-car catalogue across eight categories, each with its own body style,
+  stats, physics, price and rank requirement. New: Kestrel RS open roadster,
+  Sovereign GT12 front-engined grand tourer and Orion H red compact hatch.
 - Economy: 30,000 CR starting wallet, performance-based payouts and a 2.4x
   price-band rule for AI grids.
 - AI opponents (1–7) with personalities and four difficulty levels.
