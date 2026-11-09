@@ -343,14 +343,18 @@ function ensureWorld(circuit) {
 /* ───────────────────────── race setup ───────────────────────── */
 
 function resolveRaceConfig(config = {}) {
-  const fallbackCircuit = CIRCUITS.find((c) => store.circuitUnlocked(c.id)) || CIRCUITS[0];
+  const fallbackCircuit = CIRCUITS.find((c) => !c.practiceOnly && store.circuitUnlocked(c.id)) || CIRCUITS[0];
   const event = config.eventId ? getCareerEvent(config.eventId) : null;
   const modeId = config.mode || (event ? 'career' : 'quick');
   const mode = getMode(modeId);
   let circuitId = config.circuitId || event?.circuitId || store.data.circuits[0] || fallbackCircuit.id;
   // Practice opens every circuit: locked ones are rented per session (see
-  // `startRace`). Every other mode still requires the circuit to be unlocked.
-  if (mode.id !== 'practice' && !store.circuitUnlocked(circuitId)) circuitId = fallbackCircuit.id;
+  // `startRace`). Every other mode still requires the circuit to be unlocked
+  // and cannot use a practice-only venue such as the test runway.
+  const requested = getCircuit(circuitId);
+  if (mode.id !== 'practice' && (requested.practiceOnly || !store.circuitUnlocked(circuitId))) {
+    circuitId = fallbackCircuit.id;
+  }
   const circuit = getCircuit(circuitId);
   const difficulty = getDifficulty(config.difficulty || event?.difficulty || 'normal');
   const solo = mode.id === 'time-trial' || mode.id === 'practice';
@@ -1047,6 +1051,7 @@ function finishRace() {
       if (car.unlockRank === store.rank) unlocks.push({ kind: 'car', id: car.id, name: car.name });
     }
     for (const circuit of CIRCUITS) {
+      if (circuit.practiceOnly) continue;
       if (circuit.unlockRank === store.rank && !unlocks.some((u) => u.id === circuit.id)) {
         unlocks.push({ kind: 'circuit', id: circuit.id, name: circuit.name });
       }
@@ -1419,11 +1424,14 @@ function frame(now) {
     updateHud(dt);
   }
 
-  // Keep the sun shadow centred on the action.
+  // Keep the sun shadow centred on the action and the sky dome overhead (the
+  // test runway is long enough to drive out from under a fixed dome).
   if (world) {
     world.env.sun.position.copy(race.player.car.pos).addScaledVector(world.env.sunDir, 130);
     world.env.sun.target.position.copy(race.player.car.pos);
     world.env.sun.target.updateMatrixWorld();
+    world.env.sky.position.copy(camera.position);
+    world.env.sky.material.uniforms?.uCenter?.value.copy(camera.position);
   }
 
   effects.update(dt);

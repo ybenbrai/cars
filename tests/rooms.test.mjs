@@ -237,9 +237,22 @@ test('position relay is rate limited per player', () => {
 test('every circuit is a valid online venue', () => {
   const h = harness();
   const a = h.connect();
-  for (const circuit of CIRCUITS) {
+  for (const circuit of CIRCUITS.filter((c) => !c.practiceOnly)) {
     h.send(a, { type: 'create', circuitId: circuit.id });
     assert.equal(a.last('room').room.circuitId, circuit.id);
   }
   assert.equal(h.lobby.rooms.size, 1, 'creating again leaves the previous room');
+});
+
+test('practice-only venues are not online venues', () => {
+  const h = harness();
+  const a = h.connect();
+  // Creating with the runway falls back to the first real circuit...
+  h.send(a, { type: 'create', circuitId: 'runway-01' });
+  const room = a.last('room').room;
+  assert.notEqual(room.circuitId, 'runway-01');
+  // ...and the host cannot configure the room onto it later.
+  h.send(a, { type: 'config', circuitId: 'runway-01' });
+  assert.equal(a.last('error').message, 'Unknown circuit.');
+  assert.equal(h.lobby.rooms.get(room.code).circuitId, room.circuitId);
 });

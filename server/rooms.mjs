@@ -21,6 +21,9 @@ export const RACE_TIMEOUT_MS = 15 * 60_000;
 export const STATE_RATE = 40; // max position updates per second per player
 export const MAX_AVG_SPEED = 110; // m/s, sanity bound for finish times
 const LAP_CHOICES = [2, 3, 4, 5];
+// Online lobbies only host real circuits: practice-only venues such as the
+// test runway never appear as a race venue.
+const ONLINE_CIRCUITS = CIRCUITS.filter((c) => !c.practiceOnly);
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I
 
 const finite = (v, lo, hi) => Number.isFinite(v) && v >= lo && v <= hi;
@@ -124,7 +127,7 @@ export class Lobby {
   createRoom(player, { isPublic = false, circuitId } = {}) {
     if (this.rooms.size >= MAX_ROOMS) return this.error(player, 'The server is full. Try again soon.');
     this.leaveRoom(player);
-    const circuit = CIRCUITS.find((c) => c.id === circuitId) || CIRCUITS[0];
+    const circuit = ONLINE_CIRCUITS.find((c) => c.id === circuitId) || ONLINE_CIRCUITS[0];
     const room = {
       code: makeCode(this.rooms),
       isPublic,
@@ -211,7 +214,7 @@ export class Lobby {
     if (!room || room.hostId !== player.id) return this.error(player, 'Only the host can change the race.');
     if (room.state !== 'lobby') return undefined;
     if (circuitId !== undefined) {
-      const circuit = CIRCUITS.find((c) => c.id === circuitId);
+      const circuit = ONLINE_CIRCUITS.find((c) => c.id === circuitId);
       if (!circuit) return this.error(player, 'Unknown circuit.');
       room.circuitId = circuit.id;
     }

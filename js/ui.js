@@ -17,11 +17,21 @@ const $ = (id) => document.getElementById(id);
 
 // Bump this id whenever the patch-notes modal should appear again.
 const WHATS_NEW_KEY = 'sunset-drift-whats-new';
-const WHATS_NEW_VERSION = '2026-11-landscape-touch';
+const WHATS_NEW_VERSION = '2026-11-runway-test';
 const WHATS_NEW_LABEL = "WHAT'S NEW · NOV 2026";
 
 function esc(str) {
   return String(str).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/**
+ * Circuits a mode may offer. Practice-only venues (the test runway) never show
+ * up in a race, time trial or online lobby, and practice lists them first.
+ */
+function circuitsFor(modeId) {
+  const list = CIRCUITS.filter((c) => modeId === 'practice' || !c.practiceOnly);
+  if (modeId !== 'practice') return list;
+  return [...list].sort((a, b) => Number(!!b.practiceOnly) - Number(!!a.practiceOnly));
 }
 
 function statRows(car) {
@@ -234,11 +244,13 @@ export class UI {
         return;
       }
       this.raceConfig.mode = card.dataset.mode;
-      // Leaving practice: a rented circuit may be locked in the new mode, so
-      // fall back to the first circuit the player actually owns.
-      if (this.raceConfig.mode !== 'practice'
-        && !this.store?.circuitUnlocked(this.raceConfig.circuitId)) {
-        const first = CIRCUITS.find((c) => this.store?.circuitUnlocked(c.id)) || CIRCUITS[0];
+      // Leaving practice: a rented circuit may be locked in the new mode (and
+      // the practice runway is not a race venue), so fall back to a circuit
+      // the player actually owns.
+      const allowed = circuitsFor(this.raceConfig.mode);
+      if (!allowed.some((c) => c.id === this.raceConfig.circuitId)
+        || !this.store?.circuitUnlocked(this.raceConfig.circuitId)) {
+        const first = allowed.find((c) => this.store?.circuitUnlocked(c.id)) || allowed[0];
         this.raceConfig.circuitId = first.id;
       }
       this.renderRaceSetup();
@@ -337,7 +349,8 @@ export class UI {
         }
         this.cb.onOnline?.('join', { code });
       } else if (action === 'create') {
-        const first = CIRCUITS.find((c) => this.store?.circuitUnlocked(c.id)) || CIRCUITS[0];
+        const onlineCircuits = circuitsFor('online');
+        const first = onlineCircuits.find((c) => this.store?.circuitUnlocked(c.id)) || onlineCircuits[0];
         this.cb.onOnline?.('create', { circuitId: first.id });
       } else if (action === 'ready') {
         this.cb.onOnline?.('ready', { ready: button.dataset.value === '1' });
@@ -716,7 +729,15 @@ export class UI {
       </button>
     `).join('');
 
-    $('circuitList').innerHTML = CIRCUITS.map((circuit) => {
+    const circuits = circuitsFor(mode.id);
+    // A stale selection (e.g. the runway, then switching to Quick Race) must
+    // never leave the setup pointing at a venue the mode cannot use.
+    if (!circuits.some((c) => c.id === this.raceConfig.circuitId)) {
+      const first = circuits.find((c) => this.store.circuitUnlocked(c.id)) || circuits[0];
+      this.raceConfig.circuitId = first.id;
+    }
+
+    $('circuitList').innerHTML = circuits.map((circuit) => {
       const practice = mode.id === 'practice';
       const unlocked = this.store.circuitUnlocked(circuit.id);
       const open = unlocked || practice;
@@ -724,7 +745,8 @@ export class UI {
       const active = circuit.id === this.raceConfig.circuitId;
       const best = this.store.bestLapFor(circuit.id);
       let detail;
-      if (fee) detail = `RENT ${formatCredits(fee)} CR · ${circuit.lengthKm} KM`;
+      if (circuit.practiceOnly) detail = `TEST TRACK · ${circuit.lengthKm} KM`;
+      else if (fee) detail = `RENT ${formatCredits(fee)} CR · ${circuit.lengthKm} KM`;
       else if (unlocked) detail = best ? `BEST ${fmtTime(best)}` : `${circuit.lengthKm} KM · ${circuit.difficultyLabel}`;
       else detail = `RANK ${(RANK_LABELS[circuit.unlockRank] || 'LOCKED').toUpperCase()}`;
       const classes = ['circuit-card', active ? 'active' : '', open ? '' : 'locked', fee ? 'rental' : '']
@@ -1039,7 +1061,7 @@ export class UI {
     const empty = Array.from({ length: Math.max(0, room.size - room.players.length) }, () => `
       <div class="online-player empty"><i></i><span class="who"><small>Open slot</small></span></div>`).join('');
 
-    const circuits = CIRCUITS.map((c) => {
+    const circuits = CIRCUITS.filter((c) => !c.practiceOnly).map((c) => {
       const allowed = this.store?.circuitUnlocked(c.id);
       return `<button class="seg ${c.id === room.circuitId ? 'active' : ''}" data-online="circuit" data-value="${c.id}" ${allowed ? '' : 'disabled title="Locked in your career"'}>${esc(c.name)}</button>`;
     }).join('');
@@ -1109,7 +1131,7 @@ export class UI {
       ['PRACTICE', `${stats.sessions || 0} sessions`],
       ['DISTANCE', `${(stats.distanceKm || 0).toFixed(1)} km`],
     ];
-    const records = CIRCUITS.map((circuit) => {
+    const records = CIRCUITS.filter((c) => !c.practiceOnly).map((circuit) => {
       const rec = data.records[circuit.id];
       const unlocked = this.store.circuitUnlocked(circuit.id);
       return `<div class="record-row ${unlocked ? '' : 'locked'}">

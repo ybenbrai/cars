@@ -94,7 +94,46 @@ const PALETTES = {
     road: '#302e30', line: '#e8ddc9', curbA: '#e4d6bd', curbB: '#b8492f',
     barrier: 0x8c7a5f, marker: 0xffc46b, accent: 0xffc46b,
   },
+  airport: {
+    skyTop: '#16223f', skyMid: '#4a5f92', skyLow: '#c58a70', skyHorizon: '#ffd49c',
+    sun: '#fff6e0', sunGlow: '#ffb46a', fog: 0xbfa78f, fogNear: 260, fogFar: 1450,
+    ground: '#46552f', groundStyle: 'grass', env: 0.55,
+    hemiSky: 0xffe6c4, hemiGround: 0x2a3220, sunLight: 0xffd9a8, fillLight: 0x7f9cff, bounceLight: 0xff9a5f,
+    road: '#34343a', line: '#f4f1e8', curbA: '#e9e6df', curbB: '#c9c6bf',
+    barrier: 0xd9dde6, marker: 0xffc46b, accent: 0xffc46b,
+    // The test strip is longer than a race circuit, so its grass apron has to
+    // stretch with it (the default ground disc is 1250 m across the radius).
+    groundRadius: 2300,
+  },
 };
+
+// A runway is a stadium: one very long straight out, a wide turnaround and a
+// return straight. `straight` is the length of the flat-out run in metres, so
+// the player can hold the throttle long enough to find the car's top speed.
+function runwayControlPoints({ straight = 3600, radius = 120, gridRun = 200, spacing = 450 } = {}) {
+  const x0 = -straight / 2;
+  const x1 = straight / 2;
+  const cp = [];
+  // Start a little way up the main straight so the grid lines up on tarmac.
+  for (let x = x0 + gridRun; x < x1 - 1; x += spacing) cp.push([x, -radius]);
+  cp.push([x1, -radius]);
+  // Right-hand turnaround (a semicircle bulging past the end of the straight).
+  for (let k = 1; k < 6; k++) {
+    const a = -Math.PI / 2 + (k / 6) * Math.PI;
+    cp.push([x1 + Math.cos(a) * radius, Math.sin(a) * radius]);
+  }
+  cp.push([x1, radius]);
+  // Return straight, then the left-hand turnaround.
+  for (let x = x1 - spacing; x > x0 + 1; x -= spacing) cp.push([x, radius]);
+  cp.push([x0, radius]);
+  for (let k = 1; k < 6; k++) {
+    const a = Math.PI / 2 + (k / 6) * Math.PI;
+    cp.push([x0 + Math.cos(a) * radius, Math.sin(a) * radius]);
+  }
+  cp.push([x0, -radius]);
+  for (let x = x0 + spacing; x < x0 + gridRun - 1; x += spacing) cp.push([x, -radius]);
+  return cp;
+}
 
 const RAW = [
   {
@@ -236,6 +275,25 @@ const RAW = [
       radius: 174, squashX: 1.22, squashZ: 0.92, points: 32, rotate: 1.35,
       harmonics: [[4, 0.17, 0.8], [6, 0.06, 2.4], [2, 0.08]],
     }),
+  },
+  {
+    id: 'runway-01',
+    name: 'RUNWAY 01',
+    location: 'Test Strip',
+    subtitle: 'A wide, empty runway with a 3.6 km straight. Practice only: hold the throttle and find the limiter.',
+    theme: 'airport',
+    practiceOnly: true,
+    runway: true,
+    unlockRank: 0,
+    difficulty: 1,
+    width: 14,
+    gates: 4,
+    laps: 3,
+    // Bottles all the way down the main straight, so a top-speed run can keep
+    // the nitro topped up without touching the brakes.
+    pads: [0.03, 0.10, 0.17, 0.24, 0.31, 0.38],
+    features: ['3.6 km runway', 'Top-speed testing', 'Practice only'],
+    cp: runwayControlPoints(),
   },
 ];
 

@@ -68,6 +68,9 @@ function skyMesh(palette) {
     fog: false,
     uniforms: {
       uSunDir: { value: SUN_DIR },
+      // The dome follows the camera so a long venue (the test runway) keeps a
+      // sky overhead instead of driving out of a fixed, origin-centred dome.
+      uCenter: { value: new THREE.Vector3() },
       uHorizon: { value: color(palette.skyHorizon) },
       uLow: { value: color(palette.skyLow) },
       uMid: { value: color(palette.skyMid) },
@@ -85,6 +88,7 @@ function skyMesh(palette) {
     fragmentShader: /* glsl */ `
       varying vec3 vWorld;
       uniform vec3 uSunDir;
+      uniform vec3 uCenter;
       uniform vec3 uHorizon;
       uniform vec3 uLow;
       uniform vec3 uMid;
@@ -92,7 +96,7 @@ function skyMesh(palette) {
       uniform vec3 uSun;
       uniform vec3 uGlow;
       void main() {
-        vec3 d = normalize(vWorld);
+        vec3 d = normalize(vWorld - uCenter);
         float h = clamp(d.y, 0.0, 1.0);
         vec3 col = mix(uHorizon, uLow, smoothstep(0.0, 0.06, h));
         col = mix(col, uMid, smoothstep(0.05, 0.32, h));
@@ -389,7 +393,9 @@ export function createEnvironment(scene, renderer, palette) {
   const groundMat = new THREE.MeshStandardMaterial({
     map: makeNoiseTexture(palette.groundStyle), color: palette.ground, roughness: 1, metalness: 0,
   });
-  const ground = new THREE.Mesh(new THREE.CircleGeometry(1250, 96), groundMat);
+  // Most circuits fit inside the default disc; long venues (the test runway)
+  // ask for a bigger apron so the grass reaches past the barriers.
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(palette.groundRadius || 1250, 96), groundMat);
   ground.rotation.x = -Math.PI / 2;
   ground.position.y = -0.06;
   ground.receiveShadow = true;
@@ -812,6 +818,82 @@ export function populateScenery(scene, track, circuit) {
     );
     stripe.position.y = 7.2;
     pit.add(stripe);
+  }
+
+  if (circuit.theme === 'airport') {
+    // ── runway edge lights: two rows down the whole loop
+    const lightMat = new THREE.MeshStandardMaterial({
+      color: 0x3a3324, emissive: 0xffdba0, emissiveIntensity: 2.4, roughness: 0.45,
+    });
+    const lightStep = Math.max(2, Math.round(track.samples.length / 320));
+    const lightCount = Math.ceil(track.samples.length / lightStep) * 2;
+    const edgeLights = new THREE.InstancedMesh(new THREE.BoxGeometry(0.6, 0.18, 0.6), lightMat, lightCount);
+    let li = 0;
+    for (let i = 0; i < track.samples.length; i += lightStep) {
+      const s = track.samples[i];
+      for (const sign of [-1, 1]) {
+        const off = sign * (track.halfWidth + 1.8);
+        dummy.position.set(s.point.x + s.side.x * off, 0.12, s.point.z + s.side.z * off);
+        dummy.rotation.set(0, 0, 0);
+        dummy.scale.setScalar(1);
+        dummy.updateMatrix();
+        edgeLights.setMatrixAt(li++, dummy.matrix);
+      }
+    }
+    edgeLights.count = li;
+    group.add(edgeLights);
+
+    // ── hangars and a control tower on the outside of the main straight
+    const outside = start.side.clone().multiplyScalar(-1);
+    const along = start.tangent;
+    const hangarMat = new THREE.MeshStandardMaterial({ color: 0xb9bec7, roughness: 0.75, metalness: 0.15 });
+    const roofMat = new THREE.MeshStandardMaterial({ color: 0x6f7680, roughness: 0.8, metalness: 0.2 });
+    const doorMat = new THREE.MeshStandardMaterial({ color: 0x3a3f48, roughness: 0.6, metalness: 0.35 });
+    const towerCabMat = new THREE.MeshStandardMaterial({ color: 0x26242c, metalness: 0.6, roughness: 0.5 });
+    for (let i = 0; i < 3; i++) {
+      const hangar = new THREE.Group();
+      const base = new THREE.Vector3().copy(start.point)
+        .addScaledVector(outside, track.halfWidth + 52)
+        .addScaledVector(along, 70 + i * 52);
+      hangar.position.set(base.x, 0, base.z);
+      hangar.rotation.y = Math.atan2(start.tangent.x, start.tangent.z);
+      group.add(hangar);
+      const body = new THREE.Mesh(new THREE.BoxGeometry(42, 13, 30), hangarMat);
+      body.position.y = 6.5;
+      body.castShadow = true;
+      body.receiveShadow = true;
+      hangar.add(body);
+      const roof = new THREE.Mesh(new THREE.CylinderGeometry(15, 15, 42, 14, 1, false, 0, Math.PI), roofMat);
+      roof.rotation.z = Math.PI / 2;
+      roof.position.y = 13;
+      roof.castShadow = true;
+      hangar.add(roof);
+      const door = new THREE.Mesh(new THREE.BoxGeometry(34, 10, 0.4), doorMat);
+      door.position.set(0, 5, 15.1);
+      hangar.add(door);
+    }
+
+    const tower = new THREE.Group();
+    const towerBase = new THREE.Vector3().copy(start.point)
+      .addScaledVector(outside, track.halfWidth + 30)
+      .addScaledVector(along, -45);
+    tower.position.set(towerBase.x, 0, towerBase.z);
+    tower.rotation.y = Math.atan2(start.tangent.x, start.tangent.z);
+    group.add(tower);
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(3.4, 4.4, 30, 12), hangarMat);
+    shaft.position.y = 15;
+    shaft.castShadow = true;
+    tower.add(shaft);
+    const cab = new THREE.Mesh(new THREE.CylinderGeometry(6, 5, 5, 12), towerCabMat);
+    cab.position.y = 32.5;
+    cab.castShadow = true;
+    tower.add(cab);
+    const cabGlass = new THREE.Mesh(
+      new THREE.CylinderGeometry(6.05, 6.05, 2.2, 12),
+      new THREE.MeshStandardMaterial({ color: 0x1b2b44, metalness: 0.7, roughness: 0.2, emissive: 0x2a4f8a, emissiveIntensity: 0.4 }),
+    );
+    cabGlass.position.y = 33.2;
+    tower.add(cabGlass);
   }
 
   // ── grandstand near the start line

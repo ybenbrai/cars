@@ -115,6 +115,17 @@ ranks ahead the circuit is plus your wallet balance. During the session a
 `TRACK RENTAL` badge sits under the lap counter, and the results sheet lists the
 fee under the payout so the deduction never appears out of nowhere.
 
+### Test runway
+
+Practice also lists **Runway 01**, a free test strip that never appears in
+Career, Quick Race, Time Trial or online lobbies. It is a wide airport loop with
+two 3.6 km straights joined by 120 m turnarounds, lined with edge lights,
+hangars and a control tower. Nitro bottles run down the main straight, so you
+can hold the throttle, top up the nitro and find the car's real top speed. Laps
+are recorded like any other practice session, but the runway is excluded from
+profile records and online venues because it is a test track rather than a race
+circuit.
+
 ## Braking and wheel lock
 
 - Brakes stop a sports car at about **1.2 g** (roughly 35 m from 100 km/h),

@@ -217,7 +217,9 @@ export function createTrack(scene, circuit) {
   scene.add(group);
 
   // ── road surface
-  const roadPeriod = length / Math.max(1, Math.round(length / 11));
+  // Runway markings are spaced for a runway, not a street: long dashes read
+  // better at top speed than the usual 11 m repeat.
+  const roadPeriod = length / Math.max(1, Math.round(length / (circuit.runway ? 26 : 11)));
   const roadMat = new THREE.MeshStandardMaterial({
     map: asphaltTexture(palette),
     roughness: 0.93,

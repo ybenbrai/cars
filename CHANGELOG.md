@@ -24,6 +24,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - AI opponents (1–7) with personalities and four difficulty levels.
 - Seven circuits, including the new Velocity Park grand prix venue with tyre
   walls, hoardings and a pit building.
+- Practice-only test runway: a wide airport loop with a 3.6 km straight, edge
+  lights, hangars and a control tower, built for top-speed testing. It never
+  appears in Career, Quick Race, Time Trial or online lobbies.
 - Game modes: Career (nine events, four series), Quick Race, Time Trial and
   Practice. Practice times laps and can be ended from pause to bank drift score.
 - Practice opens every circuit. Circuits still locked by rank are rented per
