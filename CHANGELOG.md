@@ -76,6 +76,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Hold `E` for a rear-view look in every camera mode.
 - A short "what's new" card on the first launch after an update.
 
+### Changed
+
+- Mobile race HUD: the nitro/damage panel is now a borderless top-left overlay,
+  the "DRIFT TO REFILL" hint is gone, camera/pause stay in the top action row,
+  and drift/nitro moved to the top. Brake and gas are now large pedal-shaped
+  pads in the bottom-right, leaving the bottom for steering and pedals.
+
 ### Fixed
 
 - Wall hits no longer feel like the car stopped dead: the nose turns with the

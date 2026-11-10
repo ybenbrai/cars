@@ -82,12 +82,12 @@ game uses ES modules and an import map.
 
 | Action | Keyboard | Gamepad | Touch |
 | --- | --- | --- | --- |
-| Accelerate | `W` / `↑` | RT / A | GAS |
-| Brake / reverse | `S` / `↓` | LT / X | BRK |
+| Accelerate | `W` / `↑` | RT / A | GAS pedal |
+| Brake / reverse | `S` / `↓` | LT / X | BRAKE pedal |
 | Steer | `A` `D` / `←` `→` | Left stick | ◀ ▶ |
 | Handbrake / drift | `Space` | LB / RB | DRIFT |
 | Nitro | `Shift` | B | N2O |
-| Cycle camera (near chase, far chase, bumper, cockpit) | `C` | Y | — |
+| Cycle camera (near chase, far chase, bumper, cockpit) | `C` | Y | ◉ |
 | Look back | Hold `B` | — | — |
 | Pause / resume | `Esc` / `P` | Start | ❚❚ |
 | Reset to track | `R` | — | — |
@@ -95,8 +95,10 @@ game uses ES modules and an import map.
 
 Touch controls appear automatically on coarse-pointer devices. They are built
 for landscape: phones are asked to rotate (and locked where the browser allows
-it), with light, see-through steering and pedal buttons in the corners. The
-game pauses itself when the tab loses visibility.
+it), with see-through steering at the bottom left and pedal-shaped brake/gas
+buttons at the bottom right. Camera, pause, drift and nitro sit along the top,
+and the borderless nitro/damage panel lives in the top-left corner. The game
+pauses itself when the tab loses visibility.
 
 ## Cars
 

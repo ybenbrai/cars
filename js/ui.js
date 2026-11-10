@@ -17,7 +17,7 @@ const $ = (id) => document.getElementById(id);
 
 // Bump this id whenever the patch-notes modal should appear again.
 const WHATS_NEW_KEY = 'sunset-drift-whats-new';
-const WHATS_NEW_VERSION = '2026-11-top-speed-limiter';
+const WHATS_NEW_VERSION = '2026-11-mobile-hud';
 const WHATS_NEW_LABEL = "WHAT'S NEW · NOV 2026";
 
 function esc(str) {
@@ -315,8 +315,6 @@ export class UI {
     $('btnSoundHud').addEventListener('click', () => this.cb.onSound?.());
     $('btnPauseHud').addEventListener('click', () => this.cb.onPause?.());
     $('btnCam').addEventListener('click', () => this.cb.onCamera?.());
-    $('touchPause')?.addEventListener('click', () => this.cb.onPause?.());
-    $('touchCam')?.addEventListener('click', () => this.cb.onCamera?.());
     $('btnResume').addEventListener('click', () => this.cb.onResume?.());
     $('btnRestart').addEventListener('click', () => this.cb.onRestart?.());
     $('btnQuit').addEventListener('click', () => this.cb.onQuit?.());

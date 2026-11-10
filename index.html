@@ -87,6 +87,13 @@
         </div>
       </header>
 
+      <div class="nitro">
+        <div class="nitro-head"><span>NITRO</span><span id="nitroPct">0%</span></div>
+        <div class="nitro-bar"><i id="nitroFill"></i></div>
+        <div class="damage-head"><span>DAMAGE</span></div>
+        <div class="damage-bar"><i id="damageFill"></i></div>
+      </div>
+
       <div id="hudRental" class="hud-rental hidden">
         <span class="hud-label">TRACK RENTAL</span>
         <strong id="hudRentalText">—</strong>
@@ -158,13 +165,6 @@
             <text class="tach-label" x="50" y="71">RPM ×1000</text>
           </svg>
           <span class="tach-shift" id="shiftFlash">SHIFT</span>
-        </div>
-        <div class="nitro">
-          <div class="nitro-head"><span>NITRO</span><span id="nitroPct">0%</span></div>
-          <div class="nitro-bar"><i id="nitroFill"></i></div>
-          <div class="nitro-hint">DRIFT TO REFILL</div>
-          <div class="damage-head"><span>DAMAGE</span></div>
-          <div class="damage-bar"><i id="damageFill"></i></div>
         </div>
       </div>
     </div>
@@ -320,7 +320,7 @@
           <li><span>NEW</span>Top-speed limiter: hold max RPM and the engine stutters ta-ta-ta with a shaking tach.</li>
           <li><span>NEW</span>Orion H: a red, Astra-sized compact hatchback with a turbo four.</li>
           <li><span>NEW</span>Practice-only test runway: a 3.6 km straight for top-speed runs.</li>
-          <li><span>NEW</span>Mobile landscape layout with light, see-through corner controls.</li>
+          <li><span>NEW</span>Mobile HUD: nitro/damage top-left, pedal-shaped brake and gas, controls cleaned up.</li>
           <li><span>NEW</span>Round RPM dial with numbers, needle and a proper redline.</li>
           <li><span>NEW</span>Drifting at the limiter shakes the tach and stutters the engine.</li>
           <li><span>FIX</span>Wall hits now glance and slide along the barrier instead of pinning the car.</li>
@@ -447,23 +447,17 @@
 
     <!-- ═══════════════ TOUCH ═══════════════ -->
     <div id="touch" class="hidden">
+      <div class="touch-top">
+        <button class="tbtn util" data-action="handbrake" aria-label="Handbrake">DRIFT</button>
+        <button class="tbtn util" data-action="boost" aria-label="Nitro">N2O</button>
+      </div>
       <div class="touch-side left">
         <button class="tbtn steer" data-action="left" aria-label="Steer left">◀</button>
         <button class="tbtn steer" data-action="right" aria-label="Steer right">▶</button>
       </div>
-      <div class="touch-side right">
-        <div class="touch-row">
-          <button class="tbtn util tap" id="touchCam" aria-label="Change camera">◉</button>
-          <button class="tbtn util tap" id="touchPause" aria-label="Pause">❚❚</button>
-        </div>
-        <div class="touch-row">
-          <button class="tbtn util" data-action="handbrake" aria-label="Handbrake">DRIFT</button>
-          <button class="tbtn util" data-action="boost" aria-label="Nitro">N2O</button>
-        </div>
-        <div class="touch-row">
-          <button class="tbtn pedal brake" data-action="brake" aria-label="Brake">BRK</button>
-          <button class="tbtn pedal gas" data-action="gas" aria-label="Accelerate">GAS</button>
-        </div>
+      <div class="touch-pedals">
+        <button class="tbtn pedal brake" data-action="brake" aria-label="Brake"><span>BRAKE</span></button>
+        <button class="tbtn pedal gas" data-action="gas" aria-label="Accelerate"><span>GAS</span></button>
       </div>
     </div>
 

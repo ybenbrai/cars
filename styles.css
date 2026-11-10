@@ -817,7 +817,8 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
   100% { opacity: 0; transform: translate(-50%, -5px) scale(0.94); }
 }
 .nitro {
-  width: 150px; margin-bottom: 34px;
+  position: absolute; left: 360px; bottom: 52px;
+  width: 150px;
   padding: 10px 12px 11px;
   background: rgba(10, 6, 18, 0.44);
   border: 1px solid var(--line);
@@ -833,7 +834,6 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
   box-shadow: 0 0 14px rgba(92, 225, 230, 0.7);
   transition: width 0.1s linear;
 }
-.nitro-hint { margin-top: 6px; font-size: 10px; letter-spacing: 0.16em; color: var(--faint); }
 
 .live-drift {
   position: absolute; right: 24px; top: 50%; transform: translateY(-50%);
@@ -917,28 +917,33 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
 
 /* ─────────── touch ─────────── */
 
-/* Full-bleed layer: the buttons live in the corners and stay mostly
-   see-through so the road and the car are never hidden. */
+/* Full-bleed layer: the controls live in the corners and stay mostly
+   see-through so the road and the car are never hidden. Only steering and
+   the pedals sit at the bottom; everything else moves to the top. */
 #touch {
   position: absolute; inset: 0; z-index: 11;
   pointer-events: none;
-  padding:
-    max(12px, env(safe-area-inset-top))
-    max(18px, env(safe-area-inset-right))
-    max(16px, env(safe-area-inset-bottom))
-    max(18px, env(safe-area-inset-left));
-  display: flex; align-items: flex-end; justify-content: space-between;
 }
-.touch-side { display: flex; align-items: flex-end; gap: 12px; pointer-events: none; }
-.touch-side.left { gap: 10px; }
-.touch-side.right {
-  flex-direction: column; align-items: flex-end; gap: 8px;
-  padding: 8px;
-  border: 1px solid rgba(255, 246, 236, 0.08);
-  border-radius: 24px;
-  background: rgba(8, 5, 16, 0.14);
+.touch-side { display: flex; align-items: flex-end; gap: 10px; pointer-events: none; }
+.touch-side.left {
+  position: absolute;
+  left: max(16px, env(safe-area-inset-left));
+  bottom: max(16px, env(safe-area-inset-bottom));
 }
-.touch-row { display: flex; gap: 8px; }
+.touch-pedals {
+  position: absolute;
+  right: max(18px, env(safe-area-inset-right));
+  bottom: max(16px, env(safe-area-inset-bottom));
+  display: flex; align-items: flex-end; gap: 12px;
+  pointer-events: none;
+}
+.touch-top {
+  position: absolute;
+  top: 84px;
+  left: max(16px, env(safe-area-inset-left));
+  display: flex; gap: 8px;
+  pointer-events: none;
+}
 .tbtn {
   pointer-events: auto;
   width: 62px; height: 62px;
@@ -959,22 +964,74 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
   color: #fff;
   transform: scale(0.94);
 }
-.tbtn.tap { font-size: 14px; color: rgba(255, 246, 236, 0.7); }
 .tbtn.util {
-  width: 52px; height: 52px; font-size: 10px; letter-spacing: 0.08em;
+  width: 66px; height: 44px; font-size: 10px; letter-spacing: 0.08em;
+  border-radius: 12px;
   border-color: rgba(92, 225, 230, 0.34);
   background: rgba(10, 6, 18, 0.14);
   color: rgba(200, 248, 250, 0.82);
 }
 .tbtn.util.active { background: rgba(92, 225, 230, 0.4); border-color: var(--cyan); color: #fff; }
-.tbtn.pedal { width: 64px; height: 64px; font-size: 12px; }
-.tbtn.gas { background: rgba(255, 122, 69, 0.18); border-color: rgba(255, 122, 69, 0.55); }
-.tbtn.brake { background: rgba(255, 61, 127, 0.12); border-color: rgba(255, 61, 127, 0.45); }
+
+/* Brake and gas are pedals, not round buttons: a tall pad with grip ribs and
+   the label at the foot. */
+.tbtn.pedal {
+  position: relative;
+  width: 86px; height: 112px;
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: 12px;
+  border-radius: 14px 14px 20px 20px;
+  border-width: 2px;
+  font-size: 11px; letter-spacing: 0.14em;
+  overflow: hidden;
+}
+.tbtn.pedal::before {
+  content: '';
+  position: absolute; inset: 12px 14px 34px;
+  border-radius: 8px;
+  background: repeating-linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0 2px, transparent 2px 13px);
+  opacity: 0.65;
+  pointer-events: none;
+}
+.tbtn.pedal span { position: relative; }
+.tbtn.gas {
+  background: linear-gradient(180deg, rgba(255, 122, 69, 0.32), rgba(255, 122, 69, 0.1));
+  border-color: rgba(255, 122, 69, 0.6);
+}
+.tbtn.brake {
+  background: linear-gradient(180deg, rgba(255, 61, 127, 0.28), rgba(255, 61, 127, 0.08));
+  border-color: rgba(255, 61, 127, 0.5);
+}
+.tbtn.gas.active { background: linear-gradient(180deg, rgba(255, 122, 69, 0.7), rgba(255, 122, 69, 0.3)); }
+.tbtn.brake.active { background: linear-gradient(180deg, rgba(255, 61, 127, 0.66), rgba(255, 61, 127, 0.26)); }
 .tbtn.steer {
   width: 84px; height: 84px; font-size: 25px;
   color: rgba(255, 246, 236, 0.86);
   background: rgba(10, 6, 18, 0.14);
 }
+
+/* Mobile HUD: nitro + damage become a borderless top-left overlay, and the
+   outright camera/pause buttons stay in the top action row. */
+body.touch-ui .nitro {
+  left: max(16px, env(safe-area-inset-left));
+  top: max(10px, env(safe-area-inset-top));
+  bottom: auto;
+  width: 150px;
+  padding: 0; margin: 0;
+  background: none;
+  border: 0;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+body.touch-ui .nitro .damage-head { margin-top: 10px; }
+body.touch-ui .hud-driver { display: none; }
+body.touch-ui .nitro-head,
+body.touch-ui .nitro .damage-head { text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85); }
+body.touch-ui .nitro-bar,
+body.touch-ui .damage-bar { box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4); }
+body.touch-ui .hud-position { left: 180px; top: 12px; }
+body.touch-ui .hud-actions { margin-left: auto; }
+body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15px; }
 
 /* ─────────── rotate hint ─────────── */
 
@@ -1063,6 +1120,7 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
   .meta:nth-child(2) { display: none; }
   .map-block { width: 132px; }
   .hud-bottom { bottom: 14px; }
+  .nitro { bottom: 48px; }
 }
 
 @media (max-width: 860px) {
@@ -1091,6 +1149,7 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
 
   .hud-top { top: 12px; left: 12px; right: 12px; }
   .hud-driver { display: none; }
+  .hud-actions { margin-left: auto; }
   .hud-rental { top: 88px; padding: 5px 11px 6px; }
   .lap-block { padding: 8px 16px 9px; min-width: 170px; }
   .lap-time { font-size: 25px; }
@@ -1103,7 +1162,7 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
   .tach-value { font-size: 17px; }
   .speed span { font-size: 20px; }
   .gauge-ticks text { font-size: 13px; }
-  .nitro { width: 112px; margin-bottom: 20px; padding: 8px 9px; }
+  .nitro { left: 246px; bottom: 26px; width: 112px; padding: 8px 9px; }
   .live-drift { right: 14px; }
   .live-drift .combo { font-size: 22px; }
   .live-drift .drift-pts { font-size: 14px; }
@@ -1606,11 +1665,14 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
   .tach { width: 70px; height: 70px; margin-left: -12px; margin-bottom: 6px; }
   .tach-value { font-size: 14px; }
   .speed span { font-size: 19px; }
-  .nitro { width: 104px; margin-bottom: 14px; padding: 7px 9px; }
+  .nitro { left: 214px; bottom: 18px; width: 104px; padding: 7px 9px; }
   .tbtn { width: 54px; height: 54px; }
-  .tbtn.pedal { width: 60px; height: 60px; }
-  .tbtn.util { width: 46px; height: 46px; font-size: 9px; }
+  .tbtn.pedal { width: 72px; height: 92px; }
+  .tbtn.util { width: 58px; height: 40px; font-size: 9px; }
   .tbtn.steer { width: 74px; height: 74px; font-size: 22px; }
-  .touch-side.right { gap: 7px; padding: 7px; border-radius: 21px; }
-  .touch-row { gap: 7px; }
+  .touch-pedals { gap: 10px; }
+  .touch-top { top: 80px; left: 10px; }
+  body.touch-ui .nitro { width: 132px; }
+  body.touch-ui .hud-position { left: 156px; top: 8px; }
+  body.touch-ui .hud-actions .icon-btn { width: 36px; height: 36px; }
 }

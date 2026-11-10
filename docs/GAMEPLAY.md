@@ -24,12 +24,12 @@ major feature, not a hidden progression system.
 
 | Action | Keyboard | Gamepad | Touch |
 | --- | --- | --- | --- |
-| Accelerate | `W` / `↑` | RT / A | GAS |
-| Brake / reverse | `S` / `↓` | LT / X | BRK |
+| Accelerate | `W` / `↑` | RT / A | GAS pedal |
+| Brake / reverse | `S` / `↓` | LT / X | BRAKE pedal |
 | Steer | `A` `D` / `←` `→` | Left stick | ◀ ▶ |
 | Handbrake | `Space` | LB / RB | DRIFT |
 | Nitro | `Shift` | B | N2O |
-| Cycle camera (near chase, far chase, bumper, cockpit) | `C` | Y | — |
+| Cycle camera (near chase, far chase, bumper, cockpit) | `C` | Y | ◉ |
 | Look back | Hold `B` | — | — |
 | Pause / resume | `Esc` / `P` | Start | ❚❚ |
 | Reset to track | `R` | — | — |
@@ -38,8 +38,11 @@ major feature, not a hidden progression system.
 Touch controls appear automatically when the primary pointer is coarse or the
 device reports touch points. They are designed for landscape: a portrait phone
 shows a rotate hint and the race pauses underneath it, while the on-screen
-buttons stay see-through so the road is never hidden. The game also pauses
-itself when the tab loses visibility during a race or countdown.
+buttons stay see-through so the road is never hidden. Steering sits at the
+bottom left and the pedal-shaped brake/gas buttons at the bottom right; camera,
+pause, drift, nitro and the borderless nitro/damage panel sit along the top.
+The game also pauses itself when the tab loses visibility during a race or
+countdown.
 
 ## The cars
 
@@ -271,10 +274,11 @@ the active gate highlighted and the car shown as an arrow.
 ## HUD
 
 - **Top center** — lap counter, current lap time and best lap.
-- **Top left** — driver name.
+- **Top left** — driver name; on touch, the borderless nitro and damage panel.
 - **Top right** — sound, camera and pause buttons.
 - **Right** — minimap and total drift score.
-- **Bottom center** — speedometer, gear and nitro bar.
+- **Bottom center** — speedometer and gear.
+- **Bottom left** — nitro and damage bars on desktop/mouse layouts.
 - **Center** — live drift chain and score while sliding.
 - **Warnings** — `WRONG WAY` appears after 0.9 s of sustained opposite travel.
 
