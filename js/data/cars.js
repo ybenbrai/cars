@@ -153,6 +153,31 @@ export const CARS = [
     }),
   },
   {
+    id: 'monarch',
+    name: 'MONARCH L8',
+    klass: 'FLAGSHIP SALOON',
+    category: 'sedan',
+    price: 88000,
+    unlockRank: 3,
+    tagline: 'Five and a half metres of calm. Then the V8 wakes up.',
+    description:
+      'A long-wheelbase executive saloon built to cross continents in silence: air suspension, a twin-turbo V8 and a cabin you could hold a meeting in. It is heavy and it knows it, but it carries astonishing speed on long, fast sweepers and never looks out of place at the front of the grid.',
+    paint: '#14161c',
+    specs: { power: 503, weight: 2140, topSpeed: 290, drivetrain: 'AWD' },
+    stats: { speed: 8, accel: 6, handling: 6, drift: 4 },
+    pros: ['Huge high-speed stability', 'Strong mid-range shove'],
+    cons: ['Heaviest car outside the SUVs', 'Reluctant to change direction quickly'],
+    physics: { speed: 1.08, accel: 1.02, grip: 1.03, turn: 0.92, boost: 1.06, slide: 1.18 },
+    body: body('sedan', {
+      length: 5.28, width: 1.98, wheelRadius: 0.39, wheelbase: 1.6,
+      cabinLength: 2.62, cabinWidth: 1.58, cabinHeight: 0.5, cabinZ: -0.26,
+      roofLength: 1.74, roofWidth: 1.4, rideHeight: 0.5,
+      noseDrop: 0.78, tailHeight: 0.84, flagship: true,
+    }),
+    // Factory spec: no stripes or wing, metallic paint, dark privacy glass.
+    look: { stripe: 'none', spoiler: 'none', finish: 'metallic', tint: 'dark' },
+  },
+  {
     id: 'falcon',
     name: 'FALCON GT',
     klass: 'BALANCED COUPE',
@@ -575,15 +600,15 @@ export function getCategory(id) {
 export function defaultLook(car) {
   return {
     paint: car.paint,
-    finish: 'gloss',
+    finish: car.look?.finish ?? 'gloss',
     rim: RIM_COLORS[0].hex,
     rimStyle: 'spoke',
-    spoiler: car.category === 'hyper' || car.category === 'super' ? 'big'
+    spoiler: car.look?.spoiler ?? (car.category === 'hyper' || car.category === 'super' ? 'big'
       : car.category === 'sports' && car.body?.style !== 'roadster' ? 'gt'
-        : 'lip',
-    stripe: 'twin',
+        : 'lip'),
+    stripe: car.look?.stripe ?? 'twin',
     stripeColor: STRIPE_COLORS[0].hex,
-    tint: 'light',
+    tint: car.look?.tint ?? 'light',
     underglow: 'off',
     plate: 'SUNSET',
   };

@@ -927,6 +927,24 @@ export class CarModel {
       grille(0, grilleY, W * 0.46, grilleH);
       this.add(new THREE.Mesh(rbox(W * 0.66, 0.045, 0.03, 0.015), this.trimMat))
         .position.set(0, at(0.08), z + 0.008);
+    } else if (style === 'sedan' && b.flagship) {
+      // Flagship saloon: slim swept lamps with a light strip, and a tall,
+      // upright chrome-framed grille with horizontal slats.
+      for (const sx of [-1, 1]) {
+        housing(sx * W * 0.31, lightY, lightW * 1.25, lightH * 0.85, 0.03);
+        lens(sx * W * 0.31, lightY + lightH * 0.12, lightW * 1.15, lightH * 0.32);
+        lens(sx * W * 0.31, lightY - lightH * 0.2, lightW * 1.05, 0.016, this.headMat);
+      }
+      const gw = W * 0.34;
+      const gh = Math.min(fh * 0.5, grilleH * 1.6);
+      const gy = grilleY + gh * 0.12;
+      grille(0, gy, gw, gh, true);
+      for (let i = 0; i < 5; i++) {
+        this.add(new THREE.Mesh(rbox(gw * 0.9, 0.014, 0.02, 0.006), this.chromeMat))
+          .position.set(0, gy - gh * 0.38 + i * gh * 0.19, z + 0.03);
+      }
+      this.add(new THREE.Mesh(rbox(W * 0.8, 0.03, 0.03, 0.01), this.chromeMat))
+        .position.set(0, at(0.07), z + 0.008);
     } else if (style === 'sedan') {
       for (const sx of [-1, 1]) {
         housing(sx * W * 0.29, lightY, lightW * 1.12, lightH * 1.25, 0.025);
@@ -1080,6 +1098,15 @@ export class CarModel {
       if (style === 'hatch') {
         lens(0, lightY, W * 0.4, 0.026);
       }
+    } else if (style === 'sedan' && b.flagship) {
+      for (const sx of [-1, 1]) {
+        housing(sx * W * 0.33, lightY, W * 0.26, lightH * 1.1, 0.03);
+        lens(sx * W * 0.33, lightY, W * 0.24, lightH * 0.7, this.tailMat);
+      }
+      this.add(new THREE.Mesh(rbox(W * 0.42, 0.02, 0.02, 0.008), this.chromeMat))
+        .position.set(0, lightY, z - 0.03);
+      this.add(new THREE.Mesh(rbox(W * 0.76, 0.02, 0.02, 0.008), this.chromeMat))
+        .position.set(0, at(0.2), z - 0.03);
     } else if (style === 'sedan') {
       housing(0, lightY, W * 0.74, lightH * 1.35, 0.02);
       lens(0, lightY, W * 0.7, lightH * 0.6);
@@ -1592,10 +1619,22 @@ export class CarModel {
           add(rbox(0.14, 0.035, 0.04, 0.015), this.chromeMat, sx * (this.sideX(y, z) + 0.005), y, z);
         }
       }
-      for (let i = -2; i <= 2; i++) {
-        add(new THREE.BoxGeometry(0.04, 0.14, 0.02), this.chromeMat, i * W * 0.075, b.noseDrop - 0.02, L / 2 + 0.032);
+      if (!b.flagship) {
+        for (let i = -2; i <= 2; i++) {
+          add(new THREE.BoxGeometry(0.04, 0.14, 0.02), this.chromeMat, i * W * 0.075, b.noseDrop - 0.02, L / 2 + 0.032);
+        }
       }
       add(rbox(W * 0.72, 0.05, 0.2, 0.02), this.paintMat, 0, b.tailHeight + 0.02, -L / 2 + 0.16, -0.1);
+      if (b.flagship) {
+        // Chrome lower sill strip and roofline trim.
+        for (const sx of [-1, 1]) {
+          const y = b.rideHeight - 0.05;
+          add(new THREE.BoxGeometry(0.02, 0.03, b.wheelbase * 1.25), this.chromeMat,
+            sx * (this.sideX(y, 0) + 0.006), y, 0);
+          add(new THREE.BoxGeometry(0.02, 0.02, b.roofLength * 0.95), this.chromeMat,
+            sx * (b.roofWidth * 0.5 + 0.005), this.roofY - 0.02, b.cabinZ);
+        }
+      }
     } else if (style === 'suv') {
       // Roof rails, running boards, skid plates and black arch flares.
       for (const sx of [-1, 1]) {
