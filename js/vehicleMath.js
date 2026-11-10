@@ -93,6 +93,18 @@ export function assistedDriftTarget(steerAbs, steerHold) {
 }
 
 /**
+ * Rev-limiter decision shared by the car, the audio engine and the HUD.
+ * Sixth gear at top speed sits on the limiter; a drift can also bounce the
+ * needle into the red without reaching top speed. Off-road or lifting off
+ * never triggers it.
+ */
+export function revLimiterActive({ throttle, offroad, gear, rpm, drifting }) {
+  if (!(throttle > 0) || offroad) return false;
+  if (gear === 6 && rpm > 0.96) return true;
+  return !!drifting && rpm > 0.86;
+}
+
+/**
  * Wall contact response. Arcade rules: the speed running along the barrier is
  * kept almost intact, and only a small slice of the normal component bounces
  * back, so a hit gives a visible recoil without throwing the car to a stop.

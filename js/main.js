@@ -1232,7 +1232,7 @@ function updateHud(dt) {
   hud.setLapTime(race.time - (race.player.crossings === 0 ? 0 : race.lapStart));
   hud.setSpeed(car.speedKmh, car.gear, car.maxSpeedKmh);
   const rpm = car.rpmRatio;
-  const limiter = state === 'racing' && car.drifting && !car.offroad && rpm > 0.86 && car.throttle > 0;
+  const limiter = state === 'racing' && car.revLimiter;
   hud.setRpm(rpm, limiter);
 
   // Gearbox feel: a tach/gear flash and a mechanical clack on every shift.
@@ -1402,7 +1402,7 @@ function frame(now) {
       updateHud(dt);
 
       const rpm = car.rpmRatio;
-      const limiter = car.drifting && !car.offroad && rpm > 0.86 && input.gas;
+      const limiter = car.revLimiter;
       audio.update({
         speed: car.speed,
         maxSpeed: car.maxSpeed,

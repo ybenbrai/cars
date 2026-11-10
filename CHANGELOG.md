@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Top-speed rev limiter: holding top gear at maximum RPM now bounces the
+  engine with the same hard ignition-cut stutter as launch control, with a
+  shaking tach and a short exhaust crack on every cut.
 - Time Trial ghost: your best Time Trial lap on each circuit replays as a
   see-through car. Any faster lap replaces it on the spot ("GHOST BEATEN").
   Ghosts are stored per account and circuit in the browser.

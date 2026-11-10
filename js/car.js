@@ -6,6 +6,7 @@ import {
   coastDrag,
   maxEntrySpeed,
   assistedDriftTarget,
+  revLimiterActive,
   wallResponse,
   wallAlign,
 } from './vehicleMath.js';
@@ -457,6 +458,21 @@ export class Car {
     const wheelspin = clamp((this.slip - 1) / 6.8, 0, 1);
     const driftRev = wheelspin * (this.throttle > 0 ? 1 : 0.66);
     return clamp(Math.max(base, driftRev), 0, 1);
+  }
+
+  /**
+   * True while the throttle is pinned and the engine is bouncing off the
+   * limiter: in top gear at top speed, or drifting at the redline. The audio
+   * gate and the tach shiver both key off this so they stay in sync.
+   */
+  get revLimiter() {
+    return revLimiterActive({
+      throttle: this.throttle,
+      offroad: this.offroad,
+      gear: Number(this.gear),
+      rpm: this.rpmRatio,
+      drifting: this.drifting,
+    });
   }
 
   dispose() {

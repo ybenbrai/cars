@@ -11,6 +11,7 @@ import {
   coastDrag,
   driftCommit,
   maxEntrySpeed,
+  revLimiterActive,
   wallAlign,
   wallResponse,
 } from '../js/vehicleMath.js';
@@ -146,4 +147,21 @@ test('a car already moving away from the wall is left alone', () => {
   assert.equal(result.bounces, false);
   assert.equal(result.vx, -3);
   assert.equal(result.vz, 5);
+});
+
+test('top gear at max rpm bounces off the limiter', () => {
+  const base = { throttle: 1, offroad: false, gear: 6, rpm: 0.99, drifting: false };
+  assert.equal(revLimiterActive(base), true);
+  // Lifting off or leaving the track silences it.
+  assert.equal(revLimiterActive({ ...base, throttle: 0 }), false);
+  assert.equal(revLimiterActive({ ...base, offroad: true }), false);
+  // Lower gears reaching the redline do not stutter at top speed.
+  assert.equal(revLimiterActive({ ...base, gear: 5 }), false);
+});
+
+test('a drift can hit the limiter before top speed', () => {
+  const drift = { throttle: 1, offroad: false, gear: 3, rpm: 0.9, drifting: true };
+  assert.equal(revLimiterActive(drift), true);
+  assert.equal(revLimiterActive({ ...drift, drifting: false }), false);
+  assert.equal(revLimiterActive({ ...drift, rpm: 0.8 }), false);
 });

@@ -193,13 +193,16 @@ export class AudioEngine {
     const freq = profile.base + rpm * (profile.span * 0.82) + gear * (profile.span * 0.13);
     const throttle = state.throttle ? 1 : 0;
 
-    // Drifting on the limiter gets the same hard, uneven stutter as launch
-    // control: vv-v-vv-v instead of a smooth, polite engine note.
+    // Pinned on the limiter (top speed or a drift at the redline) gets the
+    // same hard, uneven stutter as launch control: ta-ta-ta-ta instead of a
+    // smooth, polite engine note. A short ignition-cut crack sits on top.
     let gate = 1;
     if (state.limiter) {
-      this.limiterPhase += dt * (10.5 + rpm * 5);
+      const before = this.limiterPhase;
+      this.limiterPhase += dt * (8 + rpm * 3.5);
       const cycle = this.limiterPhase % 1;
       gate = cycle < 0.5 ? 1 : cycle < 0.64 ? 0.14 : 0.72;
+      if (Math.floor(this.limiterPhase) !== Math.floor(before)) this.limiterPop(0.03 + rpm * 0.03);
     } else {
       this.limiterPhase = 0;
     }
@@ -342,6 +345,26 @@ export class AudioEngine {
   finish() {
     const notes = [523, 659, 784, 1046];
     notes.forEach((n, i) => this.tone(n, 0.3, 'triangle', 0.07, i * 0.12));
+  }
+
+  /** Short ignition-cut crack layered over the limiter stutter. */
+  limiterPop(volume = 0.05) {
+    if (!this.ready) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 950;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(volume, t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.035);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.master);
+    src.start(t, Math.random() * 1.5);
+    src.stop(t + 0.04);
   }
 
   /** Exhaust backfire: a short, low crack. */
