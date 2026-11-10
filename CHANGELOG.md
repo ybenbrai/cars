@@ -97,6 +97,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Car bodies looked wrinkled. Each body slice was re-spaced along its
+  outline, so points slid between slices and twisted the surface; every
+  slice now has a fixed point layout. The side profile uses a smooth monotone
+  curve instead of flattening at every key (which rippled long panels), and
+  wing lines run back to the windscreen instead of dipping in front of it.
 - Bonnets were long ramps from the windscreen down to the nose, and the
   fender fix lifted the whole bonnet into a hump. Bonnets are now nearly level
   (a gentle wedge on supercars) and the wings rise at the outer edges over

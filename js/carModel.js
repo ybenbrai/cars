@@ -7,9 +7,11 @@ const ARCH_GAP = 0.065;
 // Shell thickness above the arch, including the drop of the rolled edge.
 const FENDER_COVER = 0.08;
 // Highest the wing crowns may rise above the bonnet line.
-const MAX_WING_LIFT = 0.14;
+const MAX_WING_LIFT = 0.1;
 // Length (m) over which a wing crown eases back into the bonnet or deck.
 const WING_FADE = 0.4;
+// Length over which a wing line blends into the beltline inside the cabin.
+const CABIN_FADE = 0.3;
 const _tiltPivot = new THREE.Vector3();
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -38,21 +40,46 @@ function rbox(w, h, d, r = 0.08) {
   return new RoundedBoxGeometry(w, h, d, 3, Math.min(r, Math.min(w, h, d) / 2.05));
 }
 
-/** Smoothstep interpolation through [t, value] keys, clamped at both ends. */
+/**
+ * Smooth interpolation through [t, value] keys, clamped at both ends.
+ * Monotone cubic (Fritsch–Carlson): the curve passes through every key with
+ * a continuous slope and never overshoots, so long panels stay fair instead
+ * of flattening out (and rippling) at each key like a per-segment ease.
+ */
 function profile(keys, t) {
-  const k = keys.slice().sort((a, b) => a[0] - b[0]);
+  const k = [];
+  for (const key of keys.slice().sort((a, b) => a[0] - b[0])) {
+    if (k.length && key[0] - k[k.length - 1][0] < 1e-6) k[k.length - 1] = key;
+    else k.push(key);
+  }
+  const n = k.length;
   if (t <= k[0][0]) return k[0][1];
-  if (t >= k[k.length - 1][0]) return k[k.length - 1][1];
-  for (let i = 0; i < k.length - 1; i++) {
-    const [t0, v0] = k[i];
-    const [t1, v1] = k[i + 1];
-    if (t <= t1) {
-      if (t1 - t0 < 1e-6) return v1;
-      const u = (t - t0) / (t1 - t0);
-      return v0 + (v1 - v0) * u * u * (3 - 2 * u);
+  if (t >= k[n - 1][0]) return k[n - 1][1];
+  const d = [];
+  for (let i = 0; i < n - 1; i++) d.push((k[i + 1][1] - k[i][1]) / (k[i + 1][0] - k[i][0]));
+  const m = new Array(n);
+  m[0] = d[0];
+  m[n - 1] = d[n - 2];
+  for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+  for (let i = 0; i < n - 1; i++) {
+    if (d[i] === 0) { m[i] = 0; m[i + 1] = 0; continue; }
+    const a = m[i] / d[i];
+    const b = m[i + 1] / d[i];
+    const h = a * a + b * b;
+    if (h > 9) {
+      const tau = 3 / Math.sqrt(h);
+      m[i] = tau * a * d[i];
+      m[i + 1] = tau * b * d[i];
     }
   }
-  return k[k.length - 1][1];
+  let i = 0;
+  while (i < n - 2 && t > k[i + 1][0]) i++;
+  const h = k[i + 1][0] - k[i][0];
+  const u = (t - k[i][0]) / h;
+  const u2 = u * u;
+  const u3 = u2 * u;
+  return (2 * u3 - 3 * u2 + 1) * k[i][1] + (u3 - 2 * u2 + u) * h * m[i]
+    + (-2 * u3 + 3 * u2) * k[i + 1][1] + (u3 - u2) * h * m[i + 1];
 }
 
 /** Corner radius of a station's rounded-rectangle section. */
@@ -115,72 +142,53 @@ function sectionRing(st) {
   const rc = cornerRadius(st);
   const lift = st.lift || 0;
   const yE = yT + lift; // top of the wing at the outer edge
-  const steps = 6;
+  // Every station gets the same number of points in each part (floor,
+  // corners, flanks, top), so point j means the same feature all along the
+  // car. Resampling by arc length instead made points slide between
+  // stations where the shape changes, twisting the surface into wrinkles.
+  const C = 6;
+  const F = 6;
+  const B = 8;
+  const T = 20;
   const pts = [];
   const put = (x, y) => pts.push([x, y]);
-  put(-(wB - rc), yB);
-  put(wB - rc, yB);
-  for (let i = 1; i <= steps; i++) {
-    const a = -Math.PI / 2 + (Math.PI / 2) * (i / steps);
-    put((wB - rc) + rc * Math.cos(a), (yB + rc) + rc * Math.sin(a));
+  const corner = (cx, cy, a0) => {
+    for (let i = 0; i < C; i++) {
+      const a = a0 + (Math.PI / 2) * (i / C);
+      put(cx + rc * Math.cos(a), cy + rc * Math.sin(a));
+    }
+  };
+  for (let i = 0; i < B; i++) put(-(wB - rc) + 2 * (wB - rc) * (i / B), yB);
+  corner(wB - rc, yB + rc, -Math.PI / 2);
+  for (let i = 0; i < F; i++) {
+    const u = i / F;
+    put(wB + (wT - wB) * u, yB + rc + (yE - yB - 2 * rc) * u);
   }
-  put(wT, yE - rc);
-  for (let i = 1; i <= steps; i++) {
-    const a = (Math.PI / 2) * (i / steps);
-    put((wT - rc) + rc * Math.cos(a), (yE - rc) + rc * Math.sin(a));
-  }
-  // Top edge: flat bonnet in the middle, rising into the wing crowns.
-  const topSteps = 12;
-  for (let i = 1; i < topSteps; i++) {
-    const x = (wT - rc) * (1 - (2 * i) / topSteps);
+  corner(wT - rc, yE - rc, 0);
+  // Top: flat bonnet in the middle rising into the wing crowns.
+  for (let i = 0; i < T; i++) {
+    const x = (wT - rc) * (1 - (2 * i) / T);
     put(x, yT + topLiftAt(st, Math.abs(x)));
   }
-  put(-(wT - rc), yE);
-  for (let i = 1; i <= steps; i++) {
-    const a = Math.PI / 2 + (Math.PI / 2) * (i / steps);
-    put((-wT + rc) + rc * Math.cos(a), (yE - rc) + rc * Math.sin(a));
+  corner(-(wT - rc), yE - rc, Math.PI / 2);
+  for (let i = 0; i < F; i++) {
+    const u = i / F;
+    put(-wT + (wT - wB) * u, yE - rc - (yE - yB - 2 * rc) * u);
   }
-  put(-wB, yB + rc);
-  for (let i = 1; i < steps; i++) {
-    const a = Math.PI + (Math.PI / 2) * (i / steps);
-    put((-wB + rc) + rc * Math.cos(a), (yB + rc) + rc * Math.sin(a));
-  }
-  pts.push(pts[0]);
+  corner(-(wB - rc), yB + rc, Math.PI);
   return pts;
 }
 
-/** Resample a closed polyline to a fixed number of evenly spaced points. */
-function resampleRing(pts, count) {
-  const lengths = [0];
-  for (let i = 1; i < pts.length; i++) {
-    const dx = pts[i][0] - pts[i - 1][0];
-    const dy = pts[i][1] - pts[i - 1][1];
-    lengths.push(lengths[i - 1] + Math.hypot(dx, dy));
-  }
-  const total = Math.max(1e-6, lengths[lengths.length - 1]);
-  const out = [];
-  let seg = 1;
-  for (let i = 0; i < count; i++) {
-    const target = (i / count) * total;
-    while (seg < lengths.length - 1 && lengths[seg] < target) seg++;
-    const span = Math.max(1e-9, lengths[seg] - lengths[seg - 1]);
-    const t = (target - lengths[seg - 1]) / span;
-    out.push([
-      pts[seg - 1][0] + (pts[seg][0] - pts[seg - 1][0]) * t,
-      pts[seg - 1][1] + (pts[seg][1] - pts[seg - 1][1]) * t,
-    ]);
-  }
-  return out;
-}
 
 /** Loft a smooth closed shell through rounded-rectangle sections. */
-function loftGeometry(stations, segments = 34) {
+function loftGeometry(stations) {
   const positions = [];
   const uvs = [];
   const indices = [];
+  const segments = sectionRing(stations[0]).length;
 
   for (let i = 0; i < stations.length; i++) {
-    const ring = resampleRing(sectionRing(stations[i]), segments);
+    const ring = sectionRing(stations[i]);
     for (let j = 0; j < segments; j++) {
       positions.push(ring[j][0], ring[j][1], stations[i].z);
       uvs.push(j / segments, i / (stations.length - 1));
@@ -553,6 +561,8 @@ export class CarModel {
     const archR = b.wheelRadius + ARCH_GAP;
     // Wing crown needed over each axle: enough to clear the arch at the
     // outer edge of the bonnet line there.
+    const zCabinFront = b.cabinZ + b.cabinLength / 2;
+    const zCabinRear = b.cabinZ - b.cabinLength / 2;
     const axles = [-b.wheelbase, b.wheelbase].map((z) => ({
       z,
       lift: Math.max(0, b.wheelRadius + archR + FENDER_COVER - profile(topKeys, zToT(z))),
@@ -566,13 +576,22 @@ export class CarModel {
       // below the wheel arch, letting the tyre and arch liner poke through
       // the bonnet. Raise the shell over each axle so its rolled outer edge
       // clears the arch, easing back to the base line on either side.
-      // One smooth wing per axle: level over the whole arch, easing out
-      // over FADE beyond it, so it reads as a wing line, not a bump.
+      // One wing line per axle: level over the arch and all the way to the
+      // cabin (like a real wing running back to the windscreen pillar), and
+      // easing out only towards the bumper and into the cabin, so there is
+      // no dip between the wheel and the windscreen.
       let lift = 0;
       for (const axle of axles) {
-        const d = Math.abs(z - axle.z);
-        if (d >= archR + WING_FADE) continue;
-        const u = d <= archR ? 0 : (d - archR) / WING_FADE;
+        const towardCabin = Math.sign(axle.z) * (axle.z - z); // > 0 between axle and cabin
+        let u;
+        if (towardCabin > 0) {
+          const cabinEdge = axle.z > 0 ? zCabinFront : zCabinRear;
+          const past = Math.sign(axle.z) * (cabinEdge - z); // > 0 once inside the cabin
+          u = past <= 0 ? 0 : Math.min(1, past / CABIN_FADE);
+        } else {
+          const d = -towardCabin;
+          u = d <= archR ? 0 : Math.min(1, (d - archR) / WING_FADE);
+        }
         lift = Math.max(lift, axle.lift * (1 - u * u * (3 - 2 * u)));
       }
       // Crown the wings up to MAX_WING_LIFT above the bonnet; only cars whose
@@ -600,7 +619,7 @@ export class CarModel {
     this.profileStations = stations;
 
     // One smooth painted shell instead of stacked boxes.
-    const shell = new THREE.Mesh(loftGeometry(stations, 60), this.paintMat);
+    const shell = new THREE.Mesh(loftGeometry(stations), this.paintMat);
     this.shellMesh = this.add(shell);
     this.hoodMesh = shell;
     this.deckMesh = shell;
@@ -705,7 +724,7 @@ export class CarModel {
         });
       }
       this.roofStations = ghStations;
-      const glass = new THREE.Mesh(loftGeometry(ghStations, 24), this.glassMat);
+      const glass = new THREE.Mesh(loftGeometry(ghStations), this.glassMat);
       glass.castShadow = false;
       this.body.add(glass);
 
