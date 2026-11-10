@@ -17,7 +17,7 @@ const $ = (id) => document.getElementById(id);
 
 // Bump this id whenever the patch-notes modal should appear again.
 const WHATS_NEW_KEY = 'sunset-drift-whats-new';
-const WHATS_NEW_VERSION = '2026-11-mobile-hud';
+const WHATS_NEW_VERSION = '2026-11-mobile-handbrake-nitro';
 const WHATS_NEW_LABEL = "WHAT'S NEW · NOV 2026";
 
 function esc(str) {

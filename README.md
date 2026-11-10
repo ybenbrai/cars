@@ -85,8 +85,8 @@ game uses ES modules and an import map.
 | Accelerate | `W` / `↑` | RT / A | GAS pedal |
 | Brake / reverse | `S` / `↓` | LT / X | BRAKE pedal |
 | Steer | `A` `D` / `←` `→` | Left stick | ◀ ▶ |
-| Handbrake / drift | `Space` | LB / RB | DRIFT |
-| Nitro | `Shift` | B | N2O |
+| Handbrake / drift | `Space` | LB / RB | Handbrake lever |
+| Nitro | `Shift` | B | N2O circle (also accelerates) |
 | Cycle camera (near chase, far chase, bumper, cockpit) | `C` | Y | ◉ |
 | Look back | Hold `B` | — | — |
 | Pause / resume | `Esc` / `P` | Start | ❚❚ |
@@ -96,8 +96,9 @@ game uses ES modules and an import map.
 Touch controls appear automatically on coarse-pointer devices. They are built
 for landscape: phones are asked to rotate (and locked where the browser allows
 it), with see-through steering at the bottom left and pedal-shaped brake/gas
-buttons at the bottom right. Camera, pause, drift and nitro sit along the top,
-and the borderless nitro/damage panel lives in the top-left corner. The game
+buttons at the bottom right. A handbrake lever sits beside the brake, the N2O
+circle is mounted on the gas pedal (pressing it also applies throttle), and
+camera/pause plus the borderless nitro/damage panel sit along the top. The game
 pauses itself when the tab loses visibility.
 
 ## Cars

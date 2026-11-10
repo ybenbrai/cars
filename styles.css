@@ -937,13 +937,7 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
   display: flex; align-items: flex-end; gap: 12px;
   pointer-events: none;
 }
-.touch-top {
-  position: absolute;
-  top: 84px;
-  left: max(16px, env(safe-area-inset-left));
-  display: flex; gap: 8px;
-  pointer-events: none;
-}
+.gas-stack { position: relative; display: flex; align-items: flex-end; }
 .tbtn {
   pointer-events: auto;
   width: 62px; height: 62px;
@@ -964,14 +958,47 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
   color: #fff;
   transform: scale(0.94);
 }
-.tbtn.util {
-  width: 66px; height: 44px; font-size: 10px; letter-spacing: 0.08em;
-  border-radius: 12px;
-  border-color: rgba(92, 225, 230, 0.34);
-  background: rgba(10, 6, 18, 0.14);
-  color: rgba(200, 248, 250, 0.82);
+
+/* Handbrake lever tucked beside the brake pedal: a dark shaft with a bright
+   pull knob. The whole lever kicks forward while held. */
+.tbtn.handbrake {
+  position: relative;
+  width: 40px; height: 112px;
+  border: 0;
+  background: none;
+  padding: 0;
+  transform-origin: 50% 100%;
+  transform: rotate(-8deg);
+  overflow: visible;
 }
-.tbtn.util.active { background: rgba(92, 225, 230, 0.4); border-color: var(--cyan); color: #fff; }
+.tbtn.handbrake::before {
+  content: '';
+  position: absolute; left: 50%; bottom: 0;
+  width: 12px; height: 82px;
+  transform: translateX(-50%);
+  border-radius: 7px 7px 4px 4px;
+  border: 2px solid rgba(255, 246, 236, 0.4);
+  background: linear-gradient(90deg, #241c2e, #58456a 55%, #241c2e);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.4);
+}
+.tbtn.handbrake .hb-knob {
+  position: absolute; left: 50%; top: 0;
+  width: 30px; height: 30px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 246, 236, 0.55);
+  background: radial-gradient(circle at 35% 30%, #ffb08a, #ff5a1f 55%, #9a2a12);
+  box-shadow: 0 4px 16px rgba(255, 90, 31, 0.45);
+}
+.tbtn.handbrake:active, .tbtn.handbrake.active {
+  transform: rotate(3deg) scale(0.97);
+  background: none;
+  border-color: transparent;
+  color: inherit;
+}
+.tbtn.handbrake:active .hb-knob, .tbtn.handbrake.active .hb-knob {
+  background: radial-gradient(circle at 35% 30%, #ffe0c4, #ff8a4f 55%, #b83718);
+}
 
 /* Brake and gas are pedals, not round buttons: a tall pad with grip ribs and
    the label at the foot. */
@@ -1004,6 +1031,27 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
 }
 .tbtn.gas.active { background: linear-gradient(180deg, rgba(255, 122, 69, 0.7), rgba(255, 122, 69, 0.3)); }
 .tbtn.brake.active { background: linear-gradient(180deg, rgba(255, 61, 127, 0.66), rgba(255, 61, 127, 0.26)); }
+
+/* Nitro circle bolted to the top of the gas pedal. Pressing it also applies
+   throttle (see Input.gas) so one thumb can boost and accelerate together. */
+.tbtn.nitro-btn {
+  position: absolute; left: 50%; top: -34px;
+  width: 48px; height: 48px;
+  transform: translateX(-50%);
+  border-radius: 50%;
+  border: 2px solid var(--cyan);
+  background: radial-gradient(circle at 35% 30%, rgba(160, 248, 255, 0.55), rgba(43, 185, 255, 0.24) 60%, rgba(10, 6, 18, 0.4));
+  color: #dffcff;
+  font-size: 9px; letter-spacing: 0.06em;
+  box-shadow: 0 0 18px rgba(92, 225, 230, 0.5);
+  z-index: 2;
+}
+.tbtn.nitro-btn:active, .tbtn.nitro-btn.active {
+  transform: translateX(-50%) scale(0.92);
+  background: radial-gradient(circle at 35% 30%, #d8fdff, rgba(92, 225, 230, 0.75) 65%);
+  border-color: #d8fdff;
+  color: #062a30;
+}
 .tbtn.steer {
   width: 84px; height: 84px; font-size: 25px;
   color: rgba(255, 246, 236, 0.86);
@@ -1668,10 +1716,11 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   .nitro { left: 214px; bottom: 18px; width: 104px; padding: 7px 9px; }
   .tbtn { width: 54px; height: 54px; }
   .tbtn.pedal { width: 72px; height: 92px; }
-  .tbtn.util { width: 58px; height: 40px; font-size: 9px; }
+  .tbtn.handbrake { height: 92px; }
+  .tbtn.handbrake::before { height: 66px; }
+  .tbtn.nitro-btn { width: 42px; height: 42px; top: -30px; }
   .tbtn.steer { width: 74px; height: 74px; font-size: 22px; }
   .touch-pedals { gap: 10px; }
-  .touch-top { top: 80px; left: 10px; }
   body.touch-ui .nitro { width: 132px; }
   body.touch-ui .hud-position { left: 156px; top: 8px; }
   body.touch-ui .hud-actions .icon-btn { width: 36px; height: 36px; }

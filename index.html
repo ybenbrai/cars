@@ -320,7 +320,7 @@
           <li><span>NEW</span>Top-speed limiter: hold max RPM and the engine stutters ta-ta-ta with a shaking tach.</li>
           <li><span>NEW</span>Orion H: a red, Astra-sized compact hatchback with a turbo four.</li>
           <li><span>NEW</span>Practice-only test runway: a 3.6 km straight for top-speed runs.</li>
-          <li><span>NEW</span>Mobile HUD: nitro/damage top-left, pedal-shaped brake and gas, controls cleaned up.</li>
+          <li><span>NEW</span>Mobile controls: pedal-shaped brake/gas, a handbrake lever, and a nitro circle that also accelerates.</li>
           <li><span>NEW</span>Round RPM dial with numbers, needle and a proper redline.</li>
           <li><span>NEW</span>Drifting at the limiter shakes the tach and stutters the engine.</li>
           <li><span>FIX</span>Wall hits now glance and slide along the barrier instead of pinning the car.</li>
@@ -447,17 +447,17 @@
 
     <!-- ═══════════════ TOUCH ═══════════════ -->
     <div id="touch" class="hidden">
-      <div class="touch-top">
-        <button class="tbtn util" data-action="handbrake" aria-label="Handbrake">DRIFT</button>
-        <button class="tbtn util" data-action="boost" aria-label="Nitro">N2O</button>
-      </div>
       <div class="touch-side left">
         <button class="tbtn steer" data-action="left" aria-label="Steer left">◀</button>
         <button class="tbtn steer" data-action="right" aria-label="Steer right">▶</button>
       </div>
       <div class="touch-pedals">
+        <button class="tbtn handbrake" data-action="handbrake" aria-label="Handbrake"><span class="hb-knob"></span></button>
         <button class="tbtn pedal brake" data-action="brake" aria-label="Brake"><span>BRAKE</span></button>
-        <button class="tbtn pedal gas" data-action="gas" aria-label="Accelerate"><span>GAS</span></button>
+        <div class="gas-stack">
+          <button class="tbtn nitro-btn" data-action="boost" aria-label="Nitro">N2O</button>
+          <button class="tbtn pedal gas" data-action="gas" aria-label="Accelerate"><span>GAS</span></button>
+        </div>
       </div>
     </div>
 

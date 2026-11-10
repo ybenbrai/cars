@@ -124,7 +124,12 @@ export class Input {
   }
 
   get gas() {
-    return this.enabled && (this.held.has('KeyW') || this.held.has('ArrowUp') || this.touch.gas || this.pad.gas);
+    // On touch the nitro circle doubles as throttle: one thumb can hold both,
+    // since a phone cannot reliably press two buttons at once.
+    return this.enabled && (
+      this.held.has('KeyW') || this.held.has('ArrowUp')
+      || this.touch.gas || this.touch.boost || this.pad.gas
+    );
   }
 
   get brake() {

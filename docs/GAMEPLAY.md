@@ -27,8 +27,8 @@ major feature, not a hidden progression system.
 | Accelerate | `W` / `↑` | RT / A | GAS pedal |
 | Brake / reverse | `S` / `↓` | LT / X | BRAKE pedal |
 | Steer | `A` `D` / `←` `→` | Left stick | ◀ ▶ |
-| Handbrake | `Space` | LB / RB | DRIFT |
-| Nitro | `Shift` | B | N2O |
+| Handbrake | `Space` | LB / RB | Handbrake lever |
+| Nitro | `Shift` | B | N2O circle (also accelerates) |
 | Cycle camera (near chase, far chase, bumper, cockpit) | `C` | Y | ◉ |
 | Look back | Hold `B` | — | — |
 | Pause / resume | `Esc` / `P` | Start | ❚❚ |
@@ -39,10 +39,11 @@ Touch controls appear automatically when the primary pointer is coarse or the
 device reports touch points. They are designed for landscape: a portrait phone
 shows a rotate hint and the race pauses underneath it, while the on-screen
 buttons stay see-through so the road is never hidden. Steering sits at the
-bottom left and the pedal-shaped brake/gas buttons at the bottom right; camera,
-pause, drift, nitro and the borderless nitro/damage panel sit along the top.
-The game also pauses itself when the tab loses visibility during a race or
-countdown.
+bottom left; the brake and gas pedals are at the bottom right, with a handbrake
+lever beside the brake and the N2O circle mounted on the gas pedal (it also
+applies throttle). Camera, pause and the borderless nitro/damage panel sit along
+the top. The game also pauses itself when the tab loses visibility during a race
+or countdown.
 
 ## The cars
 

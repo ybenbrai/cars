@@ -79,9 +79,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Mobile race HUD: the nitro/damage panel is now a borderless top-left overlay,
-  the "DRIFT TO REFILL" hint is gone, camera/pause stay in the top action row,
-  and drift/nitro moved to the top. Brake and gas are now large pedal-shaped
-  pads in the bottom-right, leaving the bottom for steering and pedals.
+  the old refill hint is gone and camera/pause stay in the top action row.
+  Brake and gas are large pedal-shaped pads in the bottom-right; the handbrake
+  is a lever beside the brake and the N2O circle sits on the gas pedal, where
+  pressing it also applies throttle so one thumb can boost.
 
 ### Fixed
 
