@@ -578,9 +578,9 @@ export function defaultLook(car) {
     finish: 'gloss',
     rim: RIM_COLORS[0].hex,
     rimStyle: 'spoke',
-    spoiler: car.body?.style === 'gt' || car.body?.style === 'roadster' ? 'lip'
-      : car.category === 'hyper' || car.category === 'super' ? 'big'
-        : car.category === 'muscle' ? 'lip' : car.id === 'kaze' ? 'lip' : 'gt',
+    spoiler: car.category === 'hyper' || car.category === 'super' ? 'big'
+      : car.category === 'sports' && car.body?.style !== 'roadster' ? 'gt'
+        : 'lip',
     stripe: 'twin',
     stripeColor: STRIPE_COLORS[0].hex,
     tint: 'light',

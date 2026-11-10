@@ -380,7 +380,7 @@ function aiLook(def, index, seed) {
     rim: PAINTS[(seed + index * 2) % PAINTS.length].hex,
     stripe: index % 3 === 0 ? 'twin' : 'none',
     stripeColor: PAINTS[(index * 3 + 4) % PAINTS.length].hex,
-    spoiler: def.category === 'hyper' || def.category === 'super' ? 'big' : 'gt',
+    spoiler: defaultLook(def).spoiler,
     plate: AI_NAMES[(seed + index) % AI_NAMES.length].replace(/[^A-Z]/g, '').slice(0, 7) || 'RIVAL',
   });
 }
