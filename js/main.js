@@ -1209,11 +1209,12 @@ function updateCamera(dt) {
   }
 
   // Gear changes send the cockpit's right hand to the shifter.
+  // (Own field: race.lastGear belongs to the HUD's shift flash.)
   const gearNow = Number(car.gear);
-  if (car.model.cockpit && Number.isFinite(gearNow) && Number.isFinite(race.lastGear) && gearNow !== race.lastGear) {
-    car.model.cockpit.shift(gearNow > race.lastGear ? 1 : -1);
+  if (car.model.cockpit && Number.isFinite(gearNow) && Number.isFinite(race.cockpitGear) && gearNow !== race.cockpitGear) {
+    car.model.cockpit.shift(gearNow > race.cockpitGear ? 1 : -1);
   }
-  race.lastGear = gearNow;
+  race.cockpitGear = gearNow;
   car.model.cockpit?.update(dt, car.steer, view === 'cockpit' && !input.lookBack);
 
   if (race.shake > 0.002) {
