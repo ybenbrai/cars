@@ -14,6 +14,11 @@ import {
   revLimiterActive,
   wallAlign,
   wallResponse,
+  driveAccel,
+  launchAccel,
+  powerConstant,
+  topSpeedFor,
+  TOP_SPEED_SCALE,
 } from '../js/vehicleMath.js';
 
 const HEAVY = new Set(['offroad', 'suv', 'muscle']);
@@ -24,7 +29,7 @@ function carBrake(car) {
 
 test('coasting is always weaker than braking, for every car and speed', () => {
   for (const car of CARS) {
-    const maxSpeed = 56 * car.physics.speed;
+    const maxSpeed = topSpeedFor(car);
     const brakeDecel = carBrake(car);
     // Include a little nitro overspeed above the car's natural top speed.
     for (let speed = 0; speed <= maxSpeed + 10; speed += 0.5) {
@@ -164,4 +169,43 @@ test('a drift can hit the limiter before top speed', () => {
   assert.equal(revLimiterActive(drift), true);
   assert.equal(revLimiterActive({ ...drift, drifting: false }), false);
   assert.equal(revLimiterActive({ ...drift, rpm: 0.8 }), false);
+});
+
+function sprint(car, toKmh) {
+  const max = topSpeedFor(car);
+  const powerK = powerConstant(car);
+  const launch = launchAccel(car);
+  let v = 0;
+  let t = 0;
+  while (v < toKmh / 3.6 && t < 120) {
+    v += driveAccel({ speed: v, maxSpeed: max, powerK, launch }) / 120;
+    t += 1 / 120;
+  }
+  return t;
+}
+
+test('top speed follows each car\'s spec sheet', () => {
+  for (const car of CARS) {
+    const kmh = topSpeedFor(car) * 3.6;
+    assert.ok(Math.abs(kmh - car.specs.topSpeed * TOP_SPEED_SCALE) < 0.01, car.id);
+  }
+  const fastest = Math.max(...CARS.map((c) => topSpeedFor(c)));
+  const slowest = Math.min(...CARS.map((c) => topSpeedFor(c)));
+  assert.ok(fastest / slowest > 1.7, 'top speeds should differ widely across the catalogue');
+});
+
+test('acceleration follows power-to-weight: hypercars out-sprint hatchbacks', () => {
+  const starter = CARS.find((c) => c.starter);
+  const hyper = CARS.filter((c) => c.category === 'hyper');
+  for (const car of hyper) {
+    assert.ok(sprint(car, 100) < sprint(starter, 100) * 0.65, `${car.id} 0-100`);
+    assert.ok(sprint(car, 150) < sprint(starter, 150) * 0.5, `${car.id} 0-150`);
+  }
+});
+
+test('drive force fades to nothing at top speed', () => {
+  const car = CARS[0];
+  const max = topSpeedFor(car);
+  const a = driveAccel({ speed: max, maxSpeed: max, powerK: powerConstant(car), launch: launchAccel(car) });
+  assert.equal(a, 0);
 });

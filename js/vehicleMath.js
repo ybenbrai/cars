@@ -15,6 +15,42 @@ export const DRIFT_COMMIT_DELAY = 0.9;
 export const DRIFT_COMMIT_RAMP = 1.2;
 export const DRIFT_MAX = 0.75;
 
+// Performance comes from each car's own spec sheet instead of hand-tuned
+// multipliers. Listed top speeds are scaled down for the arcade circuits.
+export const TOP_SPEED_SCALE = 0.82;
+// Power-limited acceleration: a = POWER_K × (hp/kg) / speed. Calibrated so a
+// 0.225 hp/kg coupe pulls about 0.8 g at 100 km/h and a hatch about 0.4 g.
+export const POWER_K = 950;
+// Traction-limited launch (m/s²) before tyre grip and drivetrain.
+export const LAUNCH_ACCEL = 10.5;
+const DRIVE_TRACTION = { AWD: 1.08, '4WD': 1.06, RWD: 1, FWD: 0.95 };
+
+/** In-game top speed (m/s) for a car definition. */
+export function topSpeedFor(def) {
+  return (def.specs.topSpeed * TOP_SPEED_SCALE) / 3.6;
+}
+
+/** Power constant (m²/s³): drive acceleration × speed at full throttle. */
+export function powerConstant(def) {
+  return POWER_K * (def.specs.power / def.specs.weight);
+}
+
+/** Launch traction limit (m/s²) from tyre grip and drivetrain. */
+export function launchAccel(def, grip = def.physics.grip) {
+  return LAUNCH_ACCEL * grip * (DRIVE_TRACTION[def.specs.drivetrain] ?? 1);
+}
+
+/**
+ * Full-throttle drive acceleration (m/s²) at a forward speed: traction-limited
+ * off the line, power-limited once moving, fading to zero at top speed. Low
+ * power cars feel it most at high speed, which is where real cars differ.
+ */
+export function driveAccel({ speed, maxSpeed, powerK, launch }) {
+  const v = Math.max(0, speed);
+  const n = clamp(v / maxSpeed, 0, 1);
+  return Math.min(launch, powerK / Math.max(v, 1)) * (1 - n * n * n);
+}
+
 /**
  * Coasting deceleration (m/s²): engine braking + rolling resistance, plus aero
  * drag that grows with speed. It must stay weaker than the brake pedal at every

@@ -47,6 +47,19 @@ or countdown.
 
 ## The cars
 
+Each car's performance comes from its spec sheet:
+
+- **Top speed** is the listed top speed × 0.82 (the circuits are arcade
+  scale), from about 161 km/h for the PULSE H3 to 292 km/h for the PHANTOM.
+  The speedometer dial scales with it.
+- **Acceleration** is limited by grip off the line (tyres and drivetrain:
+  AWD launches best, FWD worst) and by power-to-weight once moving, fading to
+  nothing at top speed. Roughly 0–100 km/h in 4.6 s for the starter hatch
+  and 2.3 s for the PHANTOM; 0–200 km/h in about 5 s for a hypercar, 10 s for
+  a fast saloon, and never for the hatchbacks.
+- Engine upgrades raise both.
+
+
 | Car | Class | Speed | Accel | Handling | Drift | Character |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
 | FALCON GT | Balanced | 7 | 6 | 7 | 6 | Forgiving all-rounder |

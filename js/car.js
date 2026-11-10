@@ -9,6 +9,10 @@ import {
   revLimiterActive,
   wallResponse,
   wallAlign,
+  driveAccel,
+  launchAccel,
+  powerConstant,
+  topSpeedFor,
 } from './vehicleMath.js';
 import { upgradeMultipliers } from './data/upgrades.js';
 
@@ -110,7 +114,11 @@ export class Car {
     this.brakeHeld = 0;
     this.offroadDrag = rugged ? 0.1 : 0.25;
 
-    this.maxSpeed = BASE.maxSpeed * this.physics.speed;
+    // Top speed and pull come from the spec sheet (power, weight, listed
+    // top speed, drivetrain); upgrades scale them.
+    this.maxSpeed = topSpeedFor(def) * m.speed;
+    this.powerK = powerConstant(def) * m.accel;
+    this.launch = launchAccel(def, this.physics.grip);
     this.turnRate = BASE.turn * this.physics.turn;
     this.grip = BASE.grip * this.physics.grip;
     this.driftThreshold = 6.5 * this.physics.slide;
@@ -304,8 +312,10 @@ export class Car {
       if (nF < -0.5) {
         nF = Math.min(0, nF + BASE.brake * dt);
       } else {
-        const push = BASE.power * p.accel * pace * (this.boosting ? 1.45 : 1) * damagePenalty;
-        nF += push * (1 - clamp(nF / maxNow, 0, 1)) * dt;
+        const drive = driveAccel({
+          speed: nF, maxSpeed: maxNow, powerK: this.powerK, launch: this.launch,
+        });
+        nF += drive * pace * (this.boosting ? 1.45 : 1) * damagePenalty * dt;
       }
     }
     if (brake) {

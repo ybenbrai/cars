@@ -88,6 +88,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Every car had nearly the same acceleration (about 2 g off the line,
+  0–100 km/h in 2–3 s) and top speeds squeezed into 165–250 km/h. Performance
+  now comes from each car's spec sheet: top speed from its listed figure,
+  launch from grip and drivetrain, pull from power-to-weight. Top speeds now
+  span 161–292 km/h, 0–100 km/h 2.3–4.6 s, and the speedometer dial follows.
 - Wall hits no longer feel like the car stopped dead: the nose turns with the
   barrier and the car keeps most of its speed along the wall, with only a short
   recoil on impact.
