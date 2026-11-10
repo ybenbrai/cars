@@ -9,6 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cockpit camera now sits in the driver's seat of a modelled interior:
+  dashboard, gauges, console, door cards, a steering wheel that turns with
+  your steering and gloved hands holding it. On every gear change the right
+  hand reaches for the shifter, moves it and returns. Each class has its own
+  interior: wheel shape (round, flat-bottom, thin classic, hypercar yoke),
+  shifter (H-pattern, sequential, luxury selector), analog or digital
+  cluster, and trim (plastic, wood and tan leather, carbon with coloured
+  accents). The car's own bodywork inside the cabin is clipped away so low
+  cars and open tops never block the view.
 - Top-speed rev limiter: holding top gear at maximum RPM now bounces the
   engine with the same hard ignition-cut stutter as launch control, with a
   shaking tach and a short exhaust crack on every cut.

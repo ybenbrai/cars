@@ -52,6 +52,7 @@ gameplay modules do not reach into the DOM except where noted.
 | `js/data/upgrades.js` | Upgrade parts, levels, prices and physics multipliers |
 | `js/ghostLap.js` | Pure Time Trial ghost recording, storage and replay maths |
 | `js/ghost.js` | See-through ghost car that replays a stored lap |
+| `js/cockpit.js` | Driver's-eye interior, steering wheel, hands and gear-shift animation for the cockpit camera |
 | `js/carModel.js` | Procedural car mesh, materials, wheels, spoilers, stripes, plate, underglow, body tilt |
 | `js/garageScene.js` | Independent WebGL renderer and turntable scene for the garage |
 | `js/effects.js` | Skid marks, drift smoke, dust, sparks, nitro flames |

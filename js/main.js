@@ -20,6 +20,7 @@ import { CloudSync } from './cloudSync.js';
 import { OnlineClient, RemoteTrack, FLAG_BOOST, FLAG_DRIFT, FLAG_BRAKE } from './online.js';
 import { AI_NAMES, createAiDriver } from './ai.js';
 import { upgradeValue } from './data/upgrades.js';
+import { Cockpit } from './cockpit.js';
 import {
   GhostRecorder, GhostCar, loadGhost, saveGhostIfFaster,
 } from './ghost.js';
@@ -50,6 +51,8 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.06;
+// The cockpit view clips the car's own bodywork inside the cabin (cockpit.js).
+renderer.localClippingEnabled = true;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 webgl.appendChild(renderer.domElement);
 webgl.classList.add('hidden');
@@ -1152,6 +1155,7 @@ function updateCamera(dt) {
     camera.lookAt(camLook);
     camera.fov = damp(camera.fov, 56, 2, dt);
     camera.updateProjectionMatrix();
+    car.model.cockpit?.update(dt, 0, false);
     return;
   }
 
@@ -1172,10 +1176,13 @@ function updateCamera(dt) {
     camera.fov = damp(camera.fov, 72 + speedN * 12 + (car.boosting ? 5 : 0), 4, dt);
     camera.updateProjectionMatrix();
   } else if (view === 'cockpit') {
-    tmpVec.copy(cpos).addScaledVector(f, 0.55);
-    tmpVec.y = 1.16;
-    camera.position.lerp(tmpVec, 1 - Math.exp(-25 * dt));
-    camLook.copy(cpos).addScaledVector(dir, 24).setY(1.3);
+    // Sit in the driver's seat: the interior is built once per race car the
+    // first time this view is used, and leans with the body.
+    const cockpit = car.model.cockpit || (car.model.cockpit = new Cockpit(car.def, car.model));
+    cockpit.eyeWorld(tmpVec);
+    camera.position.copy(tmpVec);
+    camLook.copy(tmpVec).addScaledVector(dir, 24);
+    camLook.y = tmpVec.y - 2.4; // a few degrees down: road, wheel and hands
     camera.lookAt(camLook);
     camera.fov = damp(camera.fov, 68 + speedN * 12 + (car.boosting ? 4 : 0), 4, dt);
     camera.updateProjectionMatrix();
@@ -1200,6 +1207,14 @@ function updateCamera(dt) {
     camera.fov = damp(camera.fov, 61 + speedN * 13 + (car.boosting ? 5 : 0), 3.2, dt);
     camera.updateProjectionMatrix();
   }
+
+  // Gear changes send the cockpit's right hand to the shifter.
+  const gearNow = Number(car.gear);
+  if (car.model.cockpit && Number.isFinite(gearNow) && Number.isFinite(race.lastGear) && gearNow !== race.lastGear) {
+    car.model.cockpit.shift(gearNow > race.lastGear ? 1 : -1);
+  }
+  race.lastGear = gearNow;
+  car.model.cockpit?.update(dt, car.steer, view === 'cockpit' && !input.lookBack);
 
   if (race.shake > 0.002) {
     // Smooth, fast wobble rather than a new random offset every frame: a

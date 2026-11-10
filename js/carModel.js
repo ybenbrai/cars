@@ -723,6 +723,9 @@ export class CarModel {
         this.trimMat,
       ));
       interior.position.set(0, bodyTop + b.cabinHeight * 0.3, b.cabinZ);
+      // Seen from outside only: the cockpit view hides it (see cockpit.js).
+      this.interiorBlock = interior;
+      interior.userData.noMerge = true;
 
       // B-pillar splitting the side glass. The A/C posts are implied by the
       // glass meeting the painted body and roof skin.
@@ -1860,7 +1863,7 @@ export class CarModel {
       if (!group) return;
       const buckets = new Map();
       for (const child of [...group.children]) {
-        if (!child.isMesh || child === this.glowMesh) continue;
+        if (!child.isMesh || child === this.glowMesh || child.userData.noMerge) continue;
         const key = child.material.uuid;
         if (!buckets.has(key)) buckets.set(key, { mat: child.material, meshes: [] });
         buckets.get(key).meshes.push(child);
