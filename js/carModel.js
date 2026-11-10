@@ -4,6 +4,8 @@ import * as THREE from 'three';
 // lip never drops into this gap (see setBodyTilt), otherwise the black tyre
 // shows through the paint in fast corners.
 const ARCH_GAP = 0.065;
+// Shell thickness above the arch, including the drop of the rolled edge.
+const FENDER_COVER = 0.08;
 const _tiltPivot = new THREE.Vector3();
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -518,8 +520,20 @@ export class CarModel {
     for (let i = 0; i < STATIONS; i++) {
       const t = i / (STATIONS - 1);
       const z = -L / 2 + t * L;
-      const yTop = profile(topKeys, t);
+      let yTop = profile(topKeys, t);
       let yBottom = profile(bottomKeys, t);
+      // Fender bulges: low noses (supercars, hypercars) would otherwise sit
+      // below the wheel arch, letting the tyre and arch liner poke through
+      // the bonnet. Raise the shell over each axle so its rolled outer edge
+      // clears the arch, easing back to the base line on either side.
+      for (const zw of [-b.wheelbase, b.wheelbase]) {
+        const dz = z - zw;
+        const reach = archR + 0.22;
+        if (Math.abs(dz) < reach) {
+          const need = b.wheelRadius + archR * Math.sqrt(1 - (dz / reach) ** 2) + FENDER_COVER;
+          yTop = Math.max(yTop, need);
+        }
+      }
       // Cut a circular wheel arch into the lower edge of the shell. Raising
       // the bottom of each section traces the arch in side view, so the tyre
       // sits in a real opening instead of behind a painted-on black disc.
@@ -558,14 +572,18 @@ export class CarModel {
     // shadowed upper half is visible.
     for (const [sx, sz] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
       const z = sz * b.wheelbase;
-      const hw = stationAt(stations, z).halfWidthBottom;
-      const wheelX = sx * (hw - 0.16);
+      const st = stationAt(stations, z);
+      const hw = st.halfWidthBottom;
+      // The liner stays inside the shell: its outer end stops 1.5 cm short
+      // of the body side and its crown just under the shell's underside.
+      const linerW = 0.42;
       const liner = new THREE.Mesh(
-        new THREE.CylinderGeometry(archR * 0.99, archR * 0.99, 0.44, 26, 1, true, 0, Math.PI),
+        new THREE.CylinderGeometry(archR * 0.99, archR * 0.99, linerW, 26, 1, true, 0, Math.PI),
         this.archMat,
       );
       liner.rotation.z = Math.PI / 2;
-      liner.position.set(wheelX - sx * 0.015, b.wheelRadius, z);
+      liner.scale.x = Math.min(1, (st.yBottom - b.wheelRadius - 0.004) / (archR * 0.99));
+      liner.position.set(sx * (hw - 0.015 - linerW / 2), b.wheelRadius, z);
       liner.castShadow = false;
       this.body.add(liner);
 
