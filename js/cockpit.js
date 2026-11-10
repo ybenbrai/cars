@@ -129,6 +129,7 @@ export class Cockpit {
     this.root.add(lamp);
 
     this.buildDash(b);
+    this.buildHeadliner(b);
     this.buildWheel();
     this.buildShifter();
     this.buildHands();
@@ -143,7 +144,7 @@ export class Cockpit {
     const y0 = top - 0.4;
     // Open-top cars: the low windscreen frame would sit at eye level, so the
     // cut-out reaches above it.
-    const y1 = model.openTop ? top + b.cabinHeight + 0.3 : (model.roofY ?? top + b.cabinHeight) - 0.03;
+    const y1 = model.openTop ? top + b.cabinHeight + 0.3 : (model.roofY ?? top + b.cabinHeight) + 0.06;
     this.clipLocal = [
       new THREE.Plane(new THREE.Vector3(1, 0, 0), -x),
       new THREE.Plane(new THREE.Vector3(-1, 0, 0), -x),
@@ -168,6 +169,28 @@ export class Cockpit {
     m.receiveShadow = false;
     parent.add(m);
     return m;
+  }
+
+  /**
+   * Roof lining for closed cars. The painted roof only renders from outside,
+   * so without it the driver saw sky (and the roof-edge trim) overhead.
+   */
+  buildHeadliner(b) {
+    const stations = this.model.roofStations;
+    if (this.model.openTop || !stations?.length) return;
+    const roofTop = Math.max(...stations.map((st) => st.yTop));
+    const flat = stations.filter((st) => st.yTop > roofTop - 0.05);
+    if (!flat.length) return;
+    const z0 = Math.min(...flat.map((st) => st.z)) - 0.04;
+    const z1 = Math.max(...flat.map((st) => st.z)) + 0.04;
+    const width = b.roofWidth * 0.94;
+    this.headMat = new THREE.MeshStandardMaterial({
+      color: this.style.seat, roughness: 0.95, emissive: this.style.seat, emissiveIntensity: 0.12,
+    });
+    this.materials.push(this.headMat);
+    this.add(rbox(width, 0.03, z1 - z0, 0.012), this.headMat, 0, roofTop - 0.045, (z0 + z1) / 2);
+    // Windscreen header: a darker band where the lining meets the glass.
+    this.add(rbox(width, 0.045, 0.06, 0.015), this.dashMat, 0, roofTop - 0.055, z1 - 0.02);
   }
 
   buildDash(b) {
