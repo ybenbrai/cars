@@ -6,6 +6,10 @@ import * as THREE from 'three';
 const ARCH_GAP = 0.065;
 // Shell thickness above the arch, including the drop of the rolled edge.
 const FENDER_COVER = 0.08;
+// Highest the wing crowns may rise above the bonnet line.
+const MAX_WING_LIFT = 0.14;
+// Length (m) over which a wing crown eases back into the bonnet or deck.
+const WING_FADE = 0.4;
 const _tiltPivot = new THREE.Vector3();
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -58,8 +62,23 @@ function cornerRadius(st) {
   return Math.min(0.13, hy * 0.48, hw * 0.45);
 }
 
+/**
+ * Wing crown: how much higher the top surface sits at |x| than on the
+ * bonnet centreline. Real cars carry their wings over the wheels at or above
+ * bonnet height, so only the outer part of the section rises.
+ */
+function topLiftAt(st, ax) {
+  const lift = st.lift || 0;
+  if (lift <= 0) return 0;
+  const w = st.halfWidthTop;
+  const u = Math.min(1, Math.max(0, (ax - w * 0.42) / (w * 0.34)));
+  return lift * u * u * (3 - 2 * u);
+}
+
 /** Half width of a station's section at height y. */
 function sectionHalfWidth(st, y) {
+  const lift = st.lift || 0;
+  if (lift > 0) st = { ...st, yTop: st.yTop + lift };
   if (y < st.yBottom || y > st.yTop) return 0;
   const rc = cornerRadius(st);
   if (y < st.yBottom + rc) {
@@ -78,10 +97,11 @@ function sectionHalfWidth(st, y) {
 function surfaceTopAt(st, x) {
   const rc = cornerRadius(st);
   const ax = Math.abs(x);
-  if (ax <= st.halfWidthTop - rc) return st.yTop;
-  if (ax >= st.halfWidthTop) return st.yTop - rc;
+  if (ax <= st.halfWidthTop - rc) return st.yTop + topLiftAt(st, ax);
+  const top = st.yTop + (st.lift || 0);
+  if (ax >= st.halfWidthTop) return top - rc;
   const d = ax - (st.halfWidthTop - rc);
-  return st.yTop - rc + Math.sqrt(Math.max(0, rc * rc - d * d));
+  return top - rc + Math.sqrt(Math.max(0, rc * rc - d * d));
 }
 
 /**
@@ -93,6 +113,8 @@ function surfaceTopAt(st, x) {
 function sectionRing(st) {
   const { yBottom: yB, yTop: yT, halfWidthBottom: wB, halfWidthTop: wT } = st;
   const rc = cornerRadius(st);
+  const lift = st.lift || 0;
+  const yE = yT + lift; // top of the wing at the outer edge
   const steps = 6;
   const pts = [];
   const put = (x, y) => pts.push([x, y]);
@@ -102,15 +124,21 @@ function sectionRing(st) {
     const a = -Math.PI / 2 + (Math.PI / 2) * (i / steps);
     put((wB - rc) + rc * Math.cos(a), (yB + rc) + rc * Math.sin(a));
   }
-  put(wT, yT - rc);
+  put(wT, yE - rc);
   for (let i = 1; i <= steps; i++) {
     const a = (Math.PI / 2) * (i / steps);
-    put((wT - rc) + rc * Math.cos(a), (yT - rc) + rc * Math.sin(a));
+    put((wT - rc) + rc * Math.cos(a), (yE - rc) + rc * Math.sin(a));
   }
-  put(-(wT - rc), yT);
+  // Top edge: flat bonnet in the middle, rising into the wing crowns.
+  const topSteps = 12;
+  for (let i = 1; i < topSteps; i++) {
+    const x = (wT - rc) * (1 - (2 * i) / topSteps);
+    put(x, yT + topLiftAt(st, Math.abs(x)));
+  }
+  put(-(wT - rc), yE);
   for (let i = 1; i <= steps; i++) {
     const a = Math.PI / 2 + (Math.PI / 2) * (i / steps);
-    put((-wT + rc) + rc * Math.cos(a), (yT - rc) + rc * Math.sin(a));
+    put((-wT + rc) + rc * Math.cos(a), (yE - rc) + rc * Math.sin(a));
   }
   put(-wB, yB + rc);
   for (let i = 1; i < steps; i++) {
@@ -242,6 +270,7 @@ function stationAt(stations, z) {
         yTop: a.yTop + (c.yTop - a.yTop) * t,
         halfWidthBottom: a.halfWidthBottom + (c.halfWidthBottom - a.halfWidthBottom) * t,
         halfWidthTop: a.halfWidthTop + (c.halfWidthTop - a.halfWidthTop) * t,
+        lift: (a.lift || 0) + ((c.lift || 0) - (a.lift || 0)) * t,
       };
     }
   }
@@ -475,6 +504,12 @@ export class CarModel {
 
     // Side silhouette: low nose, rising hood, beltline, deck, tail. Width
     // bulges slightly over each axle so the shell reads as four fenders.
+    // The bonnet is nearly level: it starts just under the beltline at the
+    // windscreen and falls only a few centimetres before rolling over the
+    // nose (more on wedge-shaped supercars), instead of a long ramp.
+    const wedge = b.style === 'super' || b.style === 'hyper' ? 0.16 : 0.07;
+    const hoodRear = bodyTop - 0.08;
+    const hoodFront = Math.max(b.noseDrop + 0.07 * shape.hood, hoodRear - wedge);
     const topKeys = [
       [0, b.tailHeight - 0.02],
       [0.03, b.tailHeight + 0.01],
@@ -482,12 +517,11 @@ export class CarModel {
       [tCabinRear, bodyTop - 0.05],
       [hyp(tCabinRear + 0.02), bodyTop - 0.02],
       [hyp(tCabinFront - 0.02), bodyTop - 0.02],
-      [tCabinFront, bodyTop - 0.07],
-      [hyp(tCabinFront + 0.05), b.noseDrop + 0.075 * shape.hood],
-      [0.76, b.noseDrop + 0.07 * shape.hood],
-      [0.89, b.noseDrop + 0.045 * shape.hood],
-      [0.97, b.noseDrop + 0.015 * shape.hood],
-      [1, b.noseDrop - 0.01],
+      [tCabinFront, bodyTop - 0.06],
+      [hyp(tCabinFront + 0.03), hoodRear],
+      [0.93, hoodFront],
+      [0.975, hoodFront - 0.035],
+      [1, hoodFront - 0.09],
     ];
     const bottomKeys = [
       [0, b.rideHeight - 0.10],
@@ -517,6 +551,12 @@ export class CarModel {
     const stations = [];
     const STATIONS = 112;
     const archR = b.wheelRadius + ARCH_GAP;
+    // Wing crown needed over each axle: enough to clear the arch at the
+    // outer edge of the bonnet line there.
+    const axles = [-b.wheelbase, b.wheelbase].map((z) => ({
+      z,
+      lift: Math.max(0, b.wheelRadius + archR + FENDER_COVER - profile(topKeys, zToT(z))),
+    }));
     for (let i = 0; i < STATIONS; i++) {
       const t = i / (STATIONS - 1);
       const z = -L / 2 + t * L;
@@ -526,13 +566,20 @@ export class CarModel {
       // below the wheel arch, letting the tyre and arch liner poke through
       // the bonnet. Raise the shell over each axle so its rolled outer edge
       // clears the arch, easing back to the base line on either side.
-      for (const zw of [-b.wheelbase, b.wheelbase]) {
-        const dz = z - zw;
-        const reach = archR + 0.22;
-        if (Math.abs(dz) < reach) {
-          const need = b.wheelRadius + archR * Math.sqrt(1 - (dz / reach) ** 2) + FENDER_COVER;
-          yTop = Math.max(yTop, need);
-        }
+      // One smooth wing per axle: level over the whole arch, easing out
+      // over FADE beyond it, so it reads as a wing line, not a bump.
+      let lift = 0;
+      for (const axle of axles) {
+        const d = Math.abs(z - axle.z);
+        if (d >= archR + WING_FADE) continue;
+        const u = d <= archR ? 0 : (d - archR) / WING_FADE;
+        lift = Math.max(lift, axle.lift * (1 - u * u * (3 - 2 * u)));
+      }
+      // Crown the wings up to MAX_WING_LIFT above the bonnet; only cars whose
+      // wheels are bigger than that still raise the whole section.
+      if (lift > MAX_WING_LIFT) {
+        yTop += lift - MAX_WING_LIFT;
+        lift = MAX_WING_LIFT;
       }
       // Cut a circular wheel arch into the lower edge of the shell. Raising
       // the bottom of each section traces the arch in side view, so the tyre
@@ -546,14 +593,14 @@ export class CarModel {
       const hw = (W / 2) * profile(widthKeys, t);
       stations.push({
         z, yBottom: Math.min(yBottom, yTop - 0.045), yTop: Math.max(yTop, yBottom + 0.03),
-        halfWidthBottom: hw, halfWidthTop: hw * shape.tumble,
+        halfWidthBottom: hw, halfWidthTop: hw * shape.tumble, lift: Math.max(0, lift),
       });
     }
 
     this.profileStations = stations;
 
     // One smooth painted shell instead of stacked boxes.
-    const shell = new THREE.Mesh(loftGeometry(stations, 34), this.paintMat);
+    const shell = new THREE.Mesh(loftGeometry(stations, 60), this.paintMat);
     this.shellMesh = this.add(shell);
     this.hoodMesh = shell;
     this.deckMesh = shell;
@@ -582,7 +629,8 @@ export class CarModel {
         this.archMat,
       );
       liner.rotation.z = Math.PI / 2;
-      liner.scale.x = Math.min(1, (st.yBottom - b.wheelRadius - 0.004) / (archR * 0.99));
+      // Crown just under the wing (the wing rises above the bonnet over the wheel).
+      liner.scale.x = Math.min(1, (st.yTop + (st.lift || 0) - 0.03 - b.wheelRadius) / (archR * 0.99));
       liner.position.set(sx * (hw - 0.015 - linerW / 2), b.wheelRadius, z);
       liner.castShadow = false;
       this.body.add(liner);

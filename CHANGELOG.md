@@ -88,6 +88,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Bonnets were long ramps from the windscreen down to the nose, and the
+  fender fix lifted the whole bonnet into a hump. Bonnets are now nearly level
+  (a gentle wedge on supercars) and the wings rise at the outer edges over
+  each wheel, easing smoothly back into the bonnet and rear deck.
 - Every car had nearly the same acceleration (about 2 g off the line,
   0–100 km/h in 2–3 s) and top speeds squeezed into 165–250 km/h. Performance
   now comes from each car's spec sheet: top speed from its listed figure,
