@@ -1,4 +1,10 @@
 import * as THREE from 'three';
+
+// Air between the tyre and its wheel arch. Body lean is limited so the arch
+// lip never drops into this gap (see setBodyTilt), otherwise the black tyre
+// shows through the paint in fast corners.
+const ARCH_GAP = 0.065;
+const _tiltPivot = new THREE.Vector3();
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { FINISHES, RIM_STYLES, SPOILERS, STRIPES, TINTS, UNDERGLOWS } from './data/cars.js';
@@ -508,7 +514,7 @@ export class CarModel {
 
     const stations = [];
     const STATIONS = 112;
-    const archR = b.wheelRadius + 0.05;
+    const archR = b.wheelRadius + ARCH_GAP;
     for (let i = 0; i < STATIONS; i++) {
       const t = i / (STATIONS - 1);
       const z = -L / 2 + t * L;
@@ -1533,7 +1539,7 @@ export class CarModel {
     const rail = (x, y, z, len, th = 0.055) => add(
       new THREE.BoxGeometry(th, th, len), this.trimMat, x, y, z,
     );
-    const archR = b.wheelRadius + 0.05;
+    const archR = b.wheelRadius + ARCH_GAP;
     const archX = (W / 2) * 1.02;
     // A black (or painted) lip that follows the opening cut into the shell.
     const flare = (sx, z, mat = this.trimMat, tube = 0.05) => add(
@@ -1881,8 +1887,10 @@ export class CarModel {
 
   setSteer(angle) {
     this.steerVisual = angle;
+    // About 18° at full lock: enough to read, without the tyre's leading
+    // edge swinging out through the side of the arch.
     for (const wheel of this.frontWheels) {
-      wheel.pivot.rotation.y = -angle * 0.42;
+      wheel.pivot.rotation.y = -angle * 0.32;
     }
   }
 
@@ -1898,7 +1906,21 @@ export class CarModel {
   }
 
   setBodyTilt(roll, pitch) {
+    const b = this.bodyDef;
+    // How far the arch lip above each wheel moves down: roll across the
+    // track plus pitch along the wheelbase. Keep it inside the arch gap.
+    const drop = Math.abs(roll) * b.width * 0.5 + Math.abs(pitch) * b.wheelbase;
+    const limit = ARCH_GAP - 0.012;
+    if (drop > limit) {
+      const k = limit / drop;
+      roll *= k;
+      pitch *= k;
+    }
     this.body.rotation.z = roll;
     this.body.rotation.x = pitch;
+    // Lean around the axle line, not the ground, so the arches stay centred
+    // over the wheels instead of sliding sideways off them.
+    _tiltPivot.set(0, b.wheelRadius, 0).applyEuler(this.body.rotation);
+    this.body.position.set(-_tiltPivot.x, b.wheelRadius - _tiltPivot.y, -_tiltPivot.z);
   }
 }
