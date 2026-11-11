@@ -280,9 +280,105 @@ const T = {
   'Heavy walls': ['Muros robustos', 'Murs massifs', 'Muros pesados', 'Massive Mauern'],
   'Practice only': ['Solo práctica', 'Entraînement seulement', 'Só treino', 'Nur Training'],
   'Top-speed testing': ['Pruebas de velocidad', 'Tests de vitesse', 'Testes de velocidade', 'Topspeed-Tests'],
+
+  // Words used inside patterns and joined labels
+  NEED: ['FALTAN', 'IL MANQUE', 'FALTAM', 'FEHLEN'],
+  BUY: ['COMPRAR', 'ACHETER', 'COMPRAR', 'KAUFEN'],
+  RENT: ['ALQUILER', 'LOCATION', 'ALUGUEL', 'MIETE'],
+  RACED: ['CORRIDAS', 'COURUES', 'CORRIDAS', 'GEFAHREN'],
+  EARNED: ['CONSEGUIDO', 'OBTENU', 'CONQUISTADO', 'ERREICHT'],
+  'YOUR BEST': ['TU MEJOR', 'VOTRE MEILLEUR', 'SEU MELHOR', 'DEINE BESTE'],
+  'SELL THIS CAR': ['VENDER ESTE COCHE', 'VENDRE CETTE VOITURE', 'VENDER ESTE CARRO', 'DIESES AUTO VERKAUFEN'],
+  'TAP AGAIN TO SELL': ['TOCA OTRA VEZ PARA VENDER', 'TOUCHEZ ENCORE POUR VENDRE', 'TOQUE DE NOVO PARA VENDER', 'NOCHMAL TIPPEN ZUM VERKAUFEN'],
+  GOLD: ['ORO', 'OR', 'OURO', 'GOLD'],
+  SILVER: ['PLATA', 'ARGENT', 'PRATA', 'SILBER'],
+  BRONZE: ['BRONCE', 'BRONZE', 'BRONZE', 'BRONZE'],
+  Beginner: ['Principiante', 'Débutant', 'Iniciante', 'Anfänger'],
+  Intermediate: ['Intermedio', 'Intermédiaire', 'Intermediário', 'Mittel'],
+  'same for every driver': ['igual para todos', 'le même pour tous', 'igual para todos', 'für alle gleich'],
+  'FREE DRIVE': ['CONDUCCIÓN LIBRE', 'CONDUITE LIBRE', 'DIREÇÃO LIVRE', 'FREIES FAHREN'],
+
+  // Car classes
+  'STARTER HATCH': ['COMPACTO DE INICIO', 'CITADINE DE DÉPART', 'HATCH INICIAL', 'EINSTEIGER-KOMPAKTER'],
+  'HOT HATCH': ['COMPACTO DEPORTIVO', 'GTI', 'HOT HATCH', 'HOT HATCH'],
+  'COMPACT HATCH': ['COMPACTO', 'COMPACTE', 'HATCH COMPACTO', 'KOMPAKTWAGEN'],
+  'EXECUTIVE SEDAN': ['BERLINA EJECUTIVA', 'BERLINE EXÉCUTIVE', 'SEDÃ EXECUTIVO', 'BUSINESS-LIMOUSINE'],
+  'PERFORMANCE SEDAN': ['BERLINA DEPORTIVA', 'BERLINE SPORTIVE', 'SEDÃ ESPORTIVO', 'SPORTLIMOUSINE'],
+  'FLAGSHIP SALOON': ['BERLINA DE LUJO', 'BERLINE DE PRESTIGE', 'SEDÃ DE LUXO', 'OBERKLASSE-LIMOUSINE'],
+  'BALANCED COUPE': ['CUPÉ EQUILIBRADO', 'COUPÉ ÉQUILIBRÉ', 'CUPÊ EQUILIBRADO', 'AUSGEWOGENES COUPÉ'],
+  'LAUNCH SPECIALIST': ['ESPECIALISTA EN SALIDAS', 'SPÉCIALISTE DU DÉPART', 'ESPECIALISTA EM LARGADAS', 'START-SPEZIALIST'],
+  'DRIFT / RALLY': ['DERRAPE / RALLY', 'DRIFT / RALLYE', 'DRIFT / RALI', 'DRIFT / RALLYE'],
+  'DESERT RAIDER': ['RAID DEL DESIERTO', 'RAIDER DU DÉSERT', 'RAIDER DO DESERTO', 'WÜSTENRENNER'],
+  'PERFORMANCE SUV': ['SUV DEPORTIVO', 'SUV SPORTIF', 'SUV ESPORTIVO', 'SPORT-SUV'],
+  'LUXURY SUV': ['SUV DE LUJO', 'SUV DE LUXE', 'SUV DE LUXO', 'LUXUS-SUV'],
+  MUSCLE: ['MUSCLE', 'MUSCLE', 'MUSCLE', 'MUSCLE'],
+  'HEAVY MUSCLE': ['MUSCLE PESADO', 'GROS MUSCLE', 'MUSCLE PESADO', 'SCHWERES MUSCLE'],
+  'OPEN ROADSTER': ['ROADSTER DESCAPOTABLE', 'ROADSTER DÉCAPOTABLE', 'ROADSTER CONVERSÍVEL', 'OFFENER ROADSTER'],
+  SUPERCAR: ['SUPERDEPORTIVO', 'SUPERCAR', 'SUPERESPORTIVO', 'SUPERSPORTWAGEN'],
+  'TRACK SUPER': ['SUPER DE CIRCUITO', 'SUPERCAR DE PISTE', 'SUPER DE PISTA', 'RENNSTRECKEN-SUPER'],
+  'GRAND TOURER': ['GRAN TURISMO', 'GRAND TOURISME', 'GRAN TURISMO', 'GRAN TURISMO'],
+  HYPERCAR: ['HIPERDEPORTIVO', 'HYPERCAR', 'HIPERESPORTIVO', 'HYPERCAR'],
+
+  // Achievements
+  'LIGHTS OUT': ['SEMÁFORO EN VERDE', 'FEUX ÉTEINTS', 'LUZES APAGADAS', 'LICHTER AUS'],
+  'Finish your first race.': ['Termina tu primera carrera.', 'Terminez votre première course.', 'Termine sua primeira corrida.', 'Beende dein erstes Rennen.'],
+  'TOP STEP': ['LO MÁS ALTO', 'PLUS HAUTE MARCHE', 'DEGRAU MAIS ALTO', 'GANZ OBEN'],
+  'Win a race.': ['Gana una carrera.', 'Gagnez une course.', 'Vença uma corrida.', 'Gewinne ein Rennen.'],
+  'SERIAL WINNER': ['GANADOR EN SERIE', 'VAINQUEUR EN SÉRIE', 'VENCEDOR EM SÉRIE', 'SERIENSIEGER'],
+  'Win 10 races.': ['Gana 10 carreras.', 'Gagnez 10 courses.', 'Vença 10 corridas.', 'Gewinne 10 Rennen.'],
+  'CHAMPAGNE HABIT': ['ADICTO AL CHAMPÁN', 'HABITUÉ DU CHAMPAGNE', 'VÍCIO EM CHAMPANHE', 'CHAMPAGNER-GEWOHNHEIT'],
+  'Finish on the podium 25 times.': ['Sube al podio 25 veces.', 'Montez 25 fois sur le podium.', 'Suba ao pódio 25 vezes.', 'Fahr 25-mal aufs Podium.'],
+  MILEAGE: ['KILOMETRAJE', 'KILOMÉTRAGE', 'QUILOMETRAGEM', 'KILOMETERSTAND'],
+  'Complete 100 laps.': ['Completa 100 vueltas.', 'Bouclez 100 tours.', 'Complete 100 voltas.', 'Fahr 100 Runden.'],
+  SIDEWAYS: ['DE LADO', 'EN TRAVERS', 'DE LADO', 'QUER'],
+  'Score 10,000 drift points in total.': ['Suma 10.000 puntos de derrape.', 'Cumulez 10 000 points de drift.', 'Some 10.000 pontos de drift.', 'Sammle insgesamt 10.000 Driftpunkte.'],
+  'TYRE SMOKE': ['HUMO DE NEUMÁTICOS', 'FUMÉE DE PNEUS', 'FUMAÇA DE PNEU', 'REIFENQUALM'],
+  'Score 100,000 drift points in total.': ['Suma 100.000 puntos de derrape.', 'Cumulez 100 000 points de drift.', 'Some 100.000 pontos de drift.', 'Sammle insgesamt 100.000 Driftpunkte.'],
+  COLLECTOR: ['COLECCIONISTA', 'COLLECTIONNEUR', 'COLECIONADOR', 'SAMMLER'],
+  'Own five cars.': ['Ten cinco coches.', 'Possédez cinq voitures.', 'Tenha cinco carros.', 'Besitze fünf Autos.'],
+  'FULL HOUSE': ['GARAJE LLENO', 'GARAGE COMPLET', 'GARAGEM CHEIA', 'VOLLE GARAGE'],
+  'Own every car in the catalogue.': ['Ten todos los coches del catálogo.', 'Possédez toutes les voitures du catalogue.', 'Tenha todos os carros do catálogo.', 'Besitze jedes Auto im Katalog.'],
+  'BIG LEAGUE': ['PRIMERA DIVISIÓN', 'COUR DES GRANDS', 'LIGA PRINCIPAL', 'OBERLIGA'],
+  'Buy a hypercar.': ['Compra un hiperdeportivo.', 'Achetez une hypercar.', 'Compre um hiperesportivo.', 'Kauf ein Hypercar.'],
+  'FIRST MOD': ['PRIMERA MEJORA', 'PREMIÈRE PRÉPA', 'PRIMEIRA MODIFICAÇÃO', 'ERSTES TUNING'],
+  'Install any upgrade.': ['Instala cualquier mejora.', 'Installez une amélioration.', 'Instale qualquer melhoria.', 'Bau ein beliebiges Upgrade ein.'],
+  'FULLY BUILT': ['AL MÁXIMO', 'PRÉPA COMPLÈTE', 'NO TALO', 'VOLL AUSGEBAUT'],
+  'Max out every part on one car.': ['Mejora al máximo todas las piezas de un coche.', 'Maximisez toutes les pièces d’une voiture.', 'Maximize todas as peças de um carro.', 'Bau alle Teile eines Autos maximal aus.'],
+  'GOLD STANDARD': ['PATRÓN ORO', 'ÉTALON OR', 'PADRÃO OURO', 'GOLDSTANDARD'],
+  'Earn gold in a daily challenge.': ['Consigue oro en un desafío diario.', 'Décrochez l’or dans un défi du jour.', 'Ganhe ouro num desafio diário.', 'Hol Gold in einer Tagesherausforderung.'],
+  CHAMPION: ['CAMPEÓN', 'CHAMPION', 'CAMPEÃO', 'CHAMPION'],
+  'Win a career series and take its gold trophy.': ['Gana una serie y llévate su trofeo de oro.', 'Remportez une série et son trophée d’or.', 'Vença uma série e leve o troféu de ouro.', 'Gewinne eine Serie und hol den Goldpokal.'],
+  'Clear every career event.': ['Supera todas las pruebas.', 'Réussissez toutes les épreuves.', 'Conclua todas as provas.', 'Schaffe alle Karriere-Rennen.'],
+  'NIGHT OWL': ['AVE NOCTURNA', 'OISEAU DE NUIT', 'CORUJA', 'NACHTEULE'],
+  'Win a race at night.': ['Gana una carrera de noche.', 'Gagnez une course de nuit.', 'Vença uma corrida à noite.', 'Gewinne ein Rennen bei Nacht.'],
+  'RAIN MASTER': ['MAESTRO DE LA LLUVIA', 'MAÎTRE DE LA PLUIE', 'MESTRE DA CHUVA', 'REGENMEISTER'],
+  'Win a race in the rain.': ['Gana una carrera bajo la lluvia.', 'Gagnez une course sous la pluie.', 'Vença uma corrida na chuva.', 'Gewinne ein Rennen im Regen.'],
+  'FROM THE BACK': ['DESDE ATRÁS', 'PARTI DE DERRIÈRE', 'DE TRÁS PARA FRENTE', 'VON HINTEN'],
+  'Win against a full grid of seven rivals.': ['Gana contra una parrilla llena de siete rivales.', 'Gagnez face à une grille complète de sept rivaux.', 'Vença contra um grid cheio de sete rivais.', 'Gewinne gegen ein volles Feld aus sieben Rivalen.'],
+  SHUTTERBUG: ['FOTÓGRAFO', 'PHOTOGRAPHE', 'FOTÓGRAFO', 'FOTOGRAF'],
+  'Save a photo in photo mode.': ['Guarda una foto en el modo foto.', 'Enregistrez une photo en mode photo.', 'Salve uma foto no modo foto.', 'Speichere ein Foto im Fotomodus.'],
 };
 
 const INDEX = { es: 0, fr: 1, pt: 2, de: 3 };
+
+// Text with numbers or names inside: [pattern, [es, fr, pt, de] templates].
+// $1… are copied; {1}… are the captured words translated.
+const PATTERNS = [
+  [/^RANK (.+)$/, ['RANGO {1}', 'RANG {1}', 'NÍVEL {1}', 'RANG {1}']],
+  [/^NEED ([\d.,]+ CR)$/, ['FALTAN $1', 'IL MANQUE $1', 'FALTAM $1', 'FEHLEN $1']],
+  [/^(\d+) LAPS$/, ['$1 VUELTAS', '$1 TOURS', '$1 VOLTAS', '$1 RUNDEN']],
+  [/^(\d+) AI$/, ['$1 IA', '$1 IA', '$1 IA', '$1 KI']],
+  [/^BEST (.+)$/, ['MEJOR $1', 'MEILLEUR $1', 'MELHOR $1', 'BESTZEIT $1']],
+  [/^YOUR BEST (.+)$/, ['TU MEJOR $1', 'VOTRE MEILLEUR $1', 'SEU MELHOR $1', 'DEINE BESTE $1']],
+  [/^(\d+)\/(\d+) RACED$/, ['$1/$2 CORRIDAS', '$1/$2 COURUES', '$1/$2 CORRIDAS', '$1/$2 GEFAHREN']],
+  [/^(\d+) PTS$/, ['$1 PTS', '$1 PTS', '$1 PTS', '$1 PKT']],
+  [/^(BRONZE|SILVER|GOLD) EARNED$/, ['{1} CONSEGUIDO', '{1} OBTENU', '{1} CONQUISTADO', '{1} ERREICHT']],
+  [/^(BRONZE|SILVER|GOLD) TROPHY$/, ['TROFEO DE {1}', 'TROPHÉE {1}', 'TROFÉU DE {1}', '{1}-POKAL']],
+  [/^(BRONZE|SILVER|GOLD) ([\d:.]+)$/, ['{1} $2', '{1} $2', '{1} $2', '{1} $2']],
+  [/^RENT ([\d.,]+ CR)$/, ['ALQUILER $1', 'LOCATION $1', 'ALUGUEL $1', 'MIETE $1']],
+  [/^TIP (\d+)\/(\d+)$/, ['CONSEJO $1/$2', 'ASTUCE $1/$2', 'DICA $1/$2', 'TIPP $1/$2']],
+  [/^(\d+) laps$/, ['$1 vueltas', '$1 tours', '$1 voltas', '$1 Runden']],
+];
 
 let current = 'en';
 const originals = new WeakMap(); // text node -> English source
@@ -293,6 +389,35 @@ export function t(text) {
   if (current === 'en') return text;
   const row = T[text];
   return row ? row[INDEX[current]] : text;
+}
+
+/**
+ * Translation of a whole label, or null when nothing in it is known.
+ * Exact phrases first, then patterns, then " · "-joined labels piece by
+ * piece (e.g. "EQUIPPED · STARTER HATCH").
+ */
+export function translateText(text) {
+  if (current === 'en') return null;
+  if (text in T) return t(text);
+  const i = INDEX[current];
+  for (const [re, tpl] of PATTERNS) {
+    const m = text.match(re);
+    if (!m) continue;
+    return tpl[i]
+      .replace(/\{(\d)\}/g, (_, n) => t(m[Number(n)]))
+      .replace(/\$(\d)/g, (_, n) => m[Number(n)]);
+  }
+  if (text.includes(' · ')) {
+    let changed = false;
+    const parts = text.split(' · ').map((part) => {
+      const out = translateText(part.trim());
+      if (out === null) return part;
+      changed = true;
+      return out;
+    });
+    return changed ? parts.join(' · ') : null;
+  }
+  return null;
 }
 
 export function detectLanguage() {
@@ -307,12 +432,18 @@ function translateNode(node) {
     // A changed node (new text set by the game) gets a fresh English source.
     const source = known !== undefined && (raw === known || raw === t(known)) ? known : raw;
     const key = source.trim();
-    if (!key || !(key in T)) {
-      originals.delete(node);
+    const translated = key ? translateText(key) : null;
+    if (translated === null) {
+      // Switching back to English restores the original text.
+      if (known !== undefined && source === known && raw !== known) node.nodeValue = known;
+      if (current === 'en' && known !== undefined) {
+        if (raw !== known) node.nodeValue = known;
+        originals.delete(node);
+      }
       return;
     }
     originals.set(node, source);
-    const out = source.replace(key, t(key));
+    const out = source.replace(key, translated);
     if (out !== raw) node.nodeValue = out;
     return;
   }
@@ -322,7 +453,7 @@ function translateNode(node) {
     const src = placeholders.get(node) ?? node.placeholder;
     if (src in T) {
       placeholders.set(node, src);
-      node.placeholder = t(src);
+      node.placeholder = current === 'en' ? src : t(src);
     }
   }
   for (const child of node.childNodes) translateNode(child);

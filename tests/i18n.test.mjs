@@ -16,3 +16,20 @@ test('English is the default and unknown text passes through', () => {
   assert.equal(t('START RACE'), 'START RACE');
   assert.equal(t('something new'), 'something new');
 });
+
+test('patterns and joined labels translate piece by piece', async () => {
+  const mod = await import('../js/i18n.js');
+  // translateText works without a DOM; switch language through its export.
+  globalThis.document ??= { documentElement: {}, body: { nodeType: 1, childNodes: [] } };
+  globalThis.MutationObserver ??= class { observe() {} };
+  globalThis.Node ??= { TEXT_NODE: 3, ELEMENT_NODE: 1 };
+  mod.setLanguage('es');
+  assert.equal(mod.translateText('RANK CLUB'), 'RANGO CLUB');
+  assert.equal(mod.translateText('NEED 3,000 CR'), 'FALTAN 3,000 CR');
+  assert.equal(mod.translateText('EQUIPPED · STARTER HATCH'), 'EQUIPADO · COMPACTO DE INICIO');
+  assert.equal(mod.translateText('GOLD TROPHY'), 'TROFEO DE ORO');
+  assert.equal(mod.translateText('Costa Dorada · 1.8 KM · Beginner'), 'Costa Dorada · 1.8 KM · Principiante');
+  assert.equal(mod.translateText('PULSE H3'), null);
+  mod.setLanguage('en');
+  assert.equal(mod.translateText('RANK CLUB'), null);
+});
