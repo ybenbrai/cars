@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- New circuit CORAL BAY: a tight twilight harbour loop with esses and a
+  hairpin (Pro rank), with its own cooler sky and turquoise kerbs, a career
+  event (CORAL TWILIGHT) and daily-challenge targets. Circuits can now
+  override their theme's colours.
 - Accessibility: CAMERA SHAKE off removes impact and nitro shake and
   softens the speed-based field-of-view widening.
 - Key remapping (Profile → Controls): change the main key for accelerate,

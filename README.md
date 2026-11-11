@@ -30,7 +30,7 @@ feel good immediately, but leave enough depth to chase a clean lap.
   your way up.
 - **A real garage.** Change paint, finish, rims, spoiler, stripes, tint,
   underglow and the license plate with a live 3D preview.
-- **Seven circuits, four modes.** Career (nine events), Quick Race against up to
+- **Eight circuits, four modes.** Career (ten events), Quick Race against up to
   seven AI rivals on four difficulty levels, Time Trial and Practice. Practice
   opens every circuit; locked ones are rented per session. Practice also has a
   dedicated airport-style test runway: a 3.6 km straight for top-speed runs.

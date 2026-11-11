@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "An arcade drift racer with twenty cars, seven circuits, night and rain racing, a career, daily challenges and achievements.",
+  "description": "An arcade drift racer with twenty cars, eight circuits, night and rain racing, a career, daily challenges and achievements.",
   "license": "MIT",
   "author": "ybenbrai",
   "homepage": "https://ybenbrai.github.io/cars/",

@@ -241,6 +241,31 @@ const RAW = [
     ],
   },
   {
+    id: 'coral-bay',
+    name: 'CORAL BAY',
+    location: 'Isla Turquesa',
+    subtitle: 'A tight harbour loop at twilight. Esses, a hairpin and walls close enough to touch.',
+    theme: 'coast',
+    // Twilight over the water: cooler sky and turquoise light than Sunset Coast.
+    paletteOverrides: {
+      skyTop: '#0b1430', skyMid: '#1f3a6b', skyLow: '#5f6fa8', skyHorizon: '#ffb38a',
+      sunGlow: '#ff9a6a', fog: 0x7f8fb5, ground: '#c9b08a',
+      hemiSky: 0xb9d4ff, fillLight: 0x3fd6c8, bounceLight: 0x5ce1e6,
+      curbB: '#1fa4b8', marker: 0x29c3d4, accent: 0x5ce1e6,
+    },
+    unlockRank: 3,
+    difficulty: 3,
+    width: 7.8,
+    gates: 7,
+    laps: 3,
+    pads: [0.12, 0.38, 0.64, 0.86],
+    features: ['Harbour esses', 'Tight hairpin', 'Narrow track'],
+    cp: radial({
+      radius: 176, squashX: 1.18, squashZ: 0.8, points: 38, rotate: 2.2,
+      harmonics: [[2, 0.12], [3, 0.13, 0.4], [5, 0.06, 1.7]],
+    }),
+  },
+  {
     id: 'alpine-pass',
     name: 'ALPINE PASS',
     location: 'Col du Glacier',
@@ -299,7 +324,7 @@ const RAW = [
 
 export const CIRCUITS = RAW.map((raw) => {
   const length = polylineLength(raw.cp);
-  const palette = PALETTES[raw.theme] || PALETTES.coast;
+  const palette = { ...(PALETTES[raw.theme] || PALETTES.coast), ...(raw.paletteOverrides || {}) };
   return {
     ...raw,
     palette,

@@ -44,6 +44,7 @@ const REFERENCE_LAPS = {
   'velocity-park': 51.18,
   'alpine-pass': 28.68,
   dockyard: 31.72,
+  'coral-bay': 24.45,
 };
 
 /** Expected clean best lap (s) for a car on a circuit, at autopilot pace. */

@@ -11,7 +11,7 @@ export const DIFFICULTIES = [
 export const MODES = [
   {
     id: 'career', label: 'CAREER', short: 'Build a legacy',
-    blurb: 'Nine events across four series. Earn credits, unlock circuits and climb from Rookie to Legend.',
+    blurb: 'Ten events across four series. Earn credits, unlock circuits and climb from Rookie to Legend.',
   },
   {
     id: 'quick', label: 'QUICK RACE', short: 'Pick a fight',
