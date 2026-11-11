@@ -664,7 +664,31 @@ export class UI {
     );
     const performance = `<div class="custom-group" id="perfGroup">${this.performanceBody(car)}</div>`;
 
-    this.customRoot.innerHTML = performance + paint + finish + rims + body + glass + details;
+    const resale = this.store.resaleValue(car.id);
+    const sell = car.starter ? '' : `<div class="custom-group sell-group">
+      <button class="btn ghost wide" id="btnSellCar" data-car="${car.id}">SELL THIS CAR · ${formatCredits(resale)} CR</button>
+      <p class="custom-note">60% of the price back, plus half of what you spent on upgrades.</p>
+    </div>`;
+    this.customRoot.innerHTML = performance + paint + finish + rims + body + glass + details + sell;
+    const sellBtn = $('btnSellCar');
+    if (sellBtn) {
+      // Two taps: the first arms the button, the second sells.
+      sellBtn.addEventListener('click', () => {
+        if (sellBtn.dataset.armed) {
+          this.cb.onSellCar?.(car.id);
+          return;
+        }
+        sellBtn.dataset.armed = '1';
+        sellBtn.classList.add('danger');
+        sellBtn.textContent = `TAP AGAIN TO SELL · ${formatCredits(resale)} CR`;
+        setTimeout(() => {
+          if (!sellBtn.isConnected) return;
+          delete sellBtn.dataset.armed;
+          sellBtn.classList.remove('danger');
+          sellBtn.textContent = `SELL THIS CAR · ${formatCredits(resale)} CR`;
+        }, 3500);
+      });
+    }
     this.bindPerformance();
 
     this.customRoot.querySelectorAll('[data-key]').forEach((el) => {

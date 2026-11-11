@@ -1851,3 +1851,8 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
 .achievement em { font-style: normal; font-family: var(--font-display); font-size: 11px; color: var(--faint); }
 .achievement.got { opacity: 1; border-color: rgba(255, 196, 107, 0.55); background: rgba(255, 196, 107, 0.07); }
 .achievement.got strong, .achievement.got em { color: var(--gold); }
+
+/* Selling a car */
+.sell-group { padding-top: 6px; }
+.sell-group .btn.wide { width: 100%; }
+.btn.danger { border-color: var(--hot); color: var(--hot); }

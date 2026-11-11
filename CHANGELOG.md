@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Sell cars from the Customize tab (two taps to confirm): 60 % of the price
+  plus half of the upgrade spend. The starter car cannot be sold.
 - Offline support: a network-first service worker caches the game so it
   loads offline after the first visit (updates are always picked up first).
 - New share card (link previews) and up-to-date descriptions in the page,

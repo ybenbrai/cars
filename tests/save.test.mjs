@@ -191,3 +191,19 @@ test('daily rewards pay each tier once per day', async () => {
   const tomorrow = dailyChallenge('2026-11-12');
   assert.equal(store.dailyFor(tomorrow).tier, -1);
 });
+
+test('selling a car pays resale value and never sells the starter', () => {
+  const store = freshStore();
+  store.data.wallet = 1e6;
+  const car = CARS.find((c) => !c.starter && c.unlockRank === 0);
+  store.buyCar(car.id);
+  store.buyUpgrade(car.id, 'engine');
+  const value = store.resaleValue(car.id);
+  assert.ok(value >= Math.round(car.price * 0.6 / 100) * 100);
+  const before = store.wallet;
+  assert.ok(store.sellCar(car.id).ok);
+  assert.equal(store.wallet, before + value);
+  assert.ok(!store.owns(car.id));
+  assert.equal(store.selectedCarId, CARS.find((c) => c.starter).id);
+  assert.equal(store.sellCar(store.selectedCarId).ok, false);
+});

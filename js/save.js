@@ -12,7 +12,7 @@ import { CAREER_EVENTS } from './data/career.js';
 import { practiceRentalFee } from './economy.js';
 import { ACHIEVEMENTS, earnedNow } from './achievements.js';
 import {
-  UPGRADE_PARTS, MAX_UPGRADE_LEVEL, normalizeUpgrades, upgradeCost,
+  UPGRADE_PARTS, MAX_UPGRADE_LEVEL, normalizeUpgrades, upgradeCost, upgradeValue,
 } from './data/upgrades.js';
 
 const SCHEMA = 2;
@@ -229,6 +229,31 @@ export class SaveStore {
     this.data.looks[carId] = { ...defaultLook(car), plate: this.name.toUpperCase().slice(0, 9) };
     this.save();
     return { ok: true, car };
+  }
+
+  /** Credits paid for selling a car: 60 % of its price + half its upgrades. */
+  resaleValue(carId) {
+    const car = getCar(carId);
+    if (!car || car.starter) return 0;
+    return Math.round((car.price * 0.6 + upgradeValue(car, this.upgradesFor(carId)) * 0.5) / 100) * 100;
+  }
+
+  /** Sell an owned car (never the starter). Equips the starter if needed. */
+  sellCar(carId) {
+    const car = getCar(carId);
+    if (!car || !this.owns(carId)) return { ok: false, error: 'You do not own this car.' };
+    if (car.starter) return { ok: false, error: 'The starter car cannot be sold.' };
+    const value = this.resaleValue(carId);
+    this.data.ownedCars = this.data.ownedCars.filter((id) => id !== carId);
+    delete this.data.looks[carId];
+    if (this.data.upgrades) delete this.data.upgrades[carId];
+    if (this.data.selectedCarId === carId) {
+      const starter = CARS.find((c) => c.starter) || CARS[0];
+      this.data.selectedCarId = this.data.ownedCars.includes(starter.id) ? starter.id : this.data.ownedCars[0];
+    }
+    this.data.wallet += value;
+    this.save();
+    return { ok: true, car, value };
   }
 
   upgradesFor(carId) {

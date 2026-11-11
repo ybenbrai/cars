@@ -101,6 +101,7 @@ const ui = new UI({
   onPreviewCar: previewCar,
   onBuyCar: buyCar,
   onBuyUpgrade: buyUpgrade,
+  onSellCar: sellCar,
   onSetting: changeSetting,
   onLookChange: changeLook,
   onRace: (config) => safeStartRace(config),
@@ -323,6 +324,18 @@ function announceAchievements(ctx = {}) {
   const earned = store.awardAchievements(ctx);
   for (const a of earned) ui.notice(`ACHIEVEMENT · ${a.name} · +${formatCredits(a.reward)} CR`, 'ok');
   if (earned.length && state === 'garage') ui.renderGarage(store, auth);
+}
+
+function sellCar(carId) {
+  if (!store) return;
+  const result = store.sellCar(carId);
+  if (!result.ok) {
+    ui.notice(result.error, 'error');
+    return;
+  }
+  ensureGarageCar();
+  ui.renderGarage(store, auth);
+  ui.notice(`SOLD ${result.car.name} · +${formatCredits(result.value)} CR`, 'ok');
 }
 
 function changeSetting(key, value) {
