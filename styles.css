@@ -1839,3 +1839,15 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   .photo-hint { display: none; }
   .photo-bar { bottom: 12px; }
 }
+
+/* Achievements */
+.achievement-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
+.achievement {
+  display: grid; gap: 3px; padding: 9px 10px;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.02); opacity: 0.6;
+}
+.achievement strong { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.1em; }
+.achievement small { font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+.achievement em { font-style: normal; font-family: var(--font-display); font-size: 11px; color: var(--faint); }
+.achievement.got { opacity: 1; border-color: rgba(255, 196, 107, 0.55); background: rgba(255, 196, 107, 0.07); }
+.achievement.got strong, .achievement.got em { color: var(--gold); }

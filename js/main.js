@@ -314,6 +314,15 @@ function buyCar(carId) {
   ensureGarageCar();
   ui.renderGarage(store, auth);
   ui.notice(`PURCHASED ${result.car.name}`, 'ok');
+  announceAchievements();
+}
+
+/** Award any achievements now met and toast them (garage actions). */
+function announceAchievements(ctx = {}) {
+  if (!store) return;
+  const earned = store.awardAchievements(ctx);
+  for (const a of earned) ui.notice(`ACHIEVEMENT · ${a.name} · +${formatCredits(a.reward)} CR`, 'ok');
+  if (earned.length && state === 'garage') ui.renderGarage(store, auth);
 }
 
 function changeSetting(key, value) {
@@ -342,6 +351,7 @@ function buyUpgrade(carId, partId) {
   audio.uiClick?.();
   ui.refreshPerformance();
   ui.notice(`${result.part.name} · ${result.part.levels[result.level]} INSTALLED`, 'ok');
+  announceAchievements();
 }
 
 function changeLook(look) {
@@ -1125,6 +1135,13 @@ function finishRace() {
     }
   }
 
+  // Achievements: stats-based ones plus how this race was run.
+  for (const a of store.awardAchievements({
+    mode: race.mode, position, totalRacers: race.totalRacers, conditions: race.conditions,
+  })) {
+    unlocks.push({ kind: 'achievement', name: `${a.name} · +${formatCredits(a.reward)} CR` });
+  }
+
   race.result = {
     mode: race.mode,
     unlocks,
@@ -1395,7 +1412,10 @@ function frame(now) {
   if (state === 'photo') {
     photo.update();
     composer.render();
-    if (photo.captureIfRequested(renderer.domElement)) ui.notice('PHOTO SAVED', 'ok');
+    if (photo.captureIfRequested(renderer.domElement)) {
+      ui.notice('PHOTO SAVED', 'ok');
+      announceAchievements({ photo: true });
+    }
     return;
   }
 

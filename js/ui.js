@@ -12,6 +12,7 @@ import { fmtTime } from './hud.js';
 import { seriesStandings } from './championship.js';
 import { dailyChallenge, DAILY_TIERS } from './daily.js';
 import { TIMES, WEATHERS } from './conditions.js';
+import { ACHIEVEMENTS } from './achievements.js';
 import {
   UPGRADE_PARTS, MAX_UPGRADE_LEVEL, upgradeCost, upgradedStats,
 } from './data/upgrades.js';
@@ -989,7 +990,7 @@ export class UI {
     const unlocks = data.unlocks || [];
     $('resultUnlocks').classList.toggle('hidden', !unlocks.length);
     $('resultUnlocks').innerHTML = unlocks.map((u) => `<span class="unlock ${u.kind}"><small>${
-      u.kind === 'car' ? 'CAR AVAILABLE' : u.kind === 'circuit' ? 'CIRCUIT UNLOCKED' : 'PROMOTED'
+      u.kind === 'car' ? 'CAR AVAILABLE' : u.kind === 'circuit' ? 'CIRCUIT UNLOCKED' : u.kind === 'achievement' ? 'ACHIEVEMENT' : u.kind === 'daily' ? 'DAILY CHALLENGE' : 'PROMOTED'
     }</small>${esc(u.name)}</span>`).join('');
     if (data.mode === 'online') {
       $('resultEyebrow').textContent = data.pending ? 'ONLINE RACE · WAITING FOR RIVALS' : 'ONLINE RACE · FINAL';
@@ -1245,6 +1246,17 @@ export class UI {
       <section class="setup-section">
         <div class="section-head"><span>CAREER STATS</span></div>
         <div class="stat-tiles">${tiles.map(([label, value]) => `<div class="stat-tile"><small>${label}</small><strong>${value}</strong></div>`).join('')}</div>
+      </section>
+      <section class="setup-section">
+        <div class="section-head"><span>ACHIEVEMENTS</span><span>${(data.achievements || []).length}/${ACHIEVEMENTS.length}</span></div>
+        <div class="achievement-grid">${ACHIEVEMENTS.map((a) => {
+          const got = (data.achievements || []).includes(a.id);
+          return `<div class="achievement ${got ? 'got' : ''}">
+            <strong>${got ? '★' : '☆'} ${a.name}</strong>
+            <small>${esc(a.desc)}</small>
+            <em>${formatCredits(a.reward)} CR</em>
+          </div>`;
+        }).join('')}</div>
       </section>
       <section class="setup-section">
         <div class="section-head"><span>PERSONAL RECORDS</span><span>BEST LAP</span></div>

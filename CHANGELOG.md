@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Achievements: 19 goals (wins, podiums, laps, drift totals, garage
+  collecting, upgrades, daily gold, series gold, full career, winning at
+  night, in the rain or against a full grid, saving a photo), each paying
+  credits once. Shown on the results screen and in a Profile grid.
 - Photo mode (pause menu): the race freezes, drag to orbit around your car,
   scroll or pinch to zoom, and save a watermarked PNG to share.
 - Landscape phone layout: menu beside the car, slim header, compact pause
