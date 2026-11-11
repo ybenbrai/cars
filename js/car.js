@@ -118,7 +118,7 @@ export class Car {
     // top speed, drivetrain); upgrades scale them.
     this.maxSpeed = topSpeedFor(def) * m.speed;
     this.powerK = powerConstant(def) * m.accel;
-    this.launch = launchAccel(def, this.physics.grip);
+    this.launch = launchAccel(def, this.physics.grip) * m.launch;
     this.turnRate = BASE.turn * this.physics.turn;
     this.grip = BASE.grip * this.physics.grip;
     this.driftThreshold = 6.5 * this.physics.slide;

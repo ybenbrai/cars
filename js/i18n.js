@@ -357,6 +357,24 @@ const T = {
   'Win against a full grid of seven rivals.': ['Gana contra una parrilla llena de siete rivales.', 'Gagnez face à une grille complète de sept rivaux.', 'Vença contra um grid cheio de sete rivais.', 'Gewinne gegen ein volles Feld aus sieben Rivalen.'],
   SHUTTERBUG: ['FOTÓGRAFO', 'PHOTOGRAPHE', 'FOTÓGRAFO', 'FOTOGRAF'],
   'Save a photo in photo mode.': ['Guarda una foto en el modo foto.', 'Enregistrez une photo en mode photo.', 'Salve uma foto no modo foto.', 'Speichere ein Foto im Fotomodus.'],
+
+  // Tuning
+  TURBO: ['TURBO', 'TURBO', 'TURBO', 'TURBO'],
+  'INTAKE & EXHAUST': ['ADMISIÓN Y ESCAPE', 'ADMISSION ET ÉCHAPPEMENT', 'ADMISSÃO E ESCAPE', 'ANSAUGUNG & AUSPUFF'],
+  GEARBOX: ['CAJA DE CAMBIOS', 'BOÎTE DE VITESSES', 'CÂMBIO', 'GETRIEBE'],
+  'WEIGHT REDUCTION': ['ALIGERAMIENTO', 'ALLÈGEMENT', 'REDUÇÃO DE PESO', 'GEWICHTSREDUKTION'],
+  SUSPENSION: ['SUSPENSIÓN', 'SUSPENSION', 'SUSPENSÃO', 'FAHRWERK'],
+  STOCK: ['DE SERIE', 'DE SÉRIE', 'ORIGINAL', 'SERIE'],
+  'PERFORMANCE RATING': ['ÍNDICE DE RENDIMIENTO', 'INDICE DE PERFORMANCE', 'ÍNDICE DE DESEMPENHO', 'LEISTUNGSWERT'],
+  'More power across the rev range.': ['Más potencia en todo el rango de revoluciones.', 'Plus de puissance sur toute la plage de régime.', 'Mais potência em toda a faixa de giros.', 'Mehr Leistung im ganzen Drehzahlband.'],
+  'Extra shove, strongest at high revs.': ['Empuje extra, sobre todo a altas vueltas.', 'Poussée en plus, surtout à haut régime.', 'Empurrão extra, mais forte em alta rotação.', 'Extra Schub, am stärksten bei hohen Drehzahlen.'],
+  'Lets the engine breathe: power and top speed.': ['Deja respirar al motor: potencia y punta.', 'Le moteur respire : puissance et vitesse de pointe.', 'O motor respira: potência e velocidade final.', 'Der Motor atmet frei: Leistung und Topspeed.'],
+  'Faster launches and quicker shifts.': ['Salidas más rápidas y cambios más veloces.', 'Départs plus vifs et passages plus rapides.', 'Largadas mais rápidas e trocas mais ágeis.', 'Schnellere Starts und Gangwechsel.'],
+  'Less mass: quicker in every direction.': ['Menos peso: más rápido en todo.', 'Moins de poids : plus vif partout.', 'Menos peso: mais rápido em tudo.', 'Weniger Masse: in jede Richtung schneller.'],
+  'Sharper turn-in and a flatter car.': ['Entrada en curva más precisa y menos balanceo.', 'Entrée en virage plus vive, moins de roulis.', 'Entrada de curva mais precisa e menos rolagem.', 'Schärferes Einlenken, weniger Seitenneigung.'],
+  'More grip in corners, off the line and under braking.': ['Más agarre en curva, en la salida y al frenar.', 'Plus d’adhérence en virage, au départ et au freinage.', 'Mais aderência na curva, na largada e na frenagem.', 'Mehr Grip in Kurven, beim Start und beim Bremsen.'],
+  'Shorter stopping distances at every speed.': ['Frenadas más cortas a cualquier velocidad.', 'Freinages plus courts à toute vitesse.', 'Frenagens mais curtas em qualquer velocidade.', 'Kürzere Bremswege bei jedem Tempo.'],
+  'Stronger boost that lasts longer.': ['Impulso más fuerte y duradero.', 'Boost plus fort et plus long.', 'Impulso mais forte e duradouro.', 'Stärkerer, längerer Boost.'],
 };
 
 const INDEX = { es: 0, fr: 1, pt: 2, de: 3 };
@@ -376,6 +394,7 @@ const PATTERNS = [
   [/^(BRONZE|SILVER|GOLD) TROPHY$/, ['TROFEO DE {1}', 'TROPHÉE {1}', 'TROFÉU DE {1}', '{1}-POKAL']],
   [/^(BRONZE|SILVER|GOLD) ([\d:.]+)$/, ['{1} $2', '{1} $2', '{1} $2', '{1} $2']],
   [/^RENT ([\d.,]+ CR)$/, ['ALQUILER $1', 'LOCATION $1', 'ALUGUEL $1', 'MIETE $1']],
+  [/^(\+\d+) OVER STOCK$/, ['$1 SOBRE SERIE', '$1 SUR LA SÉRIE', '$1 SOBRE O ORIGINAL', '$1 ÜBER SERIE']],
   [/^TIP (\d+)\/(\d+)$/, ['CONSEJO $1/$2', 'ASTUCE $1/$2', 'DICA $1/$2', 'TIPP $1/$2']],
   [/^(\d+) laps$/, ['$1 vueltas', '$1 tours', '$1 voltas', '$1 Runden']],
 ];

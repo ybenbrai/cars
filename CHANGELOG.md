@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Deeper tuning: nine parts (engine, turbo, intake & exhaust, gearbox,
+  weight reduction, suspension, tyres, brakes, nitro) with five named
+  stages each, and a performance rating (PR) on car cards and the tuning
+  panel. Existing upgrades carry over.
 - Languages: English, Español, Français, Português and Deutsch. The game
   follows the browser language on first visit; switch any time from the
   first screen or the pause menu. Covers menus, settings, race setup,

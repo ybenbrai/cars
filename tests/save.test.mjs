@@ -148,21 +148,21 @@ test('a refunded practice rental returns the credits', () => {
   assert.equal(store.data.stats.creditsSpent, 0);
 });
 
-test('upgrades cost credits, cap at level 3 and only apply to owned cars', async () => {
-  const { upgradeCost, upgradeMultipliers, upgradeValue } = await import('../js/data/upgrades.js');
+test('upgrades cost credits, cap at the top stage and only apply to owned cars', async () => {
+  const { upgradeCost, upgradeMultipliers, upgradeValue, MAX_UPGRADE_LEVEL } = await import('../js/data/upgrades.js');
   const store = freshStore();
   const starter = store.selectedCar;
   const locked = CARS.find((c) => !store.owns(c.id));
   assert.equal(store.buyUpgrade(locked.id, 'engine').ok, false);
 
   store.data.wallet = 1e6;
-  for (let level = 1; level <= 3; level++) {
+  for (let level = 1; level <= MAX_UPGRADE_LEVEL; level++) {
     const before = store.wallet;
     assert.ok(store.buyUpgrade(starter.id, 'brakes').ok);
     assert.equal(store.wallet, before - upgradeCost(starter, level));
   }
   assert.equal(store.buyUpgrade(starter.id, 'brakes').ok, false);
-  assert.equal(store.upgradesFor(starter.id).brakes, 3);
+  assert.equal(store.upgradesFor(starter.id).brakes, MAX_UPGRADE_LEVEL);
   assert.ok(upgradeMultipliers(store.upgradesFor(starter.id)).brake > 1.2);
   assert.ok(upgradeValue(starter, store.upgradesFor(starter.id)) > 0);
 
@@ -206,4 +206,21 @@ test('selling a car pays resale value and never sells the starter', () => {
   assert.ok(!store.owns(car.id));
   assert.equal(store.selectedCarId, CARS.find((c) => c.starter).id);
   assert.equal(store.sellCar(store.selectedCarId).ok, false);
+});
+
+test('a full build is strong but bounded, and raises the performance rating', async () => {
+  const {
+    UPGRADE_PARTS, MAX_UPGRADE_LEVEL, upgradeMultipliers, performanceRating, normalizeUpgrades,
+  } = await import('../js/data/upgrades.js');
+  const full = Object.fromEntries(UPGRADE_PARTS.map((p) => [p.id, MAX_UPGRADE_LEVEL]));
+  const m = upgradeMultipliers(full);
+  assert.ok(m.accel > 1.2 && m.accel < 1.4, `accel ${m.accel}`);
+  assert.ok(m.speed > 1.05 && m.speed < 1.15, `speed ${m.speed}`);
+  assert.ok(m.grip > 1.15 && m.grip < 1.3, `grip ${m.grip}`);
+  assert.ok(m.brake > 1.25 && m.brake < 1.45, `brake ${m.brake}`);
+  const car = CARS.find((c) => c.starter);
+  assert.ok(performanceRating(car, full) > performanceRating(car, null));
+  // Old saves (four parts, levels 0-3) load into the new layout.
+  assert.deepEqual(normalizeUpgrades({ engine: 3, tyres: 1 }).engine, 3);
+  assert.equal(normalizeUpgrades({ engine: 3 }).turbo, 0);
 });

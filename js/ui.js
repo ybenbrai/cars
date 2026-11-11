@@ -16,7 +16,7 @@ import { ACHIEVEMENTS } from './achievements.js';
 import { DRIVE_ACTIONS, keyLabel, resolveBindings } from './input.js';
 import { LANGUAGES, currentLanguage } from './i18n.js';
 import {
-  UPGRADE_PARTS, MAX_UPGRADE_LEVEL, upgradeCost, upgradedStats,
+  UPGRADE_PARTS, MAX_UPGRADE_LEVEL, upgradeCost, upgradedStats, performanceRating,
 } from './data/upgrades.js';
 
 const $ = (id) => document.getElementById(id);
@@ -558,7 +558,7 @@ export class UI {
         </div>
         <div class="car-card-meta">
           <p class="car-tagline" style="margin:0">${esc(car.tagline)}</p>
-          <span class="car-price ${store.wallet < car.price ? 'unaffordable' : ''}">${owned ? 'IN GARAGE' : `${formatCredits(car.price)} CR`}</span>
+          <span class="car-price ${store.wallet < car.price ? 'unaffordable' : ''}">${owned ? 'IN GARAGE' : `${formatCredits(car.price)} CR`}<small class="pr">PR ${performanceRating(car, owned ? store.upgradesFor(car.id) : null)}</small></span>
         </div>
         <div class="car-stats">${statRows(car)}</div>
         <div class="car-traits">${traits}</div>
@@ -736,7 +736,11 @@ export class UI {
         </button>
       </div>`;
     }).join('');
-    return `<div class="custom-title">PERFORMANCE<span>solo races · online is stock</span></div>${rows}`;
+    const stock = performanceRating(car, null);
+    const tuned = performanceRating(car, levels);
+    const pr = `<div class="pr-badge"><small>PERFORMANCE RATING</small><strong>PR ${tuned}</strong>${
+      tuned > stock ? `<em>+${tuned - stock} OVER STOCK</em>` : '<em>STOCK</em>'}</div>`;
+    return `<div class="custom-title">PERFORMANCE<span>solo races · online is stock</span></div>${pr}${rows}`;
   }
 
   bindPerformance() {

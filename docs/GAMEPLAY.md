@@ -330,17 +330,24 @@ are not part of the cloud save.
 
 ## Upgrades
 
-Every owned car can be tuned from the **Customize** tab. Each part has three
-levels; a level costs 7 %, 12 % and 20 % of the car's price (15,000 CR
-minimum), so tuning the starter hatch is cheap and tuning a hypercar is not.
+Every owned car can be tuned from the **Customize** tab: nine parts with five
+named stages each. A stage costs 2 %, 3.5 %, 5.5 %, 8 % and 12 % of the car's
+price (15,000 CR minimum), so a full build is about 2.8× the car's price.
 
-| Part | Per level |
+| Part | Per stage |
 | --- | --- |
-| Engine | +6 % acceleration, +2.5 % top speed |
-| Tyres | +4 % grip (also adds braking), +2 % turn-in |
-| Brakes | +8 % brake force |
-| Nitro | +8 % boost thrust, 12 % slower burn |
+| Engine | +2 % acceleration, +1 % top speed |
+| Turbo | +1.6 % acceleration, +0.5 % top speed |
+| Intake & exhaust | +0.8 % acceleration, +0.6 % top speed |
+| Gearbox | +3 % launch traction, +0.5 % acceleration |
+| Weight reduction | +0.5 % acceleration, +1 % braking, +0.6 % turn-in |
+| Suspension | +2 % turn-in, +1.2 % grip |
+| Tyres | +3 % grip (also braking), +2 % launch, +0.6 % turn-in |
+| Brakes | +5 % brake force |
+| Nitro | +7 % boost thrust, 8 % slower burn |
 
-Money spent on upgrades counts toward your car's value when the AI grid is
-picked, so a fully tuned car meets faster rivals instead of lapping stock
-ones. Online races ignore upgrades: everyone races stock.
+A full build adds roughly 30 % acceleration, 11 % top speed, 23 % grip and
+35 % braking. The **performance rating (PR)** sums the tuned stats so a built
+cheap car can be compared with a stock expensive one; it shows on car cards
+and the tuning panel. Upgrade spend counts toward the car's value when the AI
+grid is picked, and online races ignore upgrades.

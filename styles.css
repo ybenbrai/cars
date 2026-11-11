@@ -1900,3 +1900,14 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
 
 /* Stat labels in other languages can be a little longer. */
 .stage-stat span { width: 74px; white-space: nowrap; }
+
+/* Performance rating */
+.pr-badge {
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
+  padding: 8px 10px; margin-bottom: 4px; border: 1px solid rgba(255, 196, 107, 0.4);
+  background: rgba(255, 196, 107, 0.06);
+}
+.pr-badge small { font-family: var(--font-display); font-size: 10.5px; letter-spacing: 0.18em; color: var(--muted); }
+.pr-badge strong { font-family: var(--font-display); font-size: 20px; letter-spacing: 0.06em; color: var(--gold); }
+.pr-badge em { font-style: normal; font-family: var(--font-display); font-size: 11px; letter-spacing: 0.12em; color: var(--green); }
+.car-price .pr { display: block; font-size: 11px; letter-spacing: 0.12em; color: var(--muted); margin-top: 3px; }
