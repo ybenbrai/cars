@@ -27,6 +27,7 @@ import { dailyChallenge, tierFor } from './daily.js';
 import { normalizeConditions, conditionsKey, paletteFor, RAIN_GRIP } from './conditions.js';
 import { Rain } from './rain.js';
 import { PhotoMode } from './photoMode.js';
+import { ReplayRecorder, ReplayPlayer } from './replay.js';
 import { Tutorial } from './tutorial.js';
 import { setLanguage, detectLanguage } from './i18n.js';
 import {
@@ -150,6 +151,8 @@ const ui = new UI({
   onCamera: toggleCamera,
   onResume: resumeGame,
   onPhoto: enterPhoto,
+  onReplay: startReplay,
+  onReplayExit: stopReplay,
   onPhotoSave: () => photo.requestShot(),
   onPhotoExit: exitPhoto,
   onRestart: () => (race?.online ? backToOnlineLobby() : safeStartRace(lastRaceConfig, { chargeRental: false })),
@@ -761,6 +764,9 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     ghostCar: null,
     signals: new TurnSignals(),
     daily: setup.daily || null,
+    // Every local car's line, for the post-race replay (not online).
+    recorder: onlineState ? null : new ReplayRecorder(racers.length),
+    replay: null,
     conditions: setup.conditions || normalizeConditions(),
     rain: setup.conditions?.weather === 'rain' ? new Rain(scene) : null,
     // A brand-new driver's first race coaches the controls once.
@@ -1246,6 +1252,26 @@ function showResults() {
   race.resultsShown = true;
   ui.setRaceMode(false);
   ui.renderResults(race.result);
+  ui.setReplayAvailable(!!race.recorder && race.recorder.frames > 30);
+}
+
+/** Post-race replay with TV cameras; the results come back when it ends. */
+function startReplay() {
+  if (!race?.recorder || state !== 'finished') return;
+  state = 'replay';
+  race.replay = new ReplayPlayer(race.recorder, race.racers, camera, race.track);
+  for (const racer of race.racers) racer.car.model.setDetail?.(true);
+  ui.show(null);
+  ui.setHudVisible(false);
+  ui.setReplayBar(true, '0:00');
+}
+
+function stopReplay() {
+  if (state !== 'replay') return;
+  race.replay = null;
+  state = 'finished';
+  ui.setReplayBar(false);
+  ui.show('results');
 }
 
 function setGarageBestLabel() {
@@ -1536,6 +1562,17 @@ function frame(now) {
 
   if (!race) return;
 
+  if (state === 'replay') {
+    const playing = race.replay.update(dt);
+    const s = Math.floor(race.replay.t);
+    ui.setReplayBar(true, `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`);
+    effects.update(dt);
+    race.rain?.update(dt, camera);
+    composer.render();
+    if (!playing) stopReplay();
+    return;
+  }
+
   if (state === 'photo') {
     photo.update();
     composer.render();
@@ -1622,6 +1659,7 @@ function frame(now) {
       }
       resolveCollisions();
       trackCrossings();
+      race.recorder?.sample(race.time, race.racers.map((r) => r.car));
       race.physicsAcc -= FIXED;
       steps++;
     }
@@ -2046,7 +2084,8 @@ window.addEventListener('keydown', unlockAudio, true);
 
 input.onAction = (action) => {
   if (action === 'pause') {
-    if (state === 'photo') exitPhoto();
+    if (state === 'replay') stopReplay();
+    else if (state === 'photo') exitPhoto();
     else if (state === 'paused') resumeGame();
     else pauseGame();
   } else if (action === 'camera') {

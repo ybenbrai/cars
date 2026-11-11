@@ -344,6 +344,8 @@ export class UI {
     $('btnQuit').addEventListener('click', () => this.cb.onQuit?.());
     $('btnEndSession').addEventListener('click', () => this.cb.onEndSession?.());
     $('btnPhoto').addEventListener('click', () => this.cb.onPhoto?.());
+    $('btnReplay').addEventListener('click', () => this.cb.onReplay?.());
+    $('btnReplayExit').addEventListener('click', () => this.cb.onReplayExit?.());
     $('btnPhotoSave').addEventListener('click', () => this.cb.onPhotoSave?.());
     $('btnPhotoExit').addEventListener('click', () => this.cb.onPhotoExit?.());
     for (const id of ['pauseSettings', 'settingsBody', 'settingsExtra']) {
@@ -1137,6 +1139,16 @@ export class UI {
         if (b) this.cb.onSetting?.('lang', b.dataset.lang);
       });
     }
+  }
+
+  setReplayBar(visible, time = '') {
+    $('replayBar').classList.toggle('hidden', !visible);
+    if (time) $('replayTime').textContent = time;
+  }
+
+  /** Online races have no replay. */
+  setReplayAvailable(on) {
+    $('btnReplay').classList.toggle('hidden', !on);
   }
 
   setPhotoBar(visible) {

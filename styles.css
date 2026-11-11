@@ -1929,3 +1929,7 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   font-family: var(--font-display); font-size: 11px; letter-spacing: 0.12em; color: var(--green);
   background: rgba(0, 0, 0, 0.45); padding: 2px 8px; pointer-events: none;
 }
+
+/* Replay */
+.replay-tag { font-family: var(--font-display); font-size: 12px; letter-spacing: 0.2em; color: var(--hot); padding: 0 6px; }
+.replay-time { font-family: var(--font-display); font-size: 14px; letter-spacing: 0.08em; color: var(--ink); min-width: 44px; }

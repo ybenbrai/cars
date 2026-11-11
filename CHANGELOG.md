@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Race replays: WATCH REPLAY on the results screen plays the whole race
+  back with automatic TV cameras (chase, trackside, helicopter, low orbit)
+  cutting every few seconds. Every car is recorded at 15 Hz; Escape or EXIT
+  REPLAY returns to the results.
 - Settings screen (⚙ in the garage header): graphics, language, sound,
   music, turn signals, camera shake, speed units (km/h or mph) and an FPS
   counter, plus Replay Tutorial and a two-tap Reset All Progress. The same
