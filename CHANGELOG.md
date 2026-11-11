@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Settings screen (⚙ in the garage header): graphics, language, sound,
+  music, turn signals, camera shake, speed units (km/h or mph) and an FPS
+  counter, plus Replay Tutorial and a two-tap Reset All Progress. The same
+  settings stay in the pause menu.
 - Tuning preview: each part shows its next stage and how many PR points it
   adds; pointing at a price previews the new stat bars before you buy.
 - More visible tuning: a bonnet scoop from Turbo stage 3, a carbon bonnet

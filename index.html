@@ -61,6 +61,7 @@
     <div id="grain" aria-hidden="true"></div>
 
     <!-- ═══════════════ RACE HUD ═══════════════ -->
+    <div class="fps-counter hidden" id="fpsCounter"></div>
     <div id="hud" class="hidden">
       <div class="coach hidden" id="coach" role="status" aria-live="polite">
         <small id="coachStep"></small>
@@ -141,7 +142,7 @@
             <circle class="hub-dot" cx="100" cy="100" r="3"></circle>
           </svg>
           <div class="gauge-center">
-            <div class="speed"><span id="speed">0</span><em>KM/H</em></div>
+            <div class="speed"><span id="speed">0</span><em id="speedUnit">KM/H</em></div>
             <div class="gear-row"><div class="gear" id="gear">N</div><div class="rpm-bar"><i id="rpmFill"></i></div></div>
           </div>
         </div>
@@ -227,6 +228,7 @@
           <div class="meta"><small>RANK</small><strong id="garageRank">ROOKIE</strong></div>
           <div class="meta"><small>BEST LAP</small><strong id="garageBest">--:--.--</strong></div>
           <button class="icon-btn" id="btnSoundGarage" title="Mute sound">♪</button>
+          <button class="icon-btn" id="btnSettings" title="Settings" aria-label="Settings">⚙</button>
         </div>
       </header>
 
@@ -441,6 +443,19 @@
         <div class="modal-actions column">
           <button class="btn primary" id="btnConfirmRental">RENT · <span id="btnRentalFee">0 CR</span></button>
           <button class="btn ghost" id="btnCancelRental">CANCEL</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ SETTINGS ═══════════════ -->
+    <section id="screen-settings" class="screen overlay hidden" aria-label="Settings">
+      <div class="modal settings-modal">
+        <div class="eyebrow">OPTIONS</div>
+        <h2>SETTINGS</h2>
+        <div class="pause-settings settings-body" id="settingsBody"></div>
+        <div class="settings-extra" id="settingsExtra"></div>
+        <div class="modal-actions">
+          <button class="btn primary" id="btnSettingsClose">DONE</button>
         </div>
       </div>
     </section>

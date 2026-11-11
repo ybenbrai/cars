@@ -346,10 +346,31 @@ export class UI {
     $('btnPhoto').addEventListener('click', () => this.cb.onPhoto?.());
     $('btnPhotoSave').addEventListener('click', () => this.cb.onPhotoSave?.());
     $('btnPhotoExit').addEventListener('click', () => this.cb.onPhotoExit?.());
-    $('pauseSettings').addEventListener('click', (event) => {
-      const btn = event.target.closest('[data-setting]');
+    for (const id of ['pauseSettings', 'settingsBody', 'settingsExtra']) {
+      $(id).addEventListener('click', (event) => {
+        const btn = event.target.closest('[data-setting]');
+        if (btn) this.cb.onSetting?.(btn.dataset.setting, btn.dataset.value);
+      });
+    }
+    $('btnSettings').addEventListener('click', () => this.openSettings());
+    $('btnSettingsClose').addEventListener('click', () => this.closeSettings());
+    $('settingsExtra').addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-action]');
       if (!btn) return;
-      this.cb.onSetting?.(btn.dataset.setting, btn.dataset.value);
+      if (btn.dataset.action === 'reset-progress') {
+        // Two taps: arm, then confirm.
+        if (!btn.dataset.armed) {
+          btn.dataset.armed = '1';
+          btn.classList.add('danger');
+          btn.textContent = 'TAP AGAIN TO ERASE EVERYTHING';
+          setTimeout(() => { if (btn.isConnected) this.renderSettings(); }, 4000);
+          return;
+        }
+        this.cb.onResetProgress?.();
+      } else if (btn.dataset.action === 'replay-tutorial') {
+        this.cb.onSetting?.('tutorialDone', 'off');
+        this.notice('THE TUTORIAL WILL PLAY IN YOUR NEXT RACE', 'ok');
+      }
     });
     $('btnAgain').addEventListener('click', () => this.cb.onAgain?.());
     $('btnConfirmRental').addEventListener('click', () => {
@@ -1122,7 +1143,16 @@ export class UI {
     $('photoBar').classList.toggle('hidden', !visible);
   }
 
-  /** Graphics quality and turn-signal toggles shown in the pause menu. */
+  openSettings() {
+    this.renderSettings();
+    $('screen-settings').classList.remove('hidden');
+  }
+
+  closeSettings() {
+    $('screen-settings').classList.add('hidden');
+  }
+
+  /** Settings rows, shared by the pause menu and the garage settings screen. */
   renderSettings() {
     const settings = this.store?.data.settings || {};
     const row = (label, key, current, options) => `
@@ -1138,7 +1168,14 @@ export class UI {
       + row('LANGUAGE', 'lang', currentLanguage(), LANGUAGES.map((l) => [l.id, l.label]))
       + row('CAMERA SHAKE', 'shake', settings.shake === false ? 'off' : 'on', [['on', 'ON'], ['off', 'OFF']])
       + row('SOUND', 'volume', String(Math.round((settings.volume ?? 1) * 100)), [['0', 'OFF'], ['35', 'LOW'], ['70', 'MED'], ['100', 'MAX']])
-      + row('MUSIC', 'musicVolume', String(Math.round((settings.musicVolume ?? 1) * 100)), [['0', 'OFF'], ['35', 'LOW'], ['70', 'MED'], ['100', 'MAX']]);
+      + row('MUSIC', 'musicVolume', String(Math.round((settings.musicVolume ?? 1) * 100)), [['0', 'OFF'], ['35', 'LOW'], ['70', 'MED'], ['100', 'MAX']])
+      + row('SPEED UNITS', 'units', settings.units === 'mph' ? 'mph' : 'kmh', [['kmh', 'KM/H'], ['mph', 'MPH']])
+      + row('FPS COUNTER', 'fps', settings.fps ? 'on' : 'off', [['on', 'ON'], ['off', 'OFF']]);
+    $('settingsBody').innerHTML = $('pauseSettings').innerHTML;
+    $('settingsExtra').innerHTML = `
+      <button class="btn ghost" data-action="replay-tutorial">REPLAY TUTORIAL</button>
+      <button class="btn ghost" data-action="reset-progress">RESET ALL PROGRESS</button>
+      <p class="custom-note">Controls can be remapped in the PROFILE tab.</p>`;
   }
 
   setPauseMode(mode) {

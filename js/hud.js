@@ -276,7 +276,20 @@ export class HUD {
     this.el.bestTime.textContent = fmtTime(seconds);
   }
 
+  /** Show speeds in miles per hour instead of km/h. */
+  setUnits(mph) {
+    this.mph = !!mph;
+    this.gaugeMax = null; // rebuild the dial ticks in the new unit
+    const unit = document.getElementById('speedUnit');
+    if (unit) unit.textContent = this.mph ? 'MPH' : 'KM/H';
+    this.last.speed = null;
+  }
+
   setSpeed(kmh, gear, maxKmh = 240) {
+    if (this.mph) {
+      kmh *= 0.621371;
+      maxKmh *= 0.621371;
+    }
     this.buildTicks(maxKmh);
     const rounded = Math.round(kmh);
     if (rounded !== this.last.speed) {

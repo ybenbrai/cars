@@ -1915,3 +1915,17 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
 /* Tuning preview */
 .upgrade-next { font-style: normal; font-family: var(--font-display); font-size: 11px; letter-spacing: 0.08em; color: var(--green); }
 .stage-stats.previewing .stage-stat.tuned b { color: var(--green); text-shadow: 0 0 10px rgba(141, 255, 176, 0.6); }
+
+/* Settings screen */
+.settings-modal { width: min(720px, 100%); }
+.settings-modal h2 { margin-bottom: 10px; }
+.settings-body { grid-template-columns: 1fr 1fr; margin-top: 6px; }
+.settings-extra { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line); }
+.settings-extra .btn { flex: 1 1 200px; padding: 11px 14px; font-size: 12px; }
+.settings-extra .custom-note { flex-basis: 100%; margin: 4px 0 0; }
+@media (max-width: 560px) { .settings-body { grid-template-columns: 1fr; } }
+.fps-counter {
+  position: fixed; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 50;
+  font-family: var(--font-display); font-size: 11px; letter-spacing: 0.12em; color: var(--green);
+  background: rgba(0, 0, 0, 0.45); padding: 2px 8px; pointer-events: none;
+}

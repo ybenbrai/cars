@@ -46,6 +46,8 @@ const BUILD = new URL(import.meta.url).searchParams.get('v') || 'dev';
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 // Rivals farther than this from the camera hide their small parts.
 const LOD_DISTANCE_SQ = 50 * 50;
+// Optional FPS counter (settings): averaged over half a second.
+const fpsMeter = { el: document.getElementById('fpsCounter'), acc: 0, frames: 0 };
 const damp = (a, b, l, dt) => a + (b - a) * (1 - Math.exp(-l * dt));
 const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
@@ -106,6 +108,14 @@ const ui = new UI({
   onBuyCar: buyCar,
   onBuyUpgrade: buyUpgrade,
   onSellCar: sellCar,
+  onResetProgress: () => {
+    if (!store) return;
+    store.reset();
+    ui.closeSettings();
+    ensureGarageCar();
+    ui.renderGarage(store, auth);
+    ui.notice('PROGRESS RESET · FRESH START', 'ok');
+  },
   onRemap: (action) => input.captureNext((code) => {
     if (code && store) {
       store.data.settings.keys = { ...(store.data.settings.keys || {}), [action]: code };
@@ -181,6 +191,8 @@ function attachStore(next) {
   quality.setMode(store.data.settings.quality || 'auto');
   audio.setVolumes(store.data.settings.volume ?? 1, store.data.settings.musicVolume ?? 1);
   input.setBindings(store.data.settings.keys);
+  hud.setUnits(store.data.settings.units === 'mph');
+  fpsMeter.el.classList.toggle('hidden', !store.data.settings.fps);
   store.onChange = () => {
     cloud.schedule();
     syncOnlineCar();
@@ -375,6 +387,15 @@ function changeSetting(key, value) {
   } else if (key === 'volume' || key === 'musicVolume') {
     store.data.settings[key] = Number(value) / 100;
     audio.setVolumes(store.data.settings.volume ?? 1, store.data.settings.musicVolume ?? 1);
+  } else if (key === 'units') {
+    store.data.settings.units = value;
+    hud.setUnits(value === 'mph');
+  } else if (key === 'fps') {
+    store.data.settings.fps = value === 'on';
+    fpsMeter.el.classList.toggle('hidden', !store.data.settings.fps);
+  } else if (key === 'tutorialDone') {
+    store.data.settings.tutorialDone = value !== 'off';
+    store.data.settings.tutorialReplay = value === 'off';
   } else if (key === 'lang') {
     store.data.settings.lang = value;
     setLanguage(value);
@@ -744,7 +765,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     rain: setup.conditions?.weather === 'rain' ? new Rain(scene) : null,
     // A brand-new driver's first race coaches the controls once.
     tutorial: !store.data.settings.tutorialDone && !onlineState
-      && store.data.stats.races === 0 && !(store.data.stats.sessions > 0)
+      && (store.data.settings.tutorialReplay || (store.data.stats.races === 0 && !(store.data.stats.sessions > 0)))
       ? new Tutorial(ui.touchCapable) : null,
   };
   ui.hideCoach();
@@ -1282,6 +1303,7 @@ function finishTutorial() {
   race.tutorial = null;
   ui.hideCoach();
   store.data.settings.tutorialDone = true;
+  store.data.settings.tutorialReplay = false;
   store.save();
 }
 
@@ -1494,6 +1516,15 @@ let last = performance.now();
 function frame(now) {
   requestAnimationFrame(frame);
   const dt = Math.min((now - last) / 1000, 0.25);
+  if (!fpsMeter.el.classList.contains('hidden')) {
+    fpsMeter.acc += dt;
+    fpsMeter.frames += 1;
+    if (fpsMeter.acc >= 0.5) {
+      fpsMeter.el.textContent = `${Math.round(fpsMeter.frames / fpsMeter.acc)} FPS`;
+      fpsMeter.acc = 0;
+      fpsMeter.frames = 0;
+    }
+  }
   last = now;
   input.update();
 

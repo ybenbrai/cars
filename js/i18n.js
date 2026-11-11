@@ -375,6 +375,16 @@ const T = {
   'More grip in corners, off the line and under braking.': ['Más agarre en curva, en la salida y al frenar.', 'Plus d’adhérence en virage, au départ et au freinage.', 'Mais aderência na curva, na largada e na frenagem.', 'Mehr Grip in Kurven, beim Start und beim Bremsen.'],
   'Shorter stopping distances at every speed.': ['Frenadas más cortas a cualquier velocidad.', 'Freinages plus courts à toute vitesse.', 'Frenagens mais curtas em qualquer velocidade.', 'Kürzere Bremswege bei jedem Tempo.'],
   'Stronger boost that lasts longer.': ['Impulso más fuerte y duradero.', 'Boost plus fort et plus long.', 'Impulso mais forte e duradouro.', 'Stärkerer, längerer Boost.'],
+
+  // Settings screen
+  SETTINGS: ['AJUSTES', 'PARAMÈTRES', 'CONFIGURAÇÕES', 'EINSTELLUNGEN'],
+  OPTIONS: ['OPCIONES', 'OPTIONS', 'OPÇÕES', 'OPTIONEN'],
+  'SPEED UNITS': ['UNIDADES', 'UNITÉS', 'UNIDADES', 'EINHEITEN'],
+  'FPS COUNTER': ['CONTADOR FPS', 'COMPTEUR FPS', 'CONTADOR FPS', 'FPS-ANZEIGE'],
+  'REPLAY TUTORIAL': ['REPETIR TUTORIAL', 'REVOIR LE TUTORIEL', 'REVER TUTORIAL', 'TUTORIAL WIEDERHOLEN'],
+  'RESET ALL PROGRESS': ['BORRAR TODO EL PROGRESO', 'EFFACER TOUTE LA PROGRESSION', 'APAGAR TODO O PROGRESSO', 'ALLEN FORTSCHRITT LÖSCHEN'],
+  'TAP AGAIN TO ERASE EVERYTHING': ['TOCA OTRA VEZ PARA BORRAR TODO', 'TOUCHEZ ENCORE POUR TOUT EFFACER', 'TOQUE DE NOVO PARA APAGAR TUDO', 'NOCHMAL TIPPEN ZUM LÖSCHEN'],
+  'Controls can be remapped in the PROFILE tab.': ['Los controles se cambian en la pestaña PERFIL.', 'Les commandes se modifient dans l’onglet PROFIL.', 'Os controles mudam na aba PERFIL.', 'Die Steuerung lässt sich im Tab PROFIL ändern.'],
 };
 
 const INDEX = { es: 0, fr: 1, pt: 2, de: 3 };
