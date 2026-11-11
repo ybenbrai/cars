@@ -47,7 +47,7 @@ function blankSave(displayName = '') {
       races: 0, wins: 0, podiums: 0, laps: 0,
       creditsEarned: 0, creditsSpent: 0, driftScore: 0, distanceKm: 0, sessions: 0,
     },
-    settings: { muted: false, camera: 0, quality: 'auto', signals: true, volume: 1, musicVolume: 1 },
+    settings: { muted: false, camera: 0, quality: 'auto', signals: true, volume: 1, musicVolume: 1, tutorialDone: false },
   };
 }
 

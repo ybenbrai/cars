@@ -27,6 +27,7 @@ import { dailyChallenge, tierFor } from './daily.js';
 import { normalizeConditions, conditionsKey, paletteFor, RAIN_GRIP } from './conditions.js';
 import { Rain } from './rain.js';
 import { PhotoMode } from './photoMode.js';
+import { Tutorial } from './tutorial.js';
 import {
   GhostRecorder, GhostCar, loadGhost, saveGhostIfFaster,
 } from './ghost.js';
@@ -707,7 +708,12 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     daily: setup.daily || null,
     conditions: setup.conditions || normalizeConditions(),
     rain: setup.conditions?.weather === 'rain' ? new Rain(scene) : null,
+    // A brand-new driver's first race coaches the controls once.
+    tutorial: !store.data.settings.tutorialDone && !onlineState
+      && store.data.stats.races === 0 && !(store.data.stats.sessions > 0)
+      ? new Tutorial(ui.touchCapable) : null,
   };
+  ui.hideCoach();
 
   // Time Trial races your own best lap on this circuit as a see-through car.
   if (setup.mode === 'time-trial') {
@@ -771,6 +777,7 @@ function updateGhost() {
 }
 
 function disposeRace() {
+  ui.hideCoach();
   if (!race) {
     effects.setCar(null);
     return;
@@ -1060,6 +1067,7 @@ function updateWrongWay(dt) {
 
 function finishRace() {
   if (!race || state === 'finished') return;
+  finishTutorial();
   if (race.online) {
     finishOnlineRace();
     return;
@@ -1208,6 +1216,39 @@ function resumeGame() {
   ui.show(null);
   ui.setRaceMode(true);
   ui.setTouchVisible(true);
+}
+
+/** Is the track turning noticeably in the next ~70 m? */
+function cornerAhead(car, track) {
+  const info = car.trackInfo;
+  if (!info) return false;
+  const a = track.sampleAt(info.dist + 15).tangent;
+  const b = track.sampleAt(info.dist + 70).tangent;
+  return a.x * b.x + a.z * b.z < 0.93;
+}
+
+function updateTutorial(dt) {
+  const car = race.player.car;
+  const tip = race.tutorial.update(dt, {
+    time: race.time,
+    speedKmh: car.speedKmh,
+    braking: car.braking,
+    drifting: car.drifting,
+    boosting: car.boosting,
+    boost: car.boost,
+    cornerAhead: cornerAhead(car, race.track),
+  });
+  if (tip?.text) ui.showCoach(tip.text, tip.step, tip.total);
+  else if (tip?.hide) ui.hideCoach();
+  if (race.tutorial.finished) finishTutorial();
+}
+
+function finishTutorial() {
+  if (!race?.tutorial) return;
+  race.tutorial = null;
+  ui.hideCoach();
+  store.data.settings.tutorialDone = true;
+  store.save();
 }
 
 /** Photo mode: the race stays frozen while a free camera orbits the car. */
@@ -1591,6 +1632,7 @@ function frame(now) {
   composer.render();
   if (state === 'racing') {
     quality.sample(dt);
+    if (race.tutorial) updateTutorial(dt);
     // Indicators blink three times when the player commits to a turn.
     if (store?.data.settings.signals !== false) {
       const car = race.player.car;

@@ -1063,6 +1063,17 @@ export class UI {
     $('garageBest').textContent = seconds ? fmtTime(seconds) : '--:--.--';
   }
 
+  /** First-race coaching tip on the HUD. */
+  showCoach(text, step, total) {
+    $('coachStep').textContent = `TIP ${step}/${total}`;
+    $('coachText').textContent = text;
+    $('coach').classList.remove('hidden');
+  }
+
+  hideCoach() {
+    $('coach').classList.add('hidden');
+  }
+
   setPhotoBar(visible) {
     $('photoBar').classList.toggle('hidden', !visible);
   }

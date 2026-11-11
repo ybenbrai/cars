@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- First-race tutorial: a new driver's first race shows five short tips at
+  the moment they matter (accelerate, brake before the corner, drift, use
+  nitro, camera and pause), with keyboard or touch wording. Runs once.
+- Sound and music volume settings in the pause menu.
 - Sell cars from the Customize tab (two taps to confirm): 60 % of the price
   plus half of the upgrade spend. The starter car cannot be sold.
 - Offline support: a network-first service worker caches the game so it
