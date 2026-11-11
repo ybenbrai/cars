@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Workshop tuning views in the garage: pointing at (or tapping) a part
+  moves the camera to it. Engine and turbo open the bonnet to show the
+  engine (turbo and filter appear with their upgrades), suspension raises
+  the car on a two-post lift, tyres and brakes zoom on a spinning wheel,
+  intake & exhaust frames the tips, nitro glows blue at the back. Buying a
+  stage fires a spark burst and a flash.
 - Race replays: WATCH REPLAY on the results screen plays the whole race
   back with automatic TV cameras (chase, trackside, helicopter, low orbit)
   cutting every few seconds. Every car is recorded at 15 Hz; Escape or EXIT

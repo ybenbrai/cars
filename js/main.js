@@ -109,6 +109,10 @@ const ui = new UI({
   onBuyCar: buyCar,
   onBuyUpgrade: buyUpgrade,
   onSellCar: sellCar,
+  onTuneFocus: (part) => {
+    if (!garage || !store) return;
+    garage.focusPart(part, store.owns(ui.stageCarId) ? store.upgradesFor(ui.stageCarId) : {});
+  },
   onResetProgress: () => {
     if (!store) return;
     store.reset();
@@ -430,6 +434,8 @@ function buyUpgrade(carId, partId) {
   audio.uiClick?.();
   ui.refreshPerformance();
   if (garageCar?.def.id === carId) garageCar.setTuning(store.upgradesFor(carId));
+  garage?.focusPart(partId, store.upgradesFor(carId));
+  garage?.installFx(partId);
   ui.notice(`${result.part.name} · ${result.part.levels[result.level]} INSTALLED`, 'ok');
   announceAchievements();
 }

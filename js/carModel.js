@@ -1274,9 +1274,8 @@ export class CarModel {
   }
 
   /** Ribbon that lies on the painted top surface along z. */
-  topRibbon(xc, width, z0, z1, lift = 0.005, roof = false) {
+  topRibbon(xc, width, z0, z1, lift = 0.005, roof = false, nx = 3) {
     const nz = 14;
-    const nx = 3;
     const pos = [];
     const uvs = [];
     const idx = [];
@@ -2133,6 +2132,101 @@ export class CarModel {
     const wide = tyres >= 4 ? 1 + 0.06 * (tyres - 3) : 1;
     for (const wheel of this.wheels || []) wheel.spin.scale.x = wide;
     this.setBodyTilt(this.body.rotation.z, this.body.rotation.x);
+  }
+
+  /**
+   * Garage-only engine bay: a bonnet panel that swings open on a hinge at
+   * the windscreen, a dark bay and an engine (turbo and filter follow the
+   * tuning). Built on first use so race cars never pay for it.
+   */
+  buildBay() {
+    const b = this.bodyDef;
+    const L = b.length;
+    const W = b.width;
+    const z0 = b.cabinZ + b.cabinLength / 2 + 0.04;
+    const z1 = L / 2 - 0.1;
+    const hingeY = this.topYAt(0, z0);
+    const bay = new THREE.Group();
+    bay.visible = false;
+    this.body.add(bay);
+
+    // Dark floor over the bonnet area, so the open bay reads as a cavity.
+    const floorMat = new THREE.MeshStandardMaterial({ color: 0x0a0a0d, roughness: 0.9, polygonOffset: true, polygonOffsetFactor: -2 });
+    bay.add(new THREE.Mesh(this.topRibbon(0, W * 0.8, z0, z1, 0.014, false, 14), floorMat));
+
+    // Engine: block, two cam covers, chrome plenum, strut brace.
+    const mid = (z0 + z1) / 2;
+    const len = (z1 - z0) * 0.62;
+    const baseY = this.topYAt(0, mid) + 0.012;
+    const block = new THREE.Mesh(rbox(W * 0.42, 0.12, len, 0.03), this.trimMat);
+    block.position.set(0, baseY + 0.06, mid);
+    const red = new THREE.MeshStandardMaterial({ color: 0xc8102e, metalness: 0.5, roughness: 0.35 });
+    for (const sx of [-1, 1]) {
+      const cover = new THREE.Mesh(rbox(W * 0.11, 0.06, len * 0.9, 0.025), red);
+      cover.position.set(sx * W * 0.12, baseY + 0.15, mid);
+      bay.add(cover);
+    }
+    const plenum = new THREE.Mesh(rbox(W * 0.16, 0.07, len * 0.7, 0.03), this.chromeMat);
+    plenum.position.set(0, baseY + 0.16, mid);
+    const brace = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, W * 0.78, 10), this.chromeMat);
+    brace.rotation.z = Math.PI / 2;
+    brace.position.set(0, baseY + 0.2, z0 + 0.08);
+    bay.add(block, plenum, brace);
+
+    // Turbo snail (Turbo stages) and cone filter (Intake stages).
+    const turbo = new THREE.Group();
+    const snail = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.035, 10, 20), this.chromeMat);
+    snail.rotation.y = Math.PI / 2;
+    const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.22, 10), this.chromeMat);
+    pipe.rotation.x = Math.PI / 2;
+    pipe.position.z = 0.12;
+    turbo.add(snail, pipe);
+    turbo.position.set(W * 0.3, baseY + 0.1, mid + len * 0.15);
+    const filter = new THREE.Mesh(new THREE.ConeGeometry(0.07, 0.16, 16), red);
+    filter.rotation.z = Math.PI / 2;
+    filter.position.set(-W * 0.3, baseY + 0.12, mid + len * 0.25);
+    bay.add(turbo, filter);
+
+    // The bonnet itself: geometry around the hinge so it can rotate.
+    const geo = this.topRibbon(0, W * 0.84, z0, z1, 0.022, false, 14);
+    geo.translate(0, -hingeY, -z0);
+    const hood = new THREE.Mesh(geo, this.paintMat);
+    // The underside is what you see with the bonnet up.
+    const under = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color: 0x1a1a1f, roughness: 0.8, side: THREE.BackSide }));
+    const hinge = new THREE.Group();
+    hinge.position.set(0, hingeY, z0);
+    hinge.add(hood, under);
+    hinge.visible = false;
+    this.body.add(hinge);
+
+    this.bayParts = { bay, hinge, turbo, filter };
+  }
+
+  /** Open (1) or close (0) the bonnet for the garage engine view. */
+  setHoodOpen(t, tuning = {}) {
+    if (t <= 0.001 && !this.bayParts) return;
+    if (!this.bayParts) this.buildBay();
+    const { bay, hinge, turbo, filter } = this.bayParts;
+    const open = t > 0.001;
+    bay.visible = open;
+    hinge.visible = open;
+    hinge.rotation.x = -1.05 * t;
+    turbo.visible = (tuning.turbo || 0) > 0;
+    filter.visible = (tuning.intake || 0) > 0;
+    // Bonnet decorations would float over the open bay.
+    for (const g of this.stripeGroups.values()) {
+      if (!g) continue; // the 'none' stripe has no group
+      if (open) g.userData.wasVisible ??= g.visible;
+      g.visible = open ? false : (g.userData.wasVisible ?? g.visible);
+      if (!open) delete g.userData.wasVisible;
+    }
+    if (this.tuneParts) {
+      if (open) this.tuneParts.bonnetWas ??= this.tuneParts.bonnet.visible;
+      this.tuneParts.bonnet.visible = open ? false : (this.tuneParts.bonnetWas ?? this.tuneParts.bonnet.visible);
+      if (open) this.tuneParts.scoopWas ??= this.tuneParts.scoop.visible;
+      this.tuneParts.scoop.visible = open ? false : (this.tuneParts.scoopWas ?? this.tuneParts.scoop.visible);
+      if (!open) { delete this.tuneParts.bonnetWas; delete this.tuneParts.scoopWas; }
+    }
   }
 
   /** Bonnet scoop and carbon bonnet shown by tuning (see setTuning). */

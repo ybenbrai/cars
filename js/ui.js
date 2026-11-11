@@ -494,6 +494,7 @@ export class UI {
   }
 
   setTab(name) {
+    if (name !== 'custom') this.cb.onTuneFocus?.(null);
     this.tab = name;
     document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
     document.querySelectorAll('.tab-pane').forEach((pane) => {
@@ -761,7 +762,7 @@ export class UI {
       const gain = maxed ? 0
         : performanceRating(car, { ...levels, [part.id]: level + 1 }) - performanceRating(car, levels);
       const next = maxed ? '' : `<em class="upgrade-next">NEXT: ${esc(part.levels[level + 1])} · +${gain} PR</em>`;
-      return `<div class="upgrade-row">
+      return `<div class="upgrade-row" data-part="${part.id}" tabindex="0">
         <div class="upgrade-info">
           <strong>${part.name}</strong>
           <span>${esc(part.levels[level])} · ${esc(part.blurb)}</span>
@@ -782,6 +783,20 @@ export class UI {
   }
 
   bindPerformance() {
+    // Point at (or tap) a part: the garage camera goes to it.
+    const group = $('perfGroup');
+    group?.querySelectorAll('[data-part]').forEach((row) => {
+      const focus = () => this.cb.onTuneFocus?.(row.dataset.part);
+      row.addEventListener('pointerenter', focus);
+      row.addEventListener('click', focus);
+      row.addEventListener('focus', focus);
+    });
+    if (group && !group.dataset.leaveBound) {
+      group.dataset.leaveBound = '1';
+      group.addEventListener('pointerleave', (e) => {
+        if (e.pointerType === 'mouse') this.cb.onTuneFocus?.(null);
+      });
+    }
     this.customRoot.querySelectorAll('[data-upgrade]').forEach((el) => {
       el.addEventListener('click', () => this.cb.onBuyUpgrade?.(this.stageCarId, el.dataset.upgrade));
       // Preview: show the stat bars with the next stage while pointing at it.

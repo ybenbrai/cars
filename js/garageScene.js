@@ -93,6 +93,17 @@ export class GarageScene {
     this.buildStage();
     this.buildLights();
     this.buildMotes();
+    this.buildWorkshop();
+    // Tuning camera: null = turntable, otherwise a part id (see focusPart).
+    this.focus = null;
+    this.camPos = new THREE.Vector3();
+    this.camLook = new THREE.Vector3(0, 0.72, 0);
+    this.homePos = new THREE.Vector3();
+    this.homeLook = new THREE.Vector3(0, 0.72, 0);
+    this.lift = 0;
+    this.hood = 0;
+    this.tuning = {};
+    this.spinWheels = 0;
     this.bindDrag();
     this.resize();
   }
@@ -194,6 +205,153 @@ export class GarageScene {
     this.scene.add(this.motes);
   }
 
+  /** Workshop props for the tuning views: a two-post lift and sparks. */
+  buildWorkshop() {
+    const yellow = new THREE.MeshStandardMaterial({ color: 0xffc400, metalness: 0.4, roughness: 0.45 });
+    const steel = new THREE.MeshStandardMaterial({ color: 0x3a3f48, metalness: 0.8, roughness: 0.35 });
+    this.liftRig = new THREE.Group();
+    this.liftRig.visible = false;
+    this.liftArms = new THREE.Group();
+    for (const sx of [-1, 1]) {
+      const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 2.4, 0.22), yellow);
+      post.position.set(sx * 1.55, 1.2, -0.25);
+      post.castShadow = true;
+      this.liftRig.add(post);
+      for (const sz of [-1, 1]) {
+        const arm = new THREE.Mesh(new THREE.BoxGeometry(1.25, 0.06, 0.12), steel);
+        arm.position.set(sx * 0.95, 0, sz * 0.75);
+        arm.rotation.y = sx * sz * 0.35;
+        this.liftArms.add(arm);
+      }
+    }
+    this.liftRig.add(this.liftArms);
+    this.scene.add(this.liftRig);
+
+    // Spark burst played when a part is installed.
+    const count = 90;
+    this.sparkVel = new Float32Array(count * 3);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(count * 3), 3));
+    this.sparks = new THREE.Points(geo, new THREE.PointsMaterial({
+      color: 0xffc46b, size: 0.06, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    this.sparks.frustumCulled = false;
+    this.scene.add(this.sparks);
+    this.sparkT = 2;
+    this.flash = new THREE.PointLight(0xffd29a, 0, 6, 2);
+    this.scene.add(this.flash);
+    this.nitroGlow = new THREE.PointLight(0x31e0ff, 0, 5, 2);
+    this.scene.add(this.nitroGlow);
+  }
+
+  /**
+   * Where the camera goes for each part, in the car's own coordinates
+   * (+z is the nose, +x the driver's left).
+   */
+  focusShot(part) {
+    const b = this.model.bodyDef;
+    const L = b.length;
+    const W = b.width;
+    const top = this.model.bodyTop;
+    const r = b.wheelRadius;
+    switch (part) {
+      case 'engine':
+      case 'turbo':
+        return { pos: [W * 0.95, top + 1.35, L / 2 + 1.4], look: [0, top, L * 0.22] };
+      case 'intake':
+        return { pos: [W * 0.85, 0.75, -L / 2 - 1.9], look: [0, 0.4, -L / 2] };
+      case 'nitro':
+        return { pos: [-W * 1.3, 1.5, -L / 2 - 2.4], look: [0, 0.6, -L / 2 + 0.4] };
+      case 'tyres':
+      case 'brakes':
+        return { pos: [W / 2 + 1.35, r + 0.25, b.wheelbase + 0.9], look: [W / 2 - 0.05, r, b.wheelbase] };
+      case 'suspension':
+        return { pos: [W / 2 + 2.4, 1.1, L / 2 + 2.6], look: [0, 0.75, 0] };
+      case 'gearbox':
+        return { pos: [W / 2 + 2.6, 0.45, -0.4], look: [0, 0.45, 0] };
+      default:
+        return { pos: [W / 2 + 3.4, 1.4, 1.4], look: [0, 0.7, 0] };
+    }
+  }
+
+  /** Point the tuning camera at a part (null returns to the turntable). */
+  focusPart(part, tuning = {}) {
+    if (!this.model) return;
+    this.tuning = tuning || {};
+    if (part === this.focus) return;
+    this.focus = part;
+    if (part) this.velocity = 0;
+  }
+
+  /** Sparks and a flash at a part right after buying it. */
+  installFx(part) {
+    if (!this.model) return;
+    const shot = this.focusShot(part || this.focus || 'weight');
+    const at = this.model.root.localToWorld(new THREE.Vector3(...shot.look));
+    const pos = this.sparks.geometry.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      pos.setXYZ(i, at.x, at.y, at.z);
+      const a = Math.random() * Math.PI * 2;
+      const out = 1 + Math.random() * 2.5;
+      this.sparkVel.set([Math.cos(a) * out, 1.5 + Math.random() * 3, Math.sin(a) * out], i * 3);
+    }
+    pos.needsUpdate = true;
+    this.sparkT = 0;
+    this.flash.position.copy(at);
+    this.flash.position.y += 0.4;
+    this.flash.intensity = 30;
+  }
+
+  updateWorkshop(dt) {
+    const m = this.model;
+    if (!m) return;
+    const f = this.focus;
+    const ease = 1 - Math.exp(-5 * dt);
+    // Bonnet opens for engine work; the car rises on the lift for suspension.
+    this.hood += ((f === 'engine' || f === 'turbo' ? 1 : 0) - this.hood) * ease;
+    this.lift += ((f === 'suspension' ? 1 : 0) - this.lift) * ease;
+    m.setHoodOpen(this.hood > 0.01 ? this.hood : 0, this.tuning);
+    m.root.position.y = this.lift * 0.55;
+    this.liftRig.visible = this.lift > 0.01;
+    this.liftRig.rotation.y = this.turntable.rotation.y;
+    this.liftArms.position.y = this.lift * 0.55 + 0.02;
+    // Tyres spin on the wheel view; nitro glows blue at the back.
+    if (f === 'tyres' || f === 'brakes') {
+      this.spinWheels += dt * 7;
+      m.setSpin(this.spinWheels);
+    }
+    const glow = f === 'nitro' ? 14 + Math.sin(this.elapsed * 6) * 6 : 0;
+    this.nitroGlow.intensity += (glow - this.nitroGlow.intensity) * ease;
+    if (glow) this.nitroGlow.position.copy(m.root.localToWorld(new THREE.Vector3(0, 0.45, -m.bodyDef.length / 2 - 0.4)));
+
+    // Camera: the part's shot, or home.
+    let pos = this.homePos;
+    let look = this.homeLook;
+    if (f) {
+      const shot = this.focusShot(f);
+      pos = m.root.localToWorld(new THREE.Vector3(...shot.pos));
+      look = m.root.localToWorld(new THREE.Vector3(...shot.look));
+    }
+    const k = 1 - Math.exp(-3.2 * dt);
+    this.camPos.lerp(pos, k);
+    this.camLook.lerp(look, k);
+    this.camera.position.copy(this.camPos);
+    this.camera.lookAt(this.camLook);
+
+    // Sparks fall and fade; the flash dies away.
+    if (this.sparkT < 1.2) {
+      this.sparkT += dt;
+      const p = this.sparks.geometry.attributes.position;
+      for (let i = 0; i < p.count; i++) {
+        this.sparkVel[i * 3 + 1] -= 9.8 * dt;
+        p.setXYZ(i, p.getX(i) + this.sparkVel[i * 3] * dt, p.getY(i) + this.sparkVel[i * 3 + 1] * dt, p.getZ(i) + this.sparkVel[i * 3 + 2] * dt);
+      }
+      p.needsUpdate = true;
+      this.sparks.material.opacity = Math.max(0, 1 - this.sparkT / 1.2);
+    }
+    this.flash.intensity *= Math.exp(-6 * dt);
+  }
+
   bindDrag() {
     const el = this.renderer.domElement;
     el.addEventListener('pointerdown', (e) => {
@@ -229,6 +387,8 @@ export class GarageScene {
     }
     this.model = model;
     this.turntable.add(model.root);
+    this.hood = 0;
+    this.lift = 0;
     this.rotation = -0.52;
     this.velocity = 0;
   }
@@ -242,8 +402,13 @@ export class GarageScene {
     this.camera.aspect = aspect;
     const zoom = Math.max(1, 1.32 / aspect);
     this.distance = 8.5 * zoom;
-    this.camera.position.set(this.distance * 0.54, this.distance * 0.27 + 0.35, this.distance * 0.79);
-    this.camera.lookAt(0, 0.72, 0);
+    this.homePos.set(this.distance * 0.54, this.distance * 0.27 + 0.35, this.distance * 0.79);
+    if (!this.focus) {
+      this.camPos.copy(this.homePos);
+      this.camLook.copy(this.homeLook);
+      this.camera.position.copy(this.homePos);
+      this.camera.lookAt(this.homeLook);
+    }
     this.camera.updateProjectionMatrix();
   }
 
@@ -252,8 +417,11 @@ export class GarageScene {
     const idle = this.dragging ? 0 : 1;
     this.velocity *= Math.exp(-2.4 * dt);
     this.rotation += this.velocity * dt;
-    if (!this.dragging) this.rotation += 0.1 * dt * idle;
+    // The turntable holds still while a part is in focus.
+    if (!this.dragging && !this.focus) this.rotation += 0.1 * dt * idle;
     this.turntable.rotation.y = this.rotation;
+    this.turntable.updateMatrixWorld(true);
+    this.updateWorkshop(dt);
 
     this.ringMat.opacity = 0.7 + Math.sin(this.elapsed * 2.2) * 0.2;
     this.ring2Mat.opacity = 0.28 + Math.sin(this.elapsed * 1.7 + 1.5) * 0.12;
