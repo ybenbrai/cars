@@ -815,6 +815,8 @@ export class CarModel {
     this.buildSignals();
 
     this.exhausts = [];
+    // Tips stay separate meshes so exhaust upgrades can enlarge them.
+    this.exhaustTips = [];
     const exhaustY = this.bottomYAt(-L / 2) + 0.075;
     for (const sx of [-1, 1]) {
       this.add(new THREE.Mesh(rbox(0.19, 0.13, 0.05, 0.02), this.trimMat))
@@ -822,9 +824,12 @@ export class CarModel {
       const pipe = this.add(new THREE.Mesh(new THREE.CylinderGeometry(0.062, 0.062, 0.2, 14), this.chromeMat));
       pipe.rotation.x = Math.PI / 2;
       pipe.position.set(sx * W * 0.3, exhaustY, -L / 2 - 0.09);
+      pipe.userData.noMerge = true;
       const bore = this.add(new THREE.Mesh(new THREE.CircleGeometry(0.046, 14), this.archMat));
       bore.rotation.y = Math.PI;
       bore.position.set(sx * W * 0.3, exhaustY, -L / 2 - 0.192);
+      bore.userData.noMerge = true;
+      this.exhaustTips.push(pipe, bore);
       this.exhausts.push(new THREE.Vector3(sx * W * 0.3, exhaustY, -L / 2 - 0.2));
     }
 
@@ -2097,12 +2102,27 @@ export class CarModel {
     this.tailMat.emissiveIntensity = on ? 4.5 : 1.4;
   }
 
+  /**
+   * Show tuning on the car: suspension stages lower the body (up to 4 cm,
+   * still clear of the tyres) and intake/exhaust stages fit bigger tips.
+   */
+  setTuning(levels) {
+    const suspension = levels?.suspension || 0;
+    const intake = levels?.intake || 0;
+    this.lowered = 0.008 * suspension;
+    const tip = 1 + 0.08 * intake;
+    for (const mesh of this.exhaustTips || []) mesh.scale.set(tip, mesh.geometry.type === 'CircleGeometry' ? tip : 1, tip);
+    this.setBodyTilt(this.body.rotation.z, this.body.rotation.x);
+  }
+
   setBodyTilt(roll, pitch) {
     const b = this.bodyDef;
+    const lowered = this.lowered || 0;
     // How far the arch lip above each wheel moves down: roll across the
-    // track plus pitch along the wheelbase. Keep it inside the arch gap.
+    // track plus pitch along the wheelbase. Keep it inside the arch gap,
+    // which a lowered car has less of.
     const drop = Math.abs(roll) * b.width * 0.5 + Math.abs(pitch) * b.wheelbase;
-    const limit = ARCH_GAP - 0.012;
+    const limit = Math.max(0.01, ARCH_GAP - 0.012 - lowered);
     if (drop > limit) {
       const k = limit / drop;
       roll *= k;
@@ -2113,6 +2133,6 @@ export class CarModel {
     // Lean around the axle line, not the ground, so the arches stay centred
     // over the wheels instead of sliding sideways off them.
     _tiltPivot.set(0, b.wheelRadius, 0).applyEuler(this.body.rotation);
-    this.body.position.set(-_tiltPivot.x, b.wheelRadius - _tiltPivot.y, -_tiltPivot.z);
+    this.body.position.set(-_tiltPivot.x, b.wheelRadius - _tiltPivot.y - lowered, -_tiltPivot.z);
   }
 }

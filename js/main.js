@@ -275,12 +275,15 @@ function showStageCar(carId, look) {
   if (!garage) return;
   const car = getCar(carId);
   const nextLook = look || normalizeLook(car, {});
+  const tuning = store?.owns(car.id) ? store.upgradesFor(car.id) : null;
   if (garageCar && garageCar.def.id === car.id) {
     garageCar.applyLook(nextLook);
+    garageCar.setTuning(tuning);
     return;
   }
   disposeGarageCar();
   garageCar = new CarModel(car, nextLook);
+  garageCar.setTuning(tuning);
   garage.setCar(garageCar);
 }
 
@@ -398,6 +401,7 @@ function buyUpgrade(carId, partId) {
   }
   audio.uiClick?.();
   ui.refreshPerformance();
+  if (garageCar?.def.id === carId) garageCar.setTuning(store.upgradesFor(carId));
   ui.notice(`${result.part.name} · ${result.part.levels[result.level]} INSTALLED`, 'ok');
   announceAchievements();
 }

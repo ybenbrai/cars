@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tuning shows on the car: suspension stages lower the body (up to 4 cm)
+  and intake & exhaust stages fit bigger exhaust tips, in the garage and
+  on track.
 - Deeper tuning: nine parts (engine, turbo, intake & exhaust, gearbox,
   weight reduction, suspension, tyres, brakes, nitro) with five named
   stages each, and a performance rating (PR) on car cards and the tuning

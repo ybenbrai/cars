@@ -51,6 +51,7 @@ export class Car {
     this.nitroBurn = 26 * m.nitroBurn;
     this.brakeUpgrade = m.brake;
     this.model = new CarModel(def, look);
+    if (upgrades) this.model.setTuning(upgrades);
     this.group = this.model.root;
     scene.add(this.group);
 
