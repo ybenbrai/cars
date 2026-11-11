@@ -1925,6 +1925,14 @@ export class CarModel {
     for (const group of this.spoilerGroups.values()) mergeGroup(group);
     for (const group of this.stripeGroups.values()) mergeGroup(group);
     mergeGroup(this.detailGroup);
+    // Wheels were ~25 tiny meshes each (spokes, nuts, tread, caliper): merge
+    // every wheel's spinning parts, its steering-only parts and each rim
+    // style (styles stay separate groups so the garage can still swap them).
+    for (const wheel of this.wheels) {
+      mergeGroup(wheel.spin);
+      mergeGroup(wheel.pivot);
+    }
+    for (const groups of this.rimStyleGroups.values()) for (const group of groups) mergeGroup(group);
   }
 
   dispose() {

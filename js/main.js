@@ -21,6 +21,7 @@ import { OnlineClient, RemoteTrack, FLAG_BOOST, FLAG_DRIFT, FLAG_BRAKE } from '.
 import { AI_NAMES, createAiDriver } from './ai.js';
 import { upgradeValue } from './data/upgrades.js';
 import { Cockpit } from './cockpit.js';
+import { QualityManager } from './quality.js';
 import {
   GhostRecorder, GhostCar, loadGhost, saveGhostIfFaster,
 } from './ghost.js';
@@ -66,6 +67,8 @@ composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 0.58, 0.55, 0.82);
 composer.addPass(bloom);
 composer.addPass(new OutputPass());
+// Graphics quality (AUTO steps down on slow devices; see quality.js).
+const quality = new QualityManager({ renderer, composer, bloom, scene, dpr });
 
 const effects = new Effects(scene);
 const input = new Input();
@@ -140,6 +143,7 @@ const cloud = new CloudSync({
 
 function attachStore(next) {
   store = next;
+  quality.setMode(store.data.settings.quality || 'auto');
   store.onChange = () => {
     cloud.schedule();
     syncOnlineCar();
@@ -1454,6 +1458,7 @@ function frame(now) {
   race.track.update(dt, race.nextGate ?? 1);
   updateCamera(dt);
   composer.render();
+  if (state === 'racing') quality.sample(dt);
 }
 
 requestAnimationFrame(frame);
@@ -1835,6 +1840,8 @@ window.__sunsetDrift = {
   get race() { return race; },
   get store() { return store; },
   get auth() { return auth; },
+  get renderer() { return renderer; },
+  get quality() { return quality; },
   get audio() { return audio; },
   build: BUILD,
   get lap() { return race ? clamp(race.player.crossings || 1, 1, race.laps) : 1; },
