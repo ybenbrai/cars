@@ -11,6 +11,7 @@ import {
 import { fmtTime } from './hud.js';
 import { seriesStandings } from './championship.js';
 import { dailyChallenge, DAILY_TIERS } from './daily.js';
+import { TIMES, WEATHERS } from './conditions.js';
 import {
   UPGRADE_PARTS, MAX_UPGRADE_LEVEL, upgradeCost, upgradedStats,
 } from './data/upgrades.js';
@@ -114,6 +115,8 @@ export class UI {
       circuitId: CIRCUITS[0].id,
       difficulty: 'normal',
       opponents: 3,
+      time: 'day',
+      weather: 'clear',
     };
     this.buildNotice();
     this.whatsNewShown = false;
@@ -261,6 +264,18 @@ export class UI {
       const card = e.target.closest('[data-circuit]');
       if (!card || card.classList.contains('locked')) return;
       this.raceConfig.circuitId = card.dataset.circuit;
+      this.renderRaceSetup();
+    });
+    $('timeList').addEventListener('click', (e) => {
+      const button = e.target.closest('[data-time]');
+      if (!button) return;
+      this.raceConfig.time = button.dataset.time;
+      this.renderRaceSetup();
+    });
+    $('weatherList').addEventListener('click', (e) => {
+      const button = e.target.closest('[data-weather]');
+      if (!button) return;
+      this.raceConfig.weather = button.dataset.weather;
       this.renderRaceSetup();
     });
     $('difficultyList').addEventListener('click', (e) => {
@@ -770,6 +785,11 @@ export class UI {
     $('difficultyList').innerHTML = DIFFICULTIES.map((diff) => `
       <button class="seg ${diff.id === this.raceConfig.difficulty ? 'active' : ''}" data-difficulty="${diff.id}">${diff.label}</button>
     `).join('');
+
+    $('timeList').innerHTML = TIMES.map((t) => `
+      <button class="seg ${t.id === this.raceConfig.time ? 'active' : ''}" data-time="${t.id}">${t.label}</button>`).join('');
+    $('weatherList').innerHTML = WEATHERS.map((w) => `
+      <button class="seg ${w.id === this.raceConfig.weather ? 'active' : ''}" data-weather="${w.id}">${w.label}</button>`).join('');
 
     const aiMode = mode.id === 'quick' || mode.id === 'career';
     const range = $('opponentRange');

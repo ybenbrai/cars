@@ -364,10 +364,10 @@ export function createEnvironment(scene, renderer, palette) {
   const sky = skyMesh(palette);
   scene.add(sky);
 
-  const hemi = new THREE.HemisphereLight(palette.hemiSky, palette.hemiGround, 0.65);
+  const hemi = new THREE.HemisphereLight(palette.hemiSky, palette.hemiGround, palette.hemiIntensity ?? 0.65);
   scene.add(hemi);
 
-  const sun = new THREE.DirectionalLight(palette.sunLight, 2.6);
+  const sun = new THREE.DirectionalLight(palette.sunLight, palette.sunIntensity ?? 2.6);
   sun.position.copy(SUN_DIR).multiplyScalar(140);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);

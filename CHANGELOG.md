@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Time of day and weather in race setup: NIGHT darkens any circuit (your
+  headlights light the road) and RAIN adds falling rain, grey skies,
+  shorter fog, darker wet tarmac and 16 % less grip and braking for every
+  car on the grid.
+- Cockpit: live speed and rev needles, digital readouts with speed and gear,
+  and a working rear-view mirror.
 - Daily challenge (Career tab): one circuit, one loan car and bronze /
   silver / gold best-lap targets per calendar day, the same for every
   player. Each tier pays once per day (800 / 1,800 / 3,500 CR). Targets are

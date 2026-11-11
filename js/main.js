@@ -24,6 +24,8 @@ import { Cockpit } from './cockpit.js';
 import { QualityManager } from './quality.js';
 import { TurnSignals } from './signals.js';
 import { dailyChallenge, tierFor } from './daily.js';
+import { normalizeConditions, conditionsKey, paletteFor, RAIN_GRIP } from './conditions.js';
+import { Rain } from './rain.js';
 import {
   GhostRecorder, GhostCar, loadGhost, saveGhostIfFaster,
 } from './ghost.js';
@@ -356,13 +358,16 @@ function disposeWorld() {
   world = null;
 }
 
-function ensureWorld(circuit) {
-  if (world?.circuit.id === circuit.id) return world;
+function ensureWorld(circuit, conditions = normalizeConditions()) {
+  const key = `${circuit.id}|${conditionsKey(conditions)}`;
+  if (world?.key === key) return world;
   disposeWorld();
-  const env = createEnvironment(scene, renderer, circuit.palette);
-  const track = createTrack(scene, circuit);
-  const scenery = populateScenery(scene, track, circuit);
-  world = { circuit, env, track, scenery };
+  // Night and rain re-tint the circuit's own palette (see conditions.js).
+  const lit = { ...circuit, palette: paletteFor(circuit.palette, conditions) };
+  const env = createEnvironment(scene, renderer, lit.palette);
+  const track = createTrack(scene, lit);
+  const scenery = populateScenery(scene, track, lit);
+  world = { circuit, key, env, track, scenery };
   return world;
 }
 
@@ -386,9 +391,12 @@ function resolveRaceConfig(config = {}) {
   const solo = mode.id === 'time-trial' || mode.id === 'practice';
   const opponents = solo ? 0 : clamp(Math.round(config.opponents ?? event?.opponents ?? 3), 1, 7);
   const laps = solo ? (mode.id === 'practice' ? Infinity : 3) : (config.laps || event?.laps || circuit.laps || 3);
+  // Career and daily events run in their own (default) conditions.
+  const conditions = normalizeConditions(event || config.dailyChallenge ? {} : config);
   return {
     mode: mode.id,
     modeLabel: mode.label,
+    conditions,
     circuit,
     laps,
     difficulty,
@@ -561,7 +569,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   audio.setProfile(playerEntrant.def.category);
 
   disposeRace();
-  const raceWorld = ensureWorld(setup.circuit);
+  const raceWorld = ensureWorld(setup.circuit, setup.conditions);
   const track = raceWorld.track;
   hud.setTrack(track);
   // The track is reused between races: every bottle starts available.
@@ -596,6 +604,12 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
       lastLapStart: 0,
       position: totalRacers,
     };
+    if (setup.conditions?.weather === 'rain') {
+      // Wet tarmac: every car on the grid loses the same grip and braking.
+      car.grip *= RAIN_GRIP;
+      car.brakeDecel *= RAIN_GRIP;
+      car.launch *= RAIN_GRIP;
+    }
     if (entrant.isPlayer) {
       car.enableHeadlights();
       car.driftAssist = true;
@@ -659,6 +673,8 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     ghostCar: null,
     signals: new TurnSignals(),
     daily: setup.daily || null,
+    conditions: setup.conditions || normalizeConditions(),
+    rain: setup.conditions?.weather === 'rain' ? new Rain(scene) : null,
   };
 
   // Time Trial races your own best lap on this circuit as a see-through car.
@@ -729,6 +745,7 @@ function disposeRace() {
   }
   effects.setCar(null);
   race.ghostCar?.dispose();
+  race.rain?.dispose();
   for (const racer of race.racers) racer.car.dispose();
   race = null;
   input.releaseAll();
@@ -1498,6 +1515,7 @@ function frame(now) {
   }
 
   effects.update(dt);
+  race.rain?.update(dt, camera);
   race.track.update(dt, race.nextGate ?? 1);
   updateCamera(dt);
   composer.render();
