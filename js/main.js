@@ -382,7 +382,7 @@ function sellCar(carId) {
   ui.notice(`SOLD ${result.car.name} · +${formatCredits(result.value)} CR`, 'ok');
 }
 
-function changeSetting(key, value) {
+function changeSetting(key, value, { live = false } = {}) {
   if (!store) return;
   if (key === 'quality') {
     store.data.settings.quality = value;
@@ -390,6 +390,10 @@ function changeSetting(key, value) {
   } else if (key === 'volume' || key === 'musicVolume') {
     store.data.settings[key] = Number(value) / 100;
     audio.setVolumes(store.data.settings.volume ?? 1, store.data.settings.musicVolume ?? 1);
+    if (live) {
+      store.save();
+      return;
+    }
   } else if (key === 'units') {
     store.data.settings.units = value;
     hud.setUnits(value === 'mph');
@@ -459,6 +463,7 @@ function ensureWorld(circuit, conditions = normalizeConditions()) {
   const track = createTrack(scene, lit);
   const scenery = populateScenery(scene, track, lit);
   world = { circuit, key, env, track, scenery };
+  quality.applyWorld(env.sun);
   return world;
 }
 

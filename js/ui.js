@@ -15,6 +15,7 @@ import { TIMES, WEATHERS } from './conditions.js';
 import { ACHIEVEMENTS } from './achievements.js';
 import { DRIVE_ACTIONS, keyLabel, resolveBindings } from './input.js';
 import { LANGUAGES, currentLanguage } from './i18n.js';
+import { QUALITY_LEVELS } from './quality.js';
 import {
   UPGRADE_PARTS, MAX_UPGRADE_LEVEL, upgradeCost, upgradedStats, performanceRating,
 } from './data/upgrades.js';
@@ -352,6 +353,15 @@ export class UI {
       $(id).addEventListener('click', (event) => {
         const btn = event.target.closest('[data-setting]');
         if (btn) this.cb.onSetting?.(btn.dataset.setting, btn.dataset.value);
+      });
+      // Volume sliders apply live while dragging; no re-render mid-drag.
+      $(id).addEventListener('input', (event) => {
+        const range = event.target.closest('[data-range]');
+        if (!range) return;
+        range.style.setProperty('--fill', `${range.value}%`);
+        const label = range.parentElement.querySelector('.slider-val');
+        if (label) label.textContent = `${range.value}%`;
+        this.cb.onSetting?.(range.dataset.range, range.value, { live: true });
       });
     }
     $('btnSettings').addEventListener('click', () => this.openSettings());
@@ -1174,13 +1184,23 @@ export class UI {
           <button class="seg ${String(current) === value ? 'active' : ''}" data-setting="${key}" data-value="${value}">${text}</button>`).join('')}
         </div>
       </div>`;
+    const slider = (label, key, value) => {
+      const pct = Math.round(value * 100);
+      return `<div class="pause-setting">
+        <span>${label}<b class="slider-val">${pct}%</b></span>
+        <input class="range vol-range" type="range" min="0" max="100" step="5" value="${pct}"
+          data-range="${key}" aria-label="${label}" style="--fill:${pct}%" />
+      </div>`;
+    };
     $('pauseSettings').innerHTML = row('GRAPHICS', 'quality', settings.quality || 'auto', [
       ['auto', 'AUTO'], ['high', 'HIGH'], ['medium', 'MED'], ['low', 'LOW'],
     ]) + row('TURN SIGNALS', 'signals', settings.signals === false ? 'off' : 'on', [['on', 'ON'], ['off', 'OFF']])
+      + `<p class="custom-note quality-note">${(QUALITY_LEVELS.find((q) => q.id === (settings.quality === 'auto' || !settings.quality ? 'high' : settings.quality)) || {}).note || ''}${
+        !settings.quality || settings.quality === 'auto' ? ' AUTO picks the level for your device.' : ''}</p>`
       + row('LANGUAGE', 'lang', currentLanguage(), LANGUAGES.map((l) => [l.id, l.label]))
       + row('CAMERA SHAKE', 'shake', settings.shake === false ? 'off' : 'on', [['on', 'ON'], ['off', 'OFF']])
-      + row('SOUND', 'volume', String(Math.round((settings.volume ?? 1) * 100)), [['0', 'OFF'], ['35', 'LOW'], ['70', 'MED'], ['100', 'MAX']])
-      + row('MUSIC', 'musicVolume', String(Math.round((settings.musicVolume ?? 1) * 100)), [['0', 'OFF'], ['35', 'LOW'], ['70', 'MED'], ['100', 'MAX']])
+      + slider('SOUND', 'volume', settings.volume ?? 1)
+      + slider('MUSIC', 'musicVolume', settings.musicVolume ?? 1)
       + row('SPEED UNITS', 'units', settings.units === 'mph' ? 'mph' : 'kmh', [['kmh', 'KM/H'], ['mph', 'MPH']])
       + row('FPS COUNTER', 'fps', settings.fps ? 'on' : 'off', [['on', 'ON'], ['off', 'OFF']]);
     $('settingsBody').innerHTML = $('pauseSettings').innerHTML;

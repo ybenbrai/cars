@@ -167,6 +167,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Rear turn signals were hidden inside the rear bumper; they now sit at the
+  outer edge of the tail lamps and glow orange.
+- Graphics levels now look clearly different: LOW renders at 80 %
+  resolution with no shadows or glow and a shorter view distance, MEDIUM
+  uses native resolution and softer shadows, HIGH full sharpness and
+  detailed shadows. Each level is described in the menu.
+- Sound and music volume are sliders instead of four steps.
 - Performance: each car was ~132 separate meshes (100 of them wheel parts);
   wheels are now merged, cutting an 8-car race from 757 to 560 draw calls
   per frame (427 on LOW).

@@ -4,9 +4,19 @@
 // picture does not flicker between levels.
 
 export const QUALITY_LEVELS = [
-  { id: 'low', label: 'LOW', pixelRatio: 1, composerRatio: 1, shadows: false, bloom: false },
-  { id: 'medium', label: 'MEDIUM', pixelRatio: 1.25, composerRatio: 1.25, shadows: true, bloom: true },
-  { id: 'high', label: 'HIGH', pixelRatio: 2, composerRatio: 1.75, shadows: true, bloom: true },
+  // Each level must look clearly different, not just run differently.
+  {
+    id: 'low', label: 'LOW', pixelRatio: 0.8, composerRatio: 0.8, shadows: false, bloom: false,
+    shadowMap: 512, drawDistance: 0.55, note: 'Fastest: 80% resolution, no shadows or glow, shorter view distance.',
+  },
+  {
+    id: 'medium', label: 'MEDIUM', pixelRatio: 1, composerRatio: 1, shadows: true, bloom: true,
+    shadowMap: 1024, drawDistance: 0.8, note: 'Balanced: native resolution, soft shadows and glow.',
+  },
+  {
+    id: 'high', label: 'HIGH', pixelRatio: 2, composerRatio: 1.75, shadows: true, bloom: true,
+    shadowMap: 2048, drawDistance: 1, note: 'Best looking: full sharpness on high-DPI screens, detailed shadows.',
+  },
 ];
 export const QUALITY_MODES = ['auto', 'high', 'medium', 'low'];
 
@@ -72,7 +82,31 @@ export class QualityManager {
         for (const m of mats) m.needsUpdate = true;
       });
     }
+    this.applyWorld();
     this.onChange?.(q);
+  }
+
+  /**
+   * Per-world settings (call after a circuit is built): shadow detail and
+   * draw distance through the fog.
+   */
+  applyWorld(sun = this.sun) {
+    if (sun) this.sun = sun;
+    const q = QUALITY_LEVELS[this.level];
+    if (!q) return;
+    const fog = this.scene.fog;
+    if (fog) {
+      // Fog has no userData: keep the circuit's own distances alongside it.
+      fog.baseFar ??= fog.far;
+      fog.baseNear ??= fog.near;
+      fog.far = fog.baseFar * q.drawDistance;
+      fog.near = fog.baseNear * q.drawDistance;
+    }
+    if (this.sun?.shadow && this.sun.shadow.mapSize.x !== q.shadowMap) {
+      this.sun.shadow.mapSize.set(q.shadowMap, q.shadowMap);
+      this.sun.shadow.map?.dispose();
+      this.sun.shadow.map = null;
+    }
   }
 
   /** Feed one racing frame's duration (seconds). */

@@ -2072,7 +2072,7 @@ export class CarModel {
     const b = this.bodyDef;
     const L = b.length;
     const make = () => new THREE.MeshStandardMaterial({
-      color: 0x5a3200, emissive: 0xffa21a, emissiveIntensity: 0.12, roughness: 0.3,
+      color: 0x5a3200, emissive: 0xff7a00, emissiveIntensity: 0.12, roughness: 0.3, toneMapped: false,
     });
     // Driver's left is +x.
     this.signalMats = { left: make(), right: make() };
@@ -2082,10 +2082,17 @@ export class CarModel {
         const st = stationAt(this.profileStations, z);
         const bottom = this.bottomYAt(z);
         const fh = Math.max(0.09, this.topYAt(0, z) - bottom);
-        const y = bottom + fh * (front ? 0.32 : 0.42);
-        const x = sx * Math.max(0.2, sectionHalfWidth(st, y) - 0.07);
-        const lamp = this.add(new THREE.Mesh(rbox(0.1, 0.04, 0.025, 0.01), this.signalMats[side]));
-        lamp.position.set(x, y, z + (front ? 0.02 : -0.02));
+        // Rear: just under the tail lamps, clear of the bumper; front: low
+        // on the nose beside the grille.
+        // Rear: the outer edge of the tail-lamp cluster (bumpers and
+        // diffusers cover anything lower); front: low beside the grille.
+        const top = this.topYAt(0, z);
+        const tailY = top - Math.min(0.12, fh * 0.32);
+        const y = front ? bottom + fh * 0.32 : tailY;
+        const x = sx * Math.max(0.2, sectionHalfWidth(st, y) - (front ? 0.1 : 0.075));
+        const h = front ? 0.045 : Math.min(0.07, Math.max(0.04, fh * 0.2));
+        const lamp = this.add(new THREE.Mesh(rbox(front ? 0.13 : 0.08, h, 0.03, 0.01), this.signalMats[side]));
+        lamp.position.set(x, y, z + (front ? 0.03 : -0.05));
         lamp.castShadow = false;
       }
     }
@@ -2094,7 +2101,7 @@ export class CarModel {
   /** Light one side's indicators (side: 'left' | 'right' | null). */
   setSignal(side, on) {
     for (const key of ['left', 'right']) {
-      this.signalMats[key].emissiveIntensity = on && key === side ? 5 : 0.12;
+      this.signalMats[key].emissiveIntensity = on && key === side ? 2.4 : 0.12;
     }
   }
 

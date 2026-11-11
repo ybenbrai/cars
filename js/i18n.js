@@ -390,6 +390,10 @@ const T = {
   'EXIT REPLAY': ['SALIR DE LA REPETICIÓN', 'QUITTER LE REPLAY', 'SAIR DO REPLAY', 'WIEDERHOLUNG BEENDEN'],
   '● REPLAY': ['● REPETICIÓN', '● REPLAY', '● REPLAY', '● WIEDERHOLUNG'],
   GARAGE: ['GARAJE', 'GARAGE', 'GARAGEM', 'GARAGE'],
+
+  'Fastest: 80% resolution, no shadows or glow, shorter view distance.': ['Lo más rápido: 80 % de resolución, sin sombras ni brillo, menos distancia de visión.', 'Le plus rapide : 80 % de résolution, sans ombres ni halo, distance de vue réduite.', 'Mais rápido: 80% de resolução, sem sombras nem brilho, menor distância de visão.', 'Am schnellsten: 80 % Auflösung, keine Schatten oder Glow, kürzere Sichtweite.'],
+  'Balanced: native resolution, soft shadows and glow.': ['Equilibrado: resolución nativa, sombras suaves y brillo.', 'Équilibré : résolution native, ombres douces et halo.', 'Equilibrado: resolução nativa, sombras suaves e brilho.', 'Ausgewogen: native Auflösung, weiche Schatten und Glow.'],
+  'Best looking: full sharpness on high-DPI screens, detailed shadows.': ['Máxima calidad: nitidez completa en pantallas de alta densidad y sombras detalladas.', 'Le plus beau : netteté maximale sur écrans haute densité, ombres détaillées.', 'Melhor visual: nitidez total em telas de alta densidade, sombras detalhadas.', 'Am schönsten: volle Schärfe auf hochauflösenden Displays, detaillierte Schatten.'],
 };
 
 const INDEX = { es: 0, fr: 1, pt: 2, de: 3 };
