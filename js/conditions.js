@@ -2,8 +2,6 @@
 // rain are derived from it so all circuits get both without hand-made
 // variants. Rain also lowers grip for every car on the grid.
 
-import * as THREE from 'three';
-
 export const TIMES = [
   { id: 'day', label: 'DAY' },
   { id: 'night', label: 'NIGHT' },
@@ -25,10 +23,19 @@ export function normalizeConditions(c = {}) {
 
 export const conditionsKey = (c) => `${c.time}/${c.weather}`;
 
+// Tiny colour helpers (no Three.js, so this module also runs in Node tests).
+// Colours may be '#rrggbb' strings or 0xrrggbb numbers.
+const toInt = (c) => (typeof c === 'number' ? c : parseInt(String(c).replace('#', ''), 16));
+class Mixed {
+  constructor(value) { this.value = value; }
+  getHex() { return this.value; }
+  getHexString() { return this.value.toString(16).padStart(6, '0'); }
+}
 const mix = (a, b, t) => {
-  const ca = new THREE.Color(a);
-  const cb = new THREE.Color(b);
-  return ca.lerp(cb, t);
+  const x = toInt(a);
+  const y = toInt(b);
+  const ch = (shift) => Math.round(((x >> shift) & 255) * (1 - t) + ((y >> shift) & 255) * t);
+  return new Mixed((ch(16) << 16) | (ch(8) << 8) | ch(0));
 };
 const hex = (c) => `#${c.getHexString()}`;
 
