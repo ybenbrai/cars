@@ -440,6 +440,7 @@ export class CarModel {
     this.buildStyleDetails();
     this.applyLook(look, true);
     this.mergeStaticParts();
+    this.collectDetail();
   }
 
   buildMaterials(look) {
@@ -1878,6 +1879,29 @@ export class CarModel {
    * the extra realism details from turning into hundreds of draw calls on a
    * phone; wheels, lights and toggleable groups stay separate.
    */
+  /**
+   * Small parts (lamps, trim, badges, handles, calipers...) that can be
+   * hidden when the car is far from the camera: invisible at that size but
+   * each still costs a draw call (and a shadow-pass draw).
+   */
+  collectDetail() {
+    this.detailMeshes = [];
+    this.detailShown = true;
+    this.root.traverse((obj) => {
+      if (!obj.isMesh || obj === this.shellMesh || !obj.visible) return;
+      obj.geometry.computeBoundingSphere?.();
+      const r = obj.geometry.boundingSphere?.radius ?? 1;
+      if (r < 0.32) this.detailMeshes.push(obj);
+    });
+  }
+
+  /** Show or hide the small parts (distance level of detail). */
+  setDetail(show) {
+    if (show === this.detailShown) return;
+    this.detailShown = show;
+    for (const mesh of this.detailMeshes) mesh.visible = show;
+  }
+
   mergeStaticParts() {
     const mergeGroup = (group) => {
       if (!group) return;

@@ -43,6 +43,8 @@ const FIXED = 1 / 120;
 // Release id stamped on module URLs by the build (`?v=…`); "dev" locally.
 const BUILD = new URL(import.meta.url).searchParams.get('v') || 'dev';
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+// Rivals farther than this from the camera hide their small parts.
+const LOD_DISTANCE_SQ = 50 * 50;
 const damp = (a, b, l, dt) => a + (b - a) * (1 - Math.exp(-l * dt));
 const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
@@ -1560,6 +1562,11 @@ function frame(now) {
     // Draw every locally simulated car between its last two physics steps.
     const alpha = race.physicsAcc / FIXED;
     for (const racer of race.racers) if (!racer.remote) racer.car.interpolate(alpha);
+    // Distant rivals drop their small parts (they are a few pixels wide).
+    for (const racer of race.racers) {
+      if (racer.isPlayer) continue;
+      racer.car.model.setDetail(racer.car.renderPos.distanceToSquared(camera.position) < LOD_DISTANCE_SQ);
+    }
     if (state !== 'racing') {
       // finishRace() flipped the state mid-step.
     } else {
