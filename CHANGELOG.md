@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Accessibility: CAMERA SHAKE off removes impact and nitro shake and
+  softens the speed-based field-of-view widening.
 - Key remapping (Profile → Controls): change the main key for accelerate,
   brake, steering, handbrake, nitro and look back; arrow keys and gamepads
   keep working. Reset restores the defaults.
@@ -238,7 +240,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 - Additional circuits and time-of-day variants
-- Accessibility options
 
 ## [1.0.0] — 2026-11-05
 

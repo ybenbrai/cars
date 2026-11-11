@@ -1092,6 +1092,7 @@ export class UI {
     $('pauseSettings').innerHTML = row('GRAPHICS', 'quality', settings.quality || 'auto', [
       ['auto', 'AUTO'], ['high', 'HIGH'], ['medium', 'MED'], ['low', 'LOW'],
     ]) + row('TURN SIGNALS', 'signals', settings.signals === false ? 'off' : 'on', [['on', 'ON'], ['off', 'OFF']])
+      + row('CAMERA SHAKE', 'shake', settings.shake === false ? 'off' : 'on', [['on', 'ON'], ['off', 'OFF']])
       + row('SOUND', 'volume', String(Math.round((settings.volume ?? 1) * 100)), [['0', 'OFF'], ['35', 'LOW'], ['70', 'MED'], ['100', 'MAX']])
       + row('MUSIC', 'musicVolume', String(Math.round((settings.musicVolume ?? 1) * 100)), [['0', 'OFF'], ['35', 'LOW'], ['70', 'MED'], ['100', 'MAX']]);
   }

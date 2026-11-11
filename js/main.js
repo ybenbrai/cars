@@ -367,6 +367,8 @@ function changeSetting(key, value) {
   } else if (key === 'volume' || key === 'musicVolume') {
     store.data.settings[key] = Number(value) / 100;
     audio.setVolumes(store.data.settings.volume ?? 1, store.data.settings.musicVolume ?? 1);
+  } else if (key === 'shake') {
+    store.data.settings.shake = value !== 'off';
   } else if (key === 'signals') {
     store.data.settings.signals = value !== 'off';
     if (value === 'off' && race) {
@@ -1339,6 +1341,8 @@ function updateCamera(dt) {
   }
 
   const speedN = clamp(car.speed / car.maxSpeed, 0, 1);
+  // Reduced motion also softens the speed-based field-of-view widening.
+  const fovKick = store?.data.settings.shake === false ? 0.3 : 1;
   const f = car.renderForward;
   // Hold B to swing the view around and look back down the road. The camera
   // keeps its normal chase spring, just on the other side of the car.
@@ -1352,7 +1356,7 @@ function updateCamera(dt) {
     camera.position.copy(tmpVec);
     camLook.copy(cpos).addScaledVector(dir, 30).setY(0.9);
     camera.lookAt(camLook);
-    camera.fov = damp(camera.fov, 72 + speedN * 12 + (car.boosting ? 5 : 0), 4, dt);
+    camera.fov = damp(camera.fov, 72 + (speedN * 12 + (car.boosting ? 5 : 0)) * fovKick, 4, dt);
     camera.updateProjectionMatrix();
   } else if (view === 'cockpit') {
     // Sit in the driver's seat: the interior is built once per race car the
@@ -1363,7 +1367,7 @@ function updateCamera(dt) {
     camLook.copy(tmpVec).addScaledVector(dir, 24);
     camLook.y = tmpVec.y - 2.4; // a few degrees down: road, wheel and hands
     camera.lookAt(camLook);
-    camera.fov = damp(camera.fov, 68 + speedN * 12 + (car.boosting ? 4 : 0), 4, dt);
+    camera.fov = damp(camera.fov, 68 + (speedN * 12 + (car.boosting ? 4 : 0)) * fovKick, 4, dt);
     camera.updateProjectionMatrix();
   } else {
     const near = view === 'near';
@@ -1383,7 +1387,7 @@ function updateCamera(dt) {
     tmpVec.y = near ? 0.05 : 1.2;
     camLook.lerp(tmpVec, 1 - Math.exp(-8 * dt));
     camera.lookAt(camLook);
-    camera.fov = damp(camera.fov, 61 + speedN * 13 + (car.boosting ? 5 : 0), 3.2, dt);
+    camera.fov = damp(camera.fov, 61 + (speedN * 13 + (car.boosting ? 5 : 0)) * fovKick, 3.2, dt);
     camera.updateProjectionMatrix();
   }
 
@@ -1401,6 +1405,8 @@ function updateCamera(dt) {
     if (quality.current.id !== 'low') car.model.cockpit.renderMirror(renderer, scene);
   }
 
+  // Accessibility: with camera shake off, impacts and nitro never shake it.
+  if (store?.data.settings.shake === false) race.shake = 0;
   if (race.shake > 0.002) {
     // Smooth, fast wobble rather than a new random offset every frame: a
     // per-frame random jump reads as the whole picture vibrating.
