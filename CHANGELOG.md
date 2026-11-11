@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Turn signals: commit to a turn and that side's indicators blink three
+  times with a relay tick (and green arrows on the cockpit cluster).
+- Pause-menu settings: graphics quality (AUTO / HIGH / MEDIUM / LOW) and
+  turn signals on/off, saved with your profile.
+- Adaptive graphics: AUTO steps down from HIGH to MEDIUM (lower resolution)
+  to LOW (no shadows or bloom) when a race can't hold ~42 fps; phones start
+  at MEDIUM.
 - Cockpit camera now sits in the driver's seat of a modelled interior:
   dashboard, gauges, console, door cards, a steering wheel that turns with
   your steering and gloved hands holding it. On every gear change the right
@@ -97,6 +104,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Performance: each car was ~132 separate meshes (100 of them wheel parts);
+  wheels are now merged, cutting an 8-car race from 757 to 560 draw calls
+  per frame (427 on LOW).
 - Car bodies looked wrinkled. Each body slice was re-spaced along its
   outline, so points slid between slices and twisted the surface; every
   slice now has a fixed point layout. The side profile uses a smooth monotone

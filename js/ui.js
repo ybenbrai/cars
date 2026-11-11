@@ -319,6 +319,11 @@ export class UI {
     $('btnRestart').addEventListener('click', () => this.cb.onRestart?.());
     $('btnQuit').addEventListener('click', () => this.cb.onQuit?.());
     $('btnEndSession').addEventListener('click', () => this.cb.onEndSession?.());
+    $('pauseSettings').addEventListener('click', (event) => {
+      const btn = event.target.closest('[data-setting]');
+      if (!btn) return;
+      this.cb.onSetting?.(btn.dataset.setting, btn.dataset.value);
+    });
     $('btnAgain').addEventListener('click', () => this.cb.onAgain?.());
     $('btnConfirmRental').addEventListener('click', () => {
       const config = this.pendingRental;
@@ -977,9 +982,25 @@ export class UI {
     $('garageBest').textContent = seconds ? fmtTime(seconds) : '--:--.--';
   }
 
+  /** Graphics quality and turn-signal toggles shown in the pause menu. */
+  renderSettings() {
+    const settings = this.store?.data.settings || {};
+    const row = (label, key, current, options) => `
+      <div class="pause-setting">
+        <span>${label}</span>
+        <div class="segmented">${options.map(([value, text]) => `
+          <button class="seg ${String(current) === value ? 'active' : ''}" data-setting="${key}" data-value="${value}">${text}</button>`).join('')}
+        </div>
+      </div>`;
+    $('pauseSettings').innerHTML = row('GRAPHICS', 'quality', settings.quality || 'auto', [
+      ['auto', 'AUTO'], ['high', 'HIGH'], ['medium', 'MED'], ['low', 'LOW'],
+    ]) + row('TURN SIGNALS', 'signals', settings.signals === false ? 'off' : 'on', [['on', 'ON'], ['off', 'OFF']]);
+  }
+
   setPauseMode(mode) {
     const isOnline = mode === 'online';
     $('btnEndSession').classList.toggle('hidden', mode !== 'practice');
+    this.renderSettings();
     $('btnRestart').classList.toggle('hidden', isOnline);
     $('btnRestart').textContent = mode === 'practice' ? 'RESTART SESSION' : 'RESTART RACE';
     $('btnQuit').textContent = isOnline ? 'FORFEIT · BACK TO GARAGE' : 'QUIT TO GARAGE';

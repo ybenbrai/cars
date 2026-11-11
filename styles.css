@@ -1725,3 +1725,12 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   body.touch-ui .hud-position { left: 156px; top: 8px; }
   body.touch-ui .hud-actions .icon-btn { width: 36px; height: 36px; }
 }
+
+/* Pause-menu settings */
+.pause-settings { display: grid; gap: 12px; margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+.pause-setting { display: grid; gap: 7px; }
+.pause-setting > span {
+  font-family: var(--font-display); font-size: 11.5px; letter-spacing: 0.16em; color: var(--muted);
+}
+.pause-setting .segmented { display: flex; gap: 6px; }
+.pause-setting .seg { flex: 1; }

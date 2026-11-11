@@ -96,6 +96,7 @@ const ui = new UI({
   onPreviewCar: previewCar,
   onBuyCar: buyCar,
   onBuyUpgrade: buyUpgrade,
+  onSetting: changeSetting,
   onLookChange: changeLook,
   onRace: (config) => safeStartRace(config),
   onEditDriver: () => {
@@ -305,6 +306,22 @@ function buyCar(carId) {
   ensureGarageCar();
   ui.renderGarage(store, auth);
   ui.notice(`PURCHASED ${result.car.name}`, 'ok');
+}
+
+function changeSetting(key, value) {
+  if (!store) return;
+  if (key === 'quality') {
+    store.data.settings.quality = value;
+    quality.setMode(value);
+  } else if (key === 'signals') {
+    store.data.settings.signals = value !== 'off';
+    if (value === 'off' && race) {
+      race.player.car.model.setSignal(null, false);
+      race.player.car.model.cockpit?.setSignal(null, false);
+    }
+  }
+  store.save();
+  ui.renderSettings();
 }
 
 function buyUpgrade(carId, partId) {
