@@ -76,7 +76,10 @@ const RETURN = 0.2;
 const SHIFT_TIME = REACH + THROW + RETURN;
 
 const ease = (t) => t * t * (3 - 2 * t);
+// Furthest a hand turns with the wheel before it lets the rim slide.
+const HAND_TURN = 1.15;
 const tmpA = new THREE.Vector3();
+const tmpC = new THREE.Vector3();
 const tmpB = new THREE.Vector3();
 const UP = new THREE.Vector3(0, 1, 0);
 
@@ -560,21 +563,27 @@ export class Cockpit {
     if (this.shiftT < 0 || this.shiftT > REACH + THROW) this.leverTilt *= Math.exp(-10 * dt);
     this.lever.rotation.x = this.leverTilt;
 
-    // Left hand always on the wheel; the right hand blends from its grip to
-    // the shift knob.
-    const left = this.gripWorld(this.gripLeft, tmpA).clone();
+    // Hand-over-hand: each hand turns with the wheel up to HAND_TURN, then
+    // the rim slides through it (like shuffling the wheel), so the arms
+    // never cross on full lock.
+    const handAngle = Math.max(-HAND_TURN, Math.min(HAND_TURN, this.steerAngle));
+    const slip = handAngle - this.steerAngle; // angle back from the rim point
+    const R = this.style.wheelR;
+    const leftLocal = tmpC.set(R * Math.cos(slip), R * Math.sin(slip), this.gripLeft.z);
+    const left = this.gripWorld(leftLocal, tmpA).clone();
     this.handLeft.position.copy(left);
     this.handLeft.quaternion.copy(this.column.quaternion);
-    this.handLeft.rotateZ(this.steerAngle);
+    this.handLeft.rotateZ(handAngle);
     this.placeArm(this.armLeft, this.shoulderLeft, left);
 
-    const grip = this.gripWorld(this.gripRight, new THREE.Vector3());
+    const rightLocal = tmpC.set(-R * Math.cos(slip), -R * Math.sin(slip), this.gripRight.z);
+    const grip = this.gripWorld(rightLocal, new THREE.Vector3());
     const knob = this.knobWorld(new THREE.Vector3());
     knob.y += 0.03;
     const right = grip.lerp(knob, reach);
     this.handRight.position.copy(right);
     this.handRight.quaternion.copy(this.column.quaternion);
-    this.handRight.rotateZ(this.steerAngle * (1 - reach));
+    this.handRight.rotateZ(handAngle * (1 - reach));
     this.handRight.rotateX(reach * 1.0);
     this.placeArm(this.armRight, this.shoulderRight, right);
   }
