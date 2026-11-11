@@ -1755,3 +1755,13 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
 .standings li em { font-style: normal; color: var(--muted); }
 .standings li.me { background: rgba(255, 122, 69, 0.14); }
 .standings li.me span, .standings li.me em { color: var(--ink); }
+
+/* Daily challenge */
+.daily-tiers { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.daily-tiers .tier {
+  padding: 3px 8px; border: 1px solid var(--line-strong); color: var(--muted);
+  font-family: var(--font-display); font-size: 11.5px; letter-spacing: 0.08em;
+}
+.daily-tiers .tier.bronze.won { color: #e0965a; border-color: currentColor; }
+.daily-tiers .tier.silver.won { color: #d6dde8; border-color: currentColor; }
+.daily-tiers .tier.gold.won { color: #ffd34d; border-color: currentColor; }

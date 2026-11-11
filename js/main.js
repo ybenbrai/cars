@@ -23,6 +23,7 @@ import { upgradeValue } from './data/upgrades.js';
 import { Cockpit } from './cockpit.js';
 import { QualityManager } from './quality.js';
 import { TurnSignals } from './signals.js';
+import { dailyChallenge, tierFor } from './daily.js';
 import {
   GhostRecorder, GhostCar, loadGhost, saveGhostIfFaster,
 } from './ghost.js';
@@ -377,7 +378,7 @@ function resolveRaceConfig(config = {}) {
   // `startRace`). Every other mode still requires the circuit to be unlocked
   // and cannot use a practice-only venue such as the test runway.
   const requested = getCircuit(circuitId);
-  if (mode.id !== 'practice' && (requested.practiceOnly || !store.circuitUnlocked(circuitId))) {
+  if (mode.id !== 'practice' && !config.dailyChallenge && (requested.practiceOnly || !store.circuitUnlocked(circuitId))) {
     circuitId = fallbackCircuit.id;
   }
   const circuit = getCircuit(circuitId);
@@ -457,7 +458,11 @@ function startRace(config = {}, { chargeRental = true } = {}) {
     return;
   }
   lockLandscape();
+  // Daily challenge: today's circuit (even if locked) in today's loan car.
+  const daily = config.daily === true ? dailyChallenge() : null;
+  if (daily) config = { ...config, mode: 'time-trial', circuitId: daily.circuitId, dailyChallenge: daily };
   const setup = resolveRaceConfig({ ...lastRaceConfig, ...config });
+  setup.daily = daily;
   lastRaceConfig = { ...config, ...(config.eventId ? { eventId: config.eventId } : {}) };
   if (!lastRaceConfig.mode) lastRaceConfig.mode = setup.mode;
   if (!config.circuitId) lastRaceConfig.circuitId = setup.circuit.id;
@@ -465,10 +470,12 @@ function startRace(config = {}, { chargeRental = true } = {}) {
   // Joining a solo race leaves any online room.
   if (online.room) online.leaveRoom();
 
-  const playerDef = store.selectedCar;
-  const playerLook = store.lookFor(playerDef.id);
+  const playerDef = daily ? getCar(daily.carId) : store.selectedCar;
+  const playerLook = daily
+    ? normalizeLook(playerDef, { plate: store.name.toUpperCase().slice(0, 9) })
+    : store.lookFor(playerDef.id);
   const seed = Math.floor(Math.random() * 1000);
-  const playerUpgrades = store.upgradesFor(playerDef.id);
+  const playerUpgrades = daily ? null : store.upgradesFor(playerDef.id);
   const aiDefs = pickAiCars(
     setup.opponents, playerDef, seed, playerDef.price + upgradeValue(playerDef, playerUpgrades),
   );
@@ -651,6 +658,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     ghostRec: null,
     ghostCar: null,
     signals: new TurnSignals(),
+    daily: setup.daily || null,
   };
 
   // Time Trial races your own best lap on this circuit as a see-through car.
@@ -1084,6 +1092,17 @@ function finishRace() {
     }
   }
 
+  if (race.daily) {
+    const tier = tierFor(race.daily, bestLap);
+    const paid = store.recordDaily(race.daily, bestLap, tier);
+    if (paid.payout) {
+      unlocks.push({
+        kind: 'daily',
+        name: `DAILY ${race.daily.targets[paid.tier].label} · +${formatCredits(paid.payout)} CR`,
+      });
+    }
+  }
+
   race.result = {
     mode: race.mode,
     unlocks,
@@ -1093,7 +1112,7 @@ function finishRace() {
     total,
     best: bestLap,
     score,
-    car: store.selectedCar.name,
+    car: race.player.car.def.name,
     wallet: store.wallet,
     standings: rows,
     rewards,

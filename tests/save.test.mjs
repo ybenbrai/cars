@@ -177,3 +177,17 @@ test('upgrade prices scale with car value', async () => {
   assert.ok(upgradeCost(hyper, 1) > upgradeCost(starter, 1) * 10);
   assert.ok(upgradeCost(starter, 3) > upgradeCost(starter, 1));
 });
+
+test('daily rewards pay each tier once per day', async () => {
+  const { dailyChallenge } = await import('../js/daily.js');
+  const store = freshStore();
+  const c = dailyChallenge('2026-11-11');
+  const start = store.wallet;
+  const first = store.recordDaily(c, c.targets[1].time, 1);
+  assert.equal(first.payout, c.targets[0].reward + c.targets[1].reward);
+  assert.equal(store.recordDaily(c, c.targets[1].time - 0.1, 1).payout, 0);
+  assert.equal(store.recordDaily(c, c.targets[2].time, 2).payout, c.targets[2].reward);
+  assert.equal(store.wallet, start + c.targets.reduce((a, t) => a + t.reward, 0));
+  const tomorrow = dailyChallenge('2026-11-12');
+  assert.equal(store.dailyFor(tomorrow).tier, -1);
+});

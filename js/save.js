@@ -101,6 +101,13 @@ function mergeSave(raw) {
       };
     }
   }
+  save.daily = raw.daily && typeof raw.daily.date === 'string'
+    ? {
+      date: raw.daily.date,
+      bestLap: Number.isFinite(raw.daily.bestLap) ? raw.daily.bestLap : null,
+      tier: Number.isInteger(raw.daily.tier) ? raw.daily.tier : -1,
+    }
+    : null;
   save.history = Array.isArray(raw.history) ? raw.history.slice(0, 40) : [];
   save.stats = { ...base.stats, ...(raw.stats || {}) };
   save.settings = { ...base.settings, ...(raw.settings || {}) };
@@ -242,6 +249,32 @@ export class SaveStore {
     this.data.upgrades = { ...(this.data.upgrades || {}), [carId]: levels };
     this.save();
     return { ok: true, part, level: next, cost };
+  }
+
+  /** Today's daily-challenge progress (resets when the date changes). */
+  dailyFor(challenge) {
+    const d = this.data.daily;
+    return d && d.date === challenge.date ? d : { date: challenge.date, bestLap: null, tier: -1 };
+  }
+
+  /**
+   * Record a daily-challenge best lap. Pays the reward of every newly
+   * reached tier (once per tier per day). Returns { payout, tier, improved }.
+   */
+  recordDaily(challenge, bestLap, tierIndex) {
+    const d = { ...this.dailyFor(challenge) };
+    const improved = Number.isFinite(bestLap) && (!d.bestLap || bestLap < d.bestLap);
+    if (improved) d.bestLap = bestLap;
+    let payout = 0;
+    for (let i = d.tier + 1; i <= tierIndex; i++) payout += challenge.targets[i].reward;
+    if (tierIndex > d.tier) d.tier = tierIndex;
+    this.data.daily = d;
+    if (payout) {
+      this.data.wallet += payout;
+      this.data.stats.creditsEarned += payout;
+    }
+    this.save();
+    return { payout, tier: d.tier, improved };
   }
 
   lookFor(carId) {

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Daily challenge (Career tab): one circuit, one loan car and bronze /
+  silver / gold best-lap targets per calendar day, the same for every
+  player. Each tier pays once per day (800 / 1,800 / 3,500 CR). Targets are
+  calibrated to autopilot laps per circuit and scaled by the car's speed.
+- Championship standings per career series: points from your best finish
+  in each event against three named rivals, and a gold, silver or bronze
+  trophy once the series is complete.
 - Turn signals: commit to a turn and that side's indicators blink three
   times with a relay tick (and green arrows on the cockpit cluster).
 - Pause-menu settings: graphics quality (AUTO / HIGH / MEDIUM / LOW) and

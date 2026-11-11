@@ -10,6 +10,7 @@ import {
 } from './economy.js';
 import { fmtTime } from './hud.js';
 import { seriesStandings } from './championship.js';
+import { dailyChallenge, DAILY_TIERS } from './daily.js';
 import {
   UPGRADE_PARTS, MAX_UPGRADE_LEVEL, upgradeCost, upgradedStats,
 } from './data/upgrades.js';
@@ -276,6 +277,10 @@ export class UI {
     $('btnStartRace').addEventListener('click', () => this.requestRace({ ...this.raceConfig }));
 
     $('careerList').addEventListener('click', (e) => {
+      if (e.target.closest('[data-daily]')) {
+        this.cb.onRace?.({ mode: 'time-trial', daily: true });
+        return;
+      }
       const button = e.target.closest('[data-event]');
       if (!button || button.disabled) return;
       const event = CAREER_EVENTS.find((item) => item.id === button.dataset.event);
@@ -798,7 +803,26 @@ export class UI {
   renderCareer() {
     if (!this.store) return;
     const store = this.store;
-    $('careerList').innerHTML = CAREER_SERIES.map((series) => {
+    const daily = dailyChallenge();
+    const progress = store.dailyFor(daily);
+    const dailyCar = getCar(daily.carId);
+    const dailyCircuit = getCircuit(daily.circuitId);
+    const dailyCard = `<section class="series-block daily-block">
+      <div class="series-head"><strong>DAILY CHALLENGE</strong><span>${daily.date} · same for every driver</span></div>
+      <article class="event-card daily-card">
+        <div class="event-copy">
+          <strong>${esc(dailyCircuit.name)} · ${esc(dailyCar.name)}</strong>
+          <p>Loan car, stock tune. Set your best lap in a three-lap time trial.</p>
+          <div class="daily-tiers">${daily.targets.map((t, i) => `
+            <span class="tier ${t.id} ${progress.tier >= i ? 'won' : ''}">${t.label} ${fmtTime(t.time)} · ${formatCredits(t.reward)} CR</span>`).join('')}
+          </div>
+          <div class="event-meta">${progress.bestLap ? `<span>YOUR BEST ${fmtTime(progress.bestLap)}</span>` : '<span>NOT ATTEMPTED</span>'}
+            ${progress.tier >= 0 ? `<span class="done">${DAILY_TIERS[progress.tier].label} EARNED</span>` : ''}</div>
+        </div>
+        <button class="btn ${progress.tier === 2 ? 'ghost' : 'primary'}" data-daily="1">${progress.bestLap ? 'RETRY' : 'START'}</button>
+      </article>
+    </section>`;
+    $('careerList').innerHTML = dailyCard + CAREER_SERIES.map((series) => {
       const events = eventsForSeries(series.id);
       const table = seriesStandings(series.id, store.data.career.bestPositions, store.name.toUpperCase());
       const trophy = table.trophy
