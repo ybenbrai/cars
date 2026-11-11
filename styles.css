@@ -1765,3 +1765,60 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
 .daily-tiers .tier.bronze.won { color: #e0965a; border-color: currentColor; }
 .daily-tiers .tier.silver.won { color: #d6dde8; border-color: currentColor; }
 .daily-tiers .tier.gold.won { color: #ffd34d; border-color: currentColor; }
+
+/* ───────── Phones held sideways (short landscape) ─────────
+   The portrait phone layout stacks the 3D stage above the menu, which left
+   ~150 px for menus on a landscape phone. Here the menu sits on the left
+   and the car on the right, the header slims down, and modals scroll. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .garage-top { height: 46px; gap: 12px; padding: 0 12px; }
+  .garage-top .brand { font-size: 14px; margin-right: 0; }
+  .driver-chip { padding: 4px 9px; gap: 8px; }
+  .driver-copy small { display: none; }
+  .driver-copy strong { font-size: 12px; max-width: 110px; }
+  .driver-edit { padding-left: 8px; }
+  .garage-meta { gap: 12px; }
+  .meta strong { font-size: 13px; }
+  .meta small { display: none; }
+
+  .garage-body {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr);
+  }
+  .garage-panel { grid-row: 1; grid-column: 1; border-right: 1px solid var(--line); padding-top: 0; }
+  .garage-stage { grid-row: 1; grid-column: 2; border-bottom: 0; }
+  .tabs { padding: 0 12px; }
+  .tab { font-size: 11px; padding: 9px 8px 10px; }
+  .tab-pane { padding: 10px 12px 14px; }
+  .start-dock { bottom: -14px; margin: 0 -12px -14px; padding: 10px 12px 12px; }
+  .start-dock .btn { padding: 11px 16px; font-size: 12.5px; }
+
+  .stage-top { top: 10px; left: 12px; right: 12px; }
+  .stage-label span { font-size: 20px; }
+  .stage-label small { font-size: 10px; margin-bottom: 2px; }
+  .stage-price { font-size: 10.5px; }
+  .stage-actions { right: 10px; bottom: 10px; left: 10px; gap: 6px; justify-content: flex-end; }
+  .stage-actions .btn { padding: 10px 12px; font-size: 11.5px; }
+  .car-card { padding: 10px 12px; }
+  .car-traits { display: none; }
+  .mode-card span { display: none; }
+  .mode-card { padding: 10px 12px; }
+
+  /* Modals: fit the short screen and scroll if they still can't. */
+  .screen.overlay .modal {
+    max-height: calc(100dvh - 20px);
+    overflow-y: auto;
+    padding: 16px 20px;
+  }
+  .modal h2 { font-size: 34px; margin: 4px 0 8px; }
+  .modal.small h2 { margin-bottom: 6px; }
+  .modal .eyebrow { font-size: 10px; }
+  .pause-copy { display: none; }
+  #screen-pause .modal.small { width: min(640px, 100%); }
+  #screen-pause .modal-actions { flex-direction: row; flex-wrap: wrap; gap: 8px; }
+  #screen-pause .modal-actions .btn { flex: 1 1 40%; padding: 11px 12px; font-size: 12px; }
+  .pause-settings { grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; padding-top: 10px; }
+  .pause-setting .seg { padding: 7px 4px; font-size: 10.5px; }
+  .series-head > span:not(.trophy):not(.series-progress) { display: none; }
+  .series-head strong { font-size: 13px; }
+}
