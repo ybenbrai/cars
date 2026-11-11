@@ -56,7 +56,7 @@ export class MenuMusic {
   start() {
     const t = this.ctx.currentTime;
     this.out.gain.cancelScheduledValues(t);
-    this.out.gain.setTargetAtTime(0.5, t, 0.8);
+    this.out.gain.setTargetAtTime(0.5 * (this.level ?? 1), t, 0.8);
     if (this.playing) return;
     this.playing = true;
     this.step = 0;

@@ -28,6 +28,27 @@ export class AudioEngine {
     this.limiterPhase = 0;
     this.music = null;
     this.wantMusic = false;
+    // Player volume settings, 0–1.
+    this.volume = 1;
+    this.musicVolume = 1;
+  }
+
+  /** Master and music volume (0–1), from the pause-menu settings. */
+  setVolumes(master = 1, music = 1) {
+    this.volume = Math.min(1, Math.max(0, master));
+    this.musicVolume = Math.min(1, Math.max(0, music));
+    if (this.music) {
+      this.music.level = this.musicVolume;
+      // Apply straight away if the menu music is already playing.
+      if (this.music.playing) {
+        this.music.out.gain.setTargetAtTime(0.5 * this.musicVolume, this.ctx.currentTime, 0.1);
+      }
+    }
+    if (this.ready) this.applyVolume(0.08);
+  }
+
+  get masterLevel() {
+    return this.muted ? 0.0001 : Math.max(0.0001, 0.42 * this.volume);
   }
 
   /**
@@ -150,6 +171,7 @@ export class AudioEngine {
     this.nitro = { nitroGain };
 
     this.music = new MenuMusic(ctx, master, buffer);
+    this.music.level = this.musicVolume;
 
     this.ready = true;
     this.applyVolume(1);
@@ -159,8 +181,7 @@ export class AudioEngine {
 
   applyVolume(t) {
     if (!this.master) return;
-    const target = this.muted ? 0.0001 : 0.42;
-    this.master.gain.setTargetAtTime(target, this.ctx.currentTime, t);
+    this.master.gain.setTargetAtTime(this.masterLevel, this.ctx.currentTime, t);
   }
 
   setMuted(muted) {
@@ -226,7 +247,7 @@ export class AudioEngine {
     this.wind.windGain.gain.setTargetAtTime(speedN * speedN * 0.085, t, 0.15);
     this.nitro.nitroGain.gain.setTargetAtTime(state.boosting ? 0.06 : 0, t, 0.05);
 
-    this.master.gain.setTargetAtTime(this.muted ? 0.0001 : 0.42, t, 0.15);
+    this.master.gain.setTargetAtTime(this.masterLevel, t, 0.15);
   }
 
   idle() {

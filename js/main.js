@@ -155,6 +155,7 @@ const cloud = new CloudSync({
 function attachStore(next) {
   store = next;
   quality.setMode(store.data.settings.quality || 'auto');
+  audio.setVolumes(store.data.settings.volume ?? 1, store.data.settings.musicVolume ?? 1);
   store.onChange = () => {
     cloud.schedule();
     syncOnlineCar();
@@ -343,6 +344,9 @@ function changeSetting(key, value) {
   if (key === 'quality') {
     store.data.settings.quality = value;
     quality.setMode(value);
+  } else if (key === 'volume' || key === 'musicVolume') {
+    store.data.settings[key] = Number(value) / 100;
+    audio.setVolumes(store.data.settings.volume ?? 1, store.data.settings.musicVolume ?? 1);
   } else if (key === 'signals') {
     store.data.settings.signals = value !== 'off';
     if (value === 'off' && race) {
