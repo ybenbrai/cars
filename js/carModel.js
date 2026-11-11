@@ -811,6 +811,7 @@ export class CarModel {
       .position.set(0, this.bottomYAt(-L / 2) + 0.06, -L / 2 + 0.12);
     this.buildFrontEnd();
     this.buildTailEnd();
+    this.buildSignals();
 
     this.exhausts = [];
     const exhaustY = this.bottomYAt(-L / 2) + 0.075;
@@ -2033,6 +2034,37 @@ export class CarModel {
     this.wheelSpin = angle;
     for (const wheel of this.wheels) {
       wheel.spin.rotation.x = angle;
+    }
+  }
+
+  /** Amber indicators at the four corners; each side has its own material. */
+  buildSignals() {
+    const b = this.bodyDef;
+    const L = b.length;
+    const make = () => new THREE.MeshStandardMaterial({
+      color: 0x5a3200, emissive: 0xffa21a, emissiveIntensity: 0.12, roughness: 0.3,
+    });
+    // Driver's left is +x.
+    this.signalMats = { left: make(), right: make() };
+    for (const [side, sx] of [['left', 1], ['right', -1]]) {
+      for (const front of [true, false]) {
+        const z = front ? L / 2 : -L / 2;
+        const st = stationAt(this.profileStations, z);
+        const bottom = this.bottomYAt(z);
+        const fh = Math.max(0.09, this.topYAt(0, z) - bottom);
+        const y = bottom + fh * (front ? 0.32 : 0.42);
+        const x = sx * Math.max(0.2, sectionHalfWidth(st, y) - 0.07);
+        const lamp = this.add(new THREE.Mesh(rbox(0.1, 0.04, 0.025, 0.01), this.signalMats[side]));
+        lamp.position.set(x, y, z + (front ? 0.02 : -0.02));
+        lamp.castShadow = false;
+      }
+    }
+  }
+
+  /** Light one side's indicators (side: 'left' | 'right' | null). */
+  setSignal(side, on) {
+    for (const key of ['left', 'right']) {
+      this.signalMats[key].emissiveIntensity = on && key === side ? 5 : 0.12;
     }
   }
 

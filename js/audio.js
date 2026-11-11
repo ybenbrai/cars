@@ -317,6 +317,11 @@ export class AudioEngine {
     osc.stop(t0 + duration + 0.05);
   }
 
+  /** Indicator relay: a short dry tick (on) or tock (off). */
+  tick(on = true) {
+    this.tone(on ? 1900 : 1500, 0.035, 'square', 0.025);
+  }
+
   beep(kind) {
     if (kind === 'go') {
       this.tone(880, 0.32, 'triangle', 0.11);

@@ -206,6 +206,20 @@ export class Cockpit {
     hood.rotation.x = -0.12;
     const clusterY = dashTop - 0.005;
     const clusterZ = dashZ - 0.14;
+    // Green indicator arrows either side of the cluster.
+    this.arrowMat = { left: new THREE.MeshBasicMaterial({ color: 0x1d3b22 }), right: new THREE.MeshBasicMaterial({ color: 0x1d3b22 }) };
+    this.materials.push(this.arrowMat.left, this.arrowMat.right);
+    for (const [side, sx] of [['left', 1], ['right', -1]]) {
+      const tri = new THREE.Shape();
+      tri.moveTo(0, 0.014);
+      tri.lineTo(0, -0.014);
+      tri.lineTo(0.02, 0);
+      tri.closePath();
+      const arrow = this.add(new THREE.ShapeGeometry(tri), this.arrowMat[side], e.x + sx * 0.165, clusterY + 0.03, clusterZ - 0.004);
+      // Face the driver (looking +z) and point outwards on each side.
+      arrow.rotation.y = side === 'left' ? 0 : Math.PI;
+      arrow.rotation.x = 0.12;
+    }
     if (this.style.cluster === 'digital') {
       const screen = this.add(new THREE.PlaneGeometry(0.3, 0.085), this.screenMat, e.x, clusterY, clusterZ);
       screen.rotation.y = Math.PI;
@@ -351,6 +365,13 @@ export class Cockpit {
     this.handRight = hand();
     this.armLeft = arm();
     this.armRight = arm();
+  }
+
+  /** Light the dashboard arrow for an indicator blink. */
+  setSignal(side, on) {
+    for (const key of ['left', 'right']) {
+      this.arrowMat[key].color.setHex(on && key === side ? 0x3dff6a : 0x1d3b22);
+    }
   }
 
   /** Start the shift animation (dir +1 for an upshift, -1 for a downshift). */

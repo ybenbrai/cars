@@ -22,6 +22,7 @@ import { AI_NAMES, createAiDriver } from './ai.js';
 import { upgradeValue } from './data/upgrades.js';
 import { Cockpit } from './cockpit.js';
 import { QualityManager } from './quality.js';
+import { TurnSignals } from './signals.js';
 import {
   GhostRecorder, GhostCar, loadGhost, saveGhostIfFaster,
 } from './ghost.js';
@@ -632,6 +633,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     nextGate: 1,
     ghostRec: null,
     ghostCar: null,
+    signals: new TurnSignals(),
   };
 
   // Time Trial races your own best lap on this circuit as a see-through car.
@@ -1458,7 +1460,19 @@ function frame(now) {
   race.track.update(dt, race.nextGate ?? 1);
   updateCamera(dt);
   composer.render();
-  if (state === 'racing') quality.sample(dt);
+  if (state === 'racing') {
+    quality.sample(dt);
+    // Indicators blink three times when the player commits to a turn.
+    if (store?.data.settings.signals !== false) {
+      const car = race.player.car;
+      const blink = race.signals.update(dt, car.steer);
+      if (blink) {
+        car.model.setSignal(blink.side, blink.on);
+        car.model.cockpit?.setSignal(blink.side, blink.on);
+        audio.tick(blink.on);
+      }
+    }
+  }
 }
 
 requestAnimationFrame(frame);
