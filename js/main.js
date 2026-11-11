@@ -1961,6 +1961,11 @@ portrait.addEventListener?.('change', (event) => {
 
 boot();
 
+// Offline support (production only; dev servers serve fresh files anyway).
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
+
 window.__sunsetDrift = {
   get state() { return state; },
   get car() { return race?.player.car || null; },

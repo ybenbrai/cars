@@ -1,7 +1,7 @@
 {
   "name": "Sunset Drift",
   "short_name": "Sunset Drift",
-  "description": "A Three.js arcade drift racer with four cars, a sunset circuit and three-lap time attacks.",
+  "description": "An arcade drift racer with twenty cars, seven circuits, night and rain racing, a career, daily challenges and achievements.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

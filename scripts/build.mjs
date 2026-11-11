@@ -18,6 +18,7 @@ const ENTRIES = [
   'index.html',
   'styles.css',
   'manifest.webmanifest',
+  'sw.js',
   'robots.txt',
   'sitemap.xml',
   'js',

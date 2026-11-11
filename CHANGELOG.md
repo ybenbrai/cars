@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Offline support: a network-first service worker caches the game so it
+  loads offline after the first visit (updates are always picked up first).
+- New share card (link previews) and up-to-date descriptions in the page,
+  manifest and structured data.
 - Achievements: 19 goals (wins, podiums, laps, drift totals, garage
   collecting, upgrades, daily gold, series gold, full career, winning at
   night, in the rain or against a full grid, saving a photo), each paying
