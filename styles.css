@@ -1734,3 +1734,24 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
 }
 .pause-setting .segmented { display: flex; gap: 6px; }
 .pause-setting .seg { flex: 1; }
+
+/* Championship standings */
+.series-head .trophy, .series-head .series-progress {
+  justify-self: start; margin-top: 6px;
+  font-family: var(--font-display); font-size: 11.5px; letter-spacing: 0.14em;
+}
+.series-head .series-progress { color: var(--faint); }
+.trophy { padding: 3px 9px; border: 1px solid currentColor; }
+.trophy.gold { color: #ffd34d; }
+.trophy.silver { color: #d6dde8; }
+.trophy.bronze { color: #e0965a; }
+.standings { list-style: none; margin: 4px 0 12px; padding: 0; display: grid; gap: 2px; }
+.standings li {
+  display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center;
+  padding: 6px 10px; background: rgba(255, 255, 255, 0.03);
+  font-family: var(--font-display); font-size: 12.5px; letter-spacing: 0.08em;
+}
+.standings li b { color: var(--faint); font-weight: 600; }
+.standings li em { font-style: normal; color: var(--muted); }
+.standings li.me { background: rgba(255, 122, 69, 0.14); }
+.standings li.me span, .standings li.me em { color: var(--ink); }

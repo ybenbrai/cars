@@ -9,6 +9,7 @@ import {
   DIFFICULTIES, MODES, basePurse, getDifficulty, getMode, nextRankProgress,
 } from './economy.js';
 import { fmtTime } from './hud.js';
+import { seriesStandings } from './championship.js';
 import {
   UPGRADE_PARTS, MAX_UPGRADE_LEVEL, upgradeCost, upgradedStats,
 } from './data/upgrades.js';
@@ -799,8 +800,16 @@ export class UI {
     const store = this.store;
     $('careerList').innerHTML = CAREER_SERIES.map((series) => {
       const events = eventsForSeries(series.id);
+      const table = seriesStandings(series.id, store.data.career.bestPositions, store.name.toUpperCase());
+      const trophy = table.trophy
+        ? `<span class="trophy ${table.trophy}">${table.trophy.toUpperCase()} TROPHY</span>`
+        : `<span class="series-progress">${table.raced}/${table.total} RACED</span>`;
+      const standings = table.raced ? `<ol class="standings">${table.rows.map((row, i) => `
+          <li class="${row.player ? 'me' : ''}"><b>P${i + 1}</b><span>${esc(row.name)}</span><em>${row.points} PTS</em></li>`).join('')}
+        </ol>` : '';
       return `<section class="series-block">
-        <div class="series-head"><strong>${series.name}</strong><span>${series.subtitle}</span></div>
+        <div class="series-head"><strong>${series.name}</strong><span>${series.subtitle}</span>${trophy}</div>
+        ${standings}
         ${events.map((event) => {
           const state = store.careerEventState(event);
           const circuit = getCircuit(event.circuitId);
