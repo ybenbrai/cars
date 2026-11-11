@@ -134,6 +134,32 @@ export function assistedDriftTarget(steerAbs, steerHold) {
  * needle into the red without reaching top speed. Off-road or lifting off
  * never triggers it.
  */
+// Six-speed box: gear g tops out at g/6 of the car's top speed, so an
+// upshift drops the revs to (g-1)/g of the redline, like a real gearbox
+// (1→2 to about half, 5→6 to about 83 %) instead of back to idle.
+export const GEARS = 6;
+export const IDLE_RPM = 0.12;
+const gearTop = (g, maxSpeed) => (maxSpeed * g) / GEARS;
+
+/**
+ * Gear for a forward (wheel) speed, with hysteresis: shift up just before
+ * the redline, shift down only once well below the lower gear's top, so a
+ * car slowing a little through a corner does not hunt between gears.
+ */
+export function selectGear(speed, maxSpeed, current = 1) {
+  const v = Math.max(0, speed);
+  let g = Math.min(GEARS, Math.max(1, current | 0));
+  while (g < GEARS && v > gearTop(g, maxSpeed) * 0.97) g++;
+  while (g > 1 && v < gearTop(g - 1, maxSpeed) * 0.72) g--;
+  return g;
+}
+
+/** Engine speed 0–1 from wheel speed and gear (idle to redline). */
+export function engineRpm(speed, maxSpeed, gear) {
+  const v = Math.max(0, speed);
+  return clamp(IDLE_RPM + (1 - IDLE_RPM) * (v / gearTop(gear, maxSpeed)), IDLE_RPM, 1);
+}
+
 export function revLimiterActive({ throttle, offroad, gear, rpm, drifting }) {
   if (!(throttle > 0) || offroad) return false;
   if (gear === 6 && rpm > 0.96) return true;

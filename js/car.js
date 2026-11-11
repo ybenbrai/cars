@@ -7,6 +7,9 @@ import {
   maxEntrySpeed,
   assistedDriftTarget,
   revLimiterActive,
+  selectGear,
+  engineRpm,
+  IDLE_RPM,
   wallResponse,
   wallAlign,
   driveAccel,
@@ -147,6 +150,8 @@ export class Car {
     this.trackInfo = null;
     this.wheelSpin = 0;
     this.prevSpeed = 0;
+    this.gearNum = 1;
+    this.rpmSmooth = IDLE_RPM;
     this.driftHold = 0;
     this.steerHold = 0;
     this.locked = false;
@@ -432,6 +437,16 @@ export class Car {
 
     const accel = (nF - this.prevSpeed) / Math.max(dt, 0.0001);
     this.prevSpeed = nF;
+    // Gearbox and revs follow the wheels (forward speed), not the total
+    // velocity, so cornering and sliding sideways do not move the needle.
+    const wheel = Math.abs(nF);
+    this.gearNum = selectGear(wheel, this.maxSpeed, this.gearNum || 1);
+    let rpmTarget = nF < -0.5 || wheel < 0.5 ? IDLE_RPM : engineRpm(wheel, this.maxSpeed, this.gearNum);
+    // A real drift (or handbrake slide) on the throttle spins the wheels up.
+    if (this.drifting && this.throttle > 0) rpmTarget = Math.max(rpmTarget, 0.62 + clamp(this.slip / 30, 0, 0.3));
+    else if (this.throttle > 0 && wheel < 0.5) rpmTarget = 0.35;
+    this.rpmSmooth = this.rpmSmooth ?? IDLE_RPM;
+    this.rpmSmooth += (rpmTarget - this.rpmSmooth) * (1 - Math.exp(-14 * dt));
     const pitchTarget = clamp(-accel * 0.0024, -0.035, 0.035);
     const rollTarget = -this.steer * speedN * 0.075 - clamp(nR * 0.002, -0.03, 0.03);
     this.roll = damp(this.roll, rollTarget, 6, dt);
@@ -451,8 +466,8 @@ export class Car {
 
   get gear() {
     if (this.prevSpeed < -0.5) return 'R';
-    if (this.speed < 0.5) return 'N';
-    return String(Math.min(6, 1 + Math.floor(this.speed / (this.maxSpeed / 6))));
+    if (Math.abs(this.prevSpeed) < 0.5) return 'N';
+    return String(this.gearNum || 1);
   }
 
   /**
@@ -462,13 +477,7 @@ export class Car {
    * needle towards the limiter even at modest road speed.
    */
   get rpmRatio() {
-    if (this.prevSpeed < -0.5 || this.speed < 0.5) return 0.06;
-    const span = this.maxSpeed / 6;
-    const gear = Math.min(6, 1 + Math.floor(this.speed / span));
-    const base = clamp((this.speed - (gear - 1) * span) / span, 0, 1);
-    const wheelspin = clamp((this.slip - 1) / 6.8, 0, 1);
-    const driftRev = wheelspin * (this.throttle > 0 ? 1 : 0.66);
-    return clamp(Math.max(base, driftRev), 0, 1);
+    return clamp(this.rpmSmooth ?? IDLE_RPM, 0, 1);
   }
 
   /**

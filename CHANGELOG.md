@@ -173,6 +173,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Picking up a nitro bottle no longer changes the engine sound: it used to
+  shove the car forward ~11 km/h, jumping revs and gears. Bottles now only
+  refill the nitro bar.
+- Rev counter: revs and gears follow wheel (forward) speed, so cornering
+  and sliding no longer move the needle; upshifts drop the revs part-way
+  like a real gearbox instead of back to idle; downshifts wait until you
+  really slow down; the needle moves smoothly; only real drifts flare it.
 - Rear turn signals were hidden inside the rear bumper; they now sit at the
   outer edge of the tail lamps and glow orange.
 - Graphics levels now look clearly different: LOW renders at 80 %

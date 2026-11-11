@@ -1099,8 +1099,9 @@ function updatePads() {
       if (dx * dx + dz * dz >= 2.0 * 2.0) continue;
       pad.readyAt = race.time + 4;
       pad.active = false;
+      // A bottle refills nitro only; the old instant 3 m/s shove made the
+      // engine note jump as if nitro had fired.
       car.boost = Math.min(100, car.boost + 34);
-      car.vel.addScaledVector(car.forward, 3);
       effects.burst({ x: pad.point.x, z: pad.point.z }, 0.5, 0x5ce1e6);
       if (car === player) {
         race.shake = Math.max(race.shake, 0.18);

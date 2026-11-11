@@ -209,3 +209,32 @@ test('drive force fades to nothing at top speed', () => {
   const a = driveAccel({ speed: max, maxSpeed: max, powerK: powerConstant(car), launch: launchAccel(car) });
   assert.equal(a, 0);
 });
+
+test('gearbox: upshifts drop the revs part-way, never to idle', async () => {
+  const { selectGear, engineRpm } = await import('../js/vehicleMath.js');
+  const max = 60;
+  let gear = 1;
+  let prevRpm = 0;
+  const drops = [];
+  for (let v = 0; v <= max; v += 0.05) {
+    const next = selectGear(v, max, gear);
+    const rpm = engineRpm(v, max, next);
+    if (next > gear) drops.push(prevRpm - rpm);
+    gear = next;
+    prevRpm = rpm;
+  }
+  assert.equal(gear, 6);
+  assert.equal(drops.length, 5);
+  // 1→2 falls about half the range, 5→6 much less; never back to idle.
+  assert.ok(drops[0] > drops[4], `drops ${drops.map((d) => d.toFixed(2))}`);
+  assert.ok(engineRpm(max * (2 / 6) * 0.97 + 0.01, max, 2) > 0.5);
+});
+
+test('gearbox: easing off a little in a corner does not change gear', async () => {
+  const { selectGear } = await import('../js/vehicleMath.js');
+  const max = 60;
+  const g = selectGear(31, max, 1); // up to speed in 4th
+  assert.equal(g, 4);
+  assert.equal(selectGear(27, max, g), 4, 'a 13% slowdown keeps the gear');
+  assert.ok(selectGear(12, max, g) < 4, 'a big slowdown downshifts');
+});
