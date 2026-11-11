@@ -13,6 +13,7 @@ import { seriesStandings } from './championship.js';
 import { dailyChallenge, DAILY_TIERS } from './daily.js';
 import { TIMES, WEATHERS } from './conditions.js';
 import { ACHIEVEMENTS } from './achievements.js';
+import { DRIVE_ACTIONS, keyLabel, resolveBindings } from './input.js';
 import {
   UPGRADE_PARTS, MAX_UPGRADE_LEVEL, upgradeCost, upgradedStats,
 } from './data/upgrades.js';
@@ -1229,6 +1230,19 @@ export class UI {
 
   renderProfile() {
     if (!this.store) return;
+    if (!this.profileBound) {
+      this.profileBound = true;
+      $('profileStats').addEventListener('click', (e) => {
+        const remap = e.target.closest('[data-remap]');
+        if (remap) {
+          remap.textContent = 'PRESS A KEY…';
+          remap.classList.add('waiting');
+          this.cb.onRemap?.(remap.dataset.remap);
+          return;
+        }
+        if (e.target.closest('[data-reset-keys]')) this.cb.onResetKeys?.();
+      });
+    }
     const data = this.store.data;
     const stats = data.stats;
     const rank = this.store.rank;
@@ -1283,6 +1297,18 @@ export class UI {
       <section class="setup-section">
         <div class="section-head"><span>CAREER STATS</span></div>
         <div class="stat-tiles">${tiles.map(([label, value]) => `<div class="stat-tile"><small>${label}</small><strong>${value}</strong></div>`).join('')}</div>
+      </section>
+      <section class="setup-section">
+        <div class="section-head"><span>CONTROLS</span><button class="link-btn" data-reset-keys="1">RESET</button></div>
+        <div class="key-list">${(() => {
+          const binds = resolveBindings(data.settings.keys);
+          return DRIVE_ACTIONS.map((a) => `<div class="key-row">
+            <span>${a.label}</span>
+            <b>${binds[a.id].map(keyLabel).join(' / ')}</b>
+            <button class="btn ghost" data-remap="${a.id}">CHANGE</button>
+          </div>`).join('');
+        })()}</div>
+        <p class="custom-note">C camera · R reset car · ESC pause · M mute. Gamepads and touch work too.</p>
       </section>
       <section class="setup-section">
         <div class="section-head"><span>ACHIEVEMENTS</span><span>${(data.achievements || []).length}/${ACHIEVEMENTS.length}</span></div>

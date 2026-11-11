@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Key remapping (Profile → Controls): change the main key for accelerate,
+  brake, steering, handbrake, nitro and look back; arrow keys and gamepads
+  keep working. Reset restores the defaults.
 - First-race tutorial: a new driver's first race shows five short tips at
   the moment they matter (accelerate, brake before the corner, drift, use
   nitro, camera and pause), with keyboard or touch wording. Runs once.
@@ -235,7 +238,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Planned
 
 - Additional circuits and time-of-day variants
-- Accessibility options and input remapping
+- Accessibility options
 
 ## [1.0.0] — 2026-11-05
 

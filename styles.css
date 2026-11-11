@@ -1874,3 +1874,18 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   .coach { top: 92px; padding: 7px 12px 8px; }
   .coach span { font-size: 13px; }
 }
+
+/* Controls remapping */
+.key-list { display: grid; gap: 4px; }
+.key-row {
+  display: grid; grid-template-columns: 1fr auto auto; gap: 10px; align-items: center;
+  padding: 6px 8px 6px 10px; background: rgba(255, 255, 255, 0.03);
+  font-family: var(--font-display); font-size: 12px; letter-spacing: 0.1em;
+}
+.key-row b { color: var(--gold); font-weight: 600; }
+.key-row .btn { padding: 7px 10px; font-size: 11px; }
+.key-row .btn.waiting { border-color: var(--gold); color: var(--gold); }
+.link-btn {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font-family: var(--font-display); font-size: 11px; letter-spacing: 0.16em; color: var(--orange);
+}

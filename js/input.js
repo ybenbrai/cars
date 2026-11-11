@@ -6,6 +6,51 @@ const KEY_ACTIONS = {
   KeyP: 'pause',
 };
 
+// Driving controls. Each action has a primary and an optional secondary
+// key; players can remap the primary (Profile → Controls).
+export const DRIVE_ACTIONS = [
+  { id: 'gas', label: 'ACCELERATE' },
+  { id: 'brake', label: 'BRAKE / REVERSE' },
+  { id: 'left', label: 'STEER LEFT' },
+  { id: 'right', label: 'STEER RIGHT' },
+  { id: 'handbrake', label: 'HANDBRAKE' },
+  { id: 'boost', label: 'NITRO' },
+  { id: 'lookBack', label: 'LOOK BACK' },
+];
+
+export const DEFAULT_BINDINGS = {
+  gas: ['KeyW', 'ArrowUp'],
+  brake: ['KeyS', 'ArrowDown'],
+  left: ['KeyA', 'ArrowLeft'],
+  right: ['KeyD', 'ArrowRight'],
+  handbrake: ['Space'],
+  boost: ['ShiftLeft', 'ShiftRight'],
+  lookBack: ['KeyB'],
+};
+
+/** Readable name for a KeyboardEvent.code. */
+export function keyLabel(code) {
+  if (!code) return '—';
+  if (code.startsWith('Key')) return code.slice(3);
+  if (code.startsWith('Digit')) return code.slice(5);
+  const named = {
+    ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→', Space: 'SPACE',
+    ShiftLeft: 'L-SHIFT', ShiftRight: 'R-SHIFT', ControlLeft: 'L-CTRL', ControlRight: 'R-CTRL',
+    AltLeft: 'L-ALT', AltRight: 'R-ALT', Enter: 'ENTER', Tab: 'TAB',
+  };
+  return named[code] || code.toUpperCase();
+}
+
+/** Merge saved primary keys over the defaults (secondaries stay). */
+export function resolveBindings(saved = {}) {
+  const out = {};
+  for (const [action, keys] of Object.entries(DEFAULT_BINDINGS)) {
+    const primary = typeof saved?.[action] === 'string' ? saved[action] : keys[0];
+    out[action] = [primary, ...keys.slice(1).filter((k) => k !== primary)];
+  }
+  return out;
+}
+
 function isTextTarget(target) {
   if (!target) return false;
   const tag = target.tagName;
@@ -21,6 +66,8 @@ export class Input {
     this.onAction = null;
     this.enabled = true;
     this.touchCapable = window.matchMedia('(pointer: coarse)').matches || navigator.maxTouchPoints > 0;
+    this.setBindings();
+    this.capture = null;
 
     window.addEventListener('keydown', (e) => {
       // Never swallow keys while the player is typing a name, email or password.
@@ -28,10 +75,16 @@ export class Input {
         if (e.code === 'Escape') e.target.blur();
         return;
       }
-      if (!this.enabled) return;
-      if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(e.code)) {
+      // Remapping: the next key press is the new binding (Escape cancels).
+      if (this.capture) {
         e.preventDefault();
+        const done = this.capture;
+        this.capture = null;
+        done(e.code === 'Escape' ? null : e.code);
+        return;
       }
+      if (!this.enabled) return;
+      if (this.boundCodes.has(e.code)) e.preventDefault();
       if (e.repeat) {
         if (e.code === 'Space') e.preventDefault();
         return;
@@ -123,39 +176,55 @@ export class Input {
     this.pollGamepad();
   }
 
+  /** Apply saved bindings ({ action: code }) over the defaults. */
+  setBindings(saved) {
+    this.bindings = resolveBindings(saved);
+    this.boundCodes = new Set(Object.values(this.bindings).flat());
+  }
+
+  /** Call back with the next key pressed (null if cancelled). */
+  captureNext(callback) {
+    this.held.clear();
+    this.capture = callback;
+  }
+
+  isDown(action) {
+    return this.bindings[action].some((code) => this.held.has(code));
+  }
+
   get gas() {
     // On touch the nitro circle doubles as throttle: one thumb can hold both,
     // since a phone cannot reliably press two buttons at once.
     return this.enabled && (
-      this.held.has('KeyW') || this.held.has('ArrowUp')
+      this.isDown('gas')
       || this.touch.gas || this.touch.boost || this.pad.gas
     );
   }
 
   get brake() {
-    return this.enabled && (this.held.has('KeyS') || this.held.has('ArrowDown') || this.touch.brake || this.pad.brake);
+    return this.enabled && (this.isDown('brake') || this.touch.brake || this.pad.brake);
   }
 
   get steer() {
     if (!this.enabled) return 0;
     let value = 0;
-    if (this.held.has('KeyA') || this.held.has('ArrowLeft') || this.touch.left) value -= 1;
-    if (this.held.has('KeyD') || this.held.has('ArrowRight') || this.touch.right) value += 1;
+    if (this.isDown('left') || this.touch.left) value -= 1;
+    if (this.isDown('right') || this.touch.right) value += 1;
     if (!value && this.pad.steer) value = -this.pad.steer;
     return Math.max(-1, Math.min(1, value));
   }
 
   get handbrake() {
-    return this.enabled && (this.held.has('Space') || this.touch.handbrake || this.pad.handbrake);
+    return this.enabled && (this.isDown('handbrake') || this.touch.handbrake || this.pad.handbrake);
   }
 
   get boost() {
-    return this.enabled && (this.held.has('ShiftLeft') || this.held.has('ShiftRight') || this.touch.boost || this.pad.boost);
+    return this.enabled && (this.isDown('boost') || this.touch.boost || this.pad.boost);
   }
 
   /** Hold B for a rear-view look over the shoulder. */
   get lookBack() {
-    return this.enabled && this.held.has('KeyB');
+    return this.enabled && this.isDown('lookBack');
   }
 
   releaseAll() {

@@ -10,7 +10,7 @@ import { GarageScene } from './garageScene.js';
 import { Car } from './car.js';
 import { CarModel } from './carModel.js';
 import { Effects } from './effects.js';
-import { Input } from './input.js';
+import { Input, keyLabel } from './input.js';
 import { AudioEngine } from './audio.js';
 import { HUD, fmtTime } from './hud.js';
 import { UI } from './ui.js';
@@ -105,6 +105,22 @@ const ui = new UI({
   onBuyCar: buyCar,
   onBuyUpgrade: buyUpgrade,
   onSellCar: sellCar,
+  onRemap: (action) => input.captureNext((code) => {
+    if (code && store) {
+      store.data.settings.keys = { ...(store.data.settings.keys || {}), [action]: code };
+      store.save();
+      input.setBindings(store.data.settings.keys);
+      ui.notice(`${action.toUpperCase()} → ${keyLabel(code)}`, 'ok');
+    }
+    ui.renderProfile();
+  }),
+  onResetKeys: () => {
+    if (!store) return;
+    store.data.settings.keys = {};
+    store.save();
+    input.setBindings({});
+    ui.renderProfile();
+  },
   onSetting: changeSetting,
   onLookChange: changeLook,
   onRace: (config) => safeStartRace(config),
@@ -159,6 +175,7 @@ function attachStore(next) {
   store = next;
   quality.setMode(store.data.settings.quality || 'auto');
   audio.setVolumes(store.data.settings.volume ?? 1, store.data.settings.musicVolume ?? 1);
+  input.setBindings(store.data.settings.keys);
   store.onChange = () => {
     cloud.schedule();
     syncOnlineCar();
