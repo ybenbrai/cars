@@ -1937,6 +1937,7 @@ export class CarModel {
   }
 
   dispose() {
+    this.cockpit?.dispose();
     this.plateTex?.dispose();
     this.treadMat?.map?.dispose();
     this.grilleMat?.map?.dispose();

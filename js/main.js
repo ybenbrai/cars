@@ -1258,6 +1258,11 @@ function updateCamera(dt) {
   }
   race.cockpitGear = gearNow;
   car.model.cockpit?.update(dt, car.steer, view === 'cockpit' && !input.lookBack);
+  if (car.model.cockpit?.root.visible) {
+    car.model.cockpit.updateGauges(car);
+    // The mirror costs an extra (small) render; skip it on LOW quality.
+    if (quality.current.id !== 'low') car.model.cockpit.renderMirror(renderer, scene);
+  }
 
   if (race.shake > 0.002) {
     // Smooth, fast wobble rather than a new random offset every frame: a

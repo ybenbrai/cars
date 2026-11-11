@@ -131,6 +131,7 @@ export class Cockpit {
     this.buildDash(b);
     this.buildHeadliner(b);
     this.buildWheel();
+    this.buildMirror(b);
     this.buildShifter();
     this.buildHands();
 
@@ -221,9 +222,18 @@ export class Cockpit {
       arrow.rotation.x = 0.12;
     }
     if (this.style.cluster === 'digital') {
-      const screen = this.add(new THREE.PlaneGeometry(0.3, 0.085), this.screenMat, e.x, clusterY, clusterZ);
+      // Live readout: speed, gear and a rev bar drawn on a small canvas.
+      this.readout = document.createElement('canvas');
+      this.readout.width = 256;
+      this.readout.height = 72;
+      this.readoutTex = new THREE.CanvasTexture(this.readout);
+      this.readoutTex.colorSpace = THREE.SRGBColorSpace;
+      this.readoutMat = new THREE.MeshBasicMaterial({ map: this.readoutTex });
+      this.materials.push(this.readoutMat);
+      const screen = this.add(new THREE.PlaneGeometry(0.3, 0.085), this.readoutMat, e.x, clusterY, clusterZ);
       screen.rotation.y = Math.PI;
       screen.rotation.x = 0.12;
+      this.readoutKey = '';
       const bar = this.add(new THREE.PlaneGeometry(0.2, 0.01), this.glowMat, e.x, clusterY - 0.022, clusterZ - 0.002);
       bar.rotation.y = Math.PI;
       bar.rotation.x = 0.12;
@@ -239,9 +249,16 @@ export class Cockpit {
         const ring = this.add(new THREE.TorusGeometry(0.05, 0.005, 6, 28), this.accentMat, e.x + dx, clusterY, clusterZ - 0.002);
         ring.rotation.y = Math.PI;
         ring.rotation.x = 0.12;
-        const needle = this.add(new THREE.PlaneGeometry(0.004, 0.04), this.glowMat, e.x + dx, clusterY + 0.012, clusterZ - 0.004);
-        needle.rotation.y = Math.PI;
-        needle.rotation.z = dx > 0 ? -0.9 : 0.6;
+        // Needle on a pivot at the dial centre: speed on the left dial (+x is
+        // the driver's left), revs on the right; both sweep 270 degrees.
+        const pivot = new THREE.Group();
+        pivot.position.set(e.x + dx, clusterY, clusterZ - 0.004);
+        pivot.rotation.set(0.12, Math.PI, 0);
+        this.root.add(pivot);
+        this.add(new THREE.PlaneGeometry(0.004, 0.042), this.glowMat, 0, 0.017, 0, pivot);
+        this.add(new THREE.CircleGeometry(0.006, 12), this.accentMat, 0, 0, -0.001, pivot);
+        if (dx > 0) this.speedNeedle = pivot;
+        else this.rpmNeedle = pivot;
       }
       // Two vents in the centre of the dash.
       for (const dx of [-0.08, 0.08]) {
@@ -261,6 +278,88 @@ export class Cockpit {
       const x = sx * (b.cabinWidth * 0.5 - 0.03);
       this.add(rbox(0.04, 0.22, 0.95, 0.02), this.dashMat, x, e.y - 0.36, e.z + 0.25);
       this.add(rbox(0.02, 0.02, 0.8, 0.008), this.trimMat, x - sx * 0.02, e.y - 0.26, e.z + 0.25);
+    }
+  }
+
+  /** Rear-view mirror: a small render-target view of the road behind. */
+  buildMirror(b) {
+    const e = this.eye;
+    const width = 0.24;
+    const height = 0.07;
+    this.mirrorTarget = new THREE.WebGLRenderTarget(320, 94);
+    this.mirrorCam = new THREE.PerspectiveCamera(30, width / height, 0.3, 400);
+    const glass = new THREE.MeshBasicMaterial({ map: this.mirrorTarget.texture, toneMapped: false });
+    // A mirror shows the world flipped left to right.
+    this.mirrorTarget.texture.wrapS = THREE.RepeatWrapping;
+    this.mirrorTarget.texture.repeat.x = -1;
+    this.materials.push(glass);
+    const y = Math.min(e.y + 0.13, (this.model.roofY ?? e.y + 0.25) - 0.09);
+    const z = e.z + 0.55;
+    this.mirror = new THREE.Group();
+    this.mirror.position.set(e.x * 0.15, y, z);
+    this.root.add(this.mirror);
+    this.add(rbox(width + 0.02, height + 0.02, 0.025, 0.012), this.dashMat, 0, 0, 0.012, this.mirror);
+    const face = this.add(new THREE.PlaneGeometry(width, height), glass, 0, 0, -0.002, this.mirror);
+    face.rotation.y = Math.PI;
+    this.add(new THREE.CylinderGeometry(0.008, 0.008, 0.08, 6), this.dashMat, 0, 0.05, 0.03, this.mirror);
+    this.mirrorFrame = 0;
+  }
+
+  /**
+   * Render the mirror view (every other frame, low resolution). The interior
+   * is hidden for it so the camera sees out of the back of the car.
+   */
+  renderMirror(renderer, scene) {
+    if (!this.root.visible) return;
+    this.mirrorFrame = (this.mirrorFrame + 1) % 2;
+    if (this.mirrorFrame) return;
+    // View from just above the tail at eye height, with the player's own car
+    // hidden, so the mirror shows a clean road and the cars behind.
+    const body = this.model.body;
+    body.updateMatrixWorld(true);
+    const b = this.def.body;
+    this.mirrorCam.position.set(0, this.eye.y, -b.length / 2 - 0.2).applyMatrix4(body.matrixWorld);
+    const back = tmpA.set(0, 0, -1).transformDirection(body.matrixWorld);
+    this.mirrorCam.lookAt(tmpB.copy(this.mirrorCam.position).addScaledVector(back, 30).setY(this.mirrorCam.position.y - 0.9));
+    const carRoot = this.model.root;
+    carRoot.visible = false;
+    const previous = renderer.getRenderTarget();
+    renderer.setRenderTarget(this.mirrorTarget);
+    renderer.render(scene, this.mirrorCam);
+    renderer.setRenderTarget(previous);
+    carRoot.visible = true;
+  }
+
+  /** Needles and digital readout follow speed, revs and gear. */
+  updateGauges(car) {
+    const sweep = (n) => (0.75 - 1.5 * Math.min(1, Math.max(0, n))) * Math.PI;
+    const speedN = car.speedKmh / Math.max(1, Math.ceil((car.maxSpeedKmh * 1.15) / 20) * 20);
+    if (this.speedNeedle) this.speedNeedle.rotation.z = -sweep(speedN);
+    if (this.rpmNeedle) this.rpmNeedle.rotation.z = -sweep(car.rpmRatio ?? 0);
+    if (this.readout) {
+      const kmh = Math.round(Math.abs(car.speedKmh));
+      const gear = car.gear;
+      const rpm = Math.round((car.rpmRatio ?? 0) * 20);
+      const key = `${kmh}|${gear}|${rpm}`;
+      if (key === this.readoutKey) return;
+      this.readoutKey = key;
+      const ctx = this.readout.getContext('2d');
+      const accent = `#${new THREE.Color(this.style.accent).getHexString()}`;
+      ctx.fillStyle = '#0b1420';
+      ctx.fillRect(0, 0, 256, 72);
+      ctx.fillStyle = accent;
+      ctx.fillRect(14, 58, 228 * (rpm / 20), 6);
+      ctx.fillStyle = '#e8f1ff';
+      ctx.font = 'bold 40px system-ui, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(kmh), 150, 46);
+      ctx.font = '13px system-ui, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText('KM/H', 156, 46);
+      ctx.font = 'bold 34px system-ui, sans-serif';
+      ctx.fillStyle = accent;
+      ctx.fillText(gear, 210, 44);
+      this.readoutTex.needsUpdate = true;
     }
   }
 
@@ -365,6 +464,12 @@ export class Cockpit {
     this.handRight = hand();
     this.armLeft = arm();
     this.armRight = arm();
+  }
+
+  /** Free GPU resources the mesh traversal in Car.dispose does not reach. */
+  dispose() {
+    this.mirrorTarget?.dispose();
+    this.readoutTex?.dispose();
   }
 
   /** Light the dashboard arrow for an indicator blink. */
