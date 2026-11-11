@@ -40,7 +40,6 @@ export class HUD {
       rpmNeedle: document.getElementById('rpmNeedle'),
       rpmValue: document.getElementById('rpmValue'),
       shiftFlash: document.getElementById('shiftFlash'),
-      damageFill: document.getElementById('damageFill'),
       boostFill: document.getElementById('nitroFill'),
       boostPct: document.getElementById('nitroPct'),
       score: document.getElementById('score'),
@@ -336,15 +335,6 @@ export class HUD {
       tach.classList.remove('shift');
       this.el.gear?.classList.remove('shift');
     }, 360);
-  }
-
-  setDamage(value) {
-    const v = Math.round(Math.max(0, Math.min(1, value)) * 100);
-    if (v !== this.last.damage) {
-      this.el.damageFill.style.width = `${v}%`;
-      this.el.damageFill.classList.toggle('critical', v > 65);
-      this.last.damage = v;
-    }
   }
 
   setBoost(value) {

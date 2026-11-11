@@ -158,6 +158,30 @@ function makeNoiseTexture(style) {
       ctx.lineTo(Math.random() * 512, 512);
       ctx.stroke();
     }
+  } else if (style === 'city') {
+    // Downtown pavement: concrete blocks with joints, so the ground reads as
+    // city rather than a pitch-black plane between the painted streets.
+    ctx.fillStyle = '#3a3a44';
+    ctx.fillRect(0, 0, 512, 512);
+    for (let i = 0; i < 16000; i++) {
+      const v = Math.random();
+      ctx.fillStyle = v > 0.5
+        ? `rgba(130,130,145,${0.04 + Math.random() * 0.14})`
+        : `rgba(16,16,22,${0.05 + Math.random() * 0.18})`;
+      ctx.fillRect(Math.random() * 512, Math.random() * 512, 1 + Math.random() * 3, 1 + Math.random() * 3);
+    }
+    ctx.strokeStyle = 'rgba(150,150,168,0.16)';
+    ctx.lineWidth = 1;
+    for (let g = 0; g <= 512; g += 64) {
+      ctx.beginPath(); ctx.moveTo(g, 0); ctx.lineTo(g, 512); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0, g); ctx.lineTo(512, g); ctx.stroke();
+    }
+    for (let i = 0; i < 20; i++) {
+      ctx.fillStyle = `rgba(10,10,14,${0.08 + Math.random() * 0.12})`;
+      ctx.beginPath();
+      ctx.ellipse(Math.random() * 512, Math.random() * 512, 6 + Math.random() * 26, 4 + Math.random() * 16, Math.random() * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
   } else if (style === 'rock') {
     ctx.fillStyle = '#4b5560';
     ctx.fillRect(0, 0, 512, 512);
@@ -442,6 +466,14 @@ export function populateScenery(scene, track, circuit) {
   const dummy = new THREE.Object3D();
   const tmpColor = new THREE.Color();
 
+  // How far the venue reaches from the origin. City scenery scales its ring of
+  // blocks with it, so a four-kilometre street circuit is not buried in
+  // skyline that was placed for a 300 m loop.
+  let trackRadius = 0;
+  for (const sample of track.samples) {
+    trackRadius = Math.max(trackRadius, Math.hypot(sample.point.x, sample.point.z));
+  }
+
   function spot(minTrackDist, minRadius, maxRadius) {
     for (let attempt = 0; attempt < 70; attempt++) {
       const angle = Math.random() * Math.PI * 2;
@@ -548,21 +580,15 @@ export function populateScenery(scene, track, circuit) {
     }
   }
 
-  if (circuit.theme === 'city' || circuit.theme === 'industrial') {
+  if (circuit.theme === 'industrial') {
     for (let i = 0; i < 52; i++) {
       const angle = (i / 52) * Math.PI * 2 + Math.random() * 0.4;
       const radius = 300 + Math.random() * 380;
-      const h = 30 + Math.random() * (circuit.theme === 'city' ? 180 : 70);
+      const h = 30 + Math.random() * 70;
       const w = 22 + Math.random() * 45;
       const building = new THREE.Mesh(
         new THREE.BoxGeometry(w, h, w * (0.6 + Math.random() * 0.8)),
-        new THREE.MeshStandardMaterial({
-          color: circuit.theme === 'city' ? 0x161824 : 0x4a4238,
-          roughness: 0.9,
-          metalness: 0.15,
-          emissive: circuit.theme === 'city' ? 0x120a20 : 0x000000,
-          emissiveIntensity: 0.4,
-        }),
+        new THREE.MeshStandardMaterial({ color: 0x4a4238, roughness: 0.9, metalness: 0.15 }),
       );
       building.position.set(Math.cos(angle) * radius, h / 2 - 2, Math.sin(angle) * radius);
       building.rotation.y = Math.random() * Math.PI;
@@ -635,28 +661,340 @@ export function populateScenery(scene, track, circuit) {
   }
 
   if (circuit.theme === 'city') {
-    const windowMat = new THREE.MeshStandardMaterial({
-      map: windowTexture('mixed'), color: 0xffffff, roughness: 0.75, metalness: 0.25,
-      emissive: 0xffffff, emissiveMap: windowTexture('mixed'), emissiveIntensity: 0.55,
+    // ── shared materials (one texture for every lit facade)
+    const winTex = windowTexture('mixed');
+    const cityWindowMat = new THREE.MeshStandardMaterial({
+      map: winTex, color: 0xffffff, roughness: 0.72, metalness: 0.28,
+      emissive: 0xffffff, emissiveMap: winTex, emissiveIntensity: 0.62,
     });
-    instanced(new THREE.BoxGeometry(1, 1, 1), windowMat, 90, () => {
-      const s = spot(24, 42, 330);
-      if (!s) return null;
-      const h = 12 + Math.random() * 70;
-      const w = 8 + Math.random() * 20;
-      return { x: s.x, y: h / 2, z: s.z, scale: 1, sx: w, sy: h, sz: w * (0.7 + Math.random() * 0.8) };
-    });
-    const lampMat = new THREE.MeshStandardMaterial({ color: 0xffe6b0, emissive: 0xffc46b, emissiveIntensity: 2.2 });
-    for (let i = 0; i < 16; i++) {
-      const s = spot(13, 14, 320);
-      if (!s) continue;
-      const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.18, 7.5, 6), new THREE.MeshStandardMaterial({ color: 0x2a2a34, metalness: 0.6, roughness: 0.5 }));
-      pole.position.set(s.x, 3.75, s.z);
-      group.add(pole);
-      const lamp = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.18, 0.4), lampMat);
-      lamp.position.set(s.x, 7.5, s.z);
-      group.add(lamp);
+    const reader = (list) => {
+      let k = 0;
+      return () => list[k++] || null;
+    };
+
+    // ── downtown skyline: a cluster inside the loop plus a ring outside it
+    const skyline = [];
+    for (const [lo, hi, count] of [
+      [Math.max(90, trackRadius * 0.18), Math.max(210, trackRadius * 0.62), 26],
+      [trackRadius + 70, trackRadius + 440, 42],
+    ]) {
+      for (let i = 0; i < count; i++) {
+        const angle = (i / count) * Math.PI * 2 + Math.random() * 0.25;
+        const radius = lo + Math.random() * Math.max(1, hi - lo);
+        const x = Math.cos(angle) * radius;
+        const z = Math.sin(angle) * radius;
+        if (track.distanceToTrack(x, z) < 70) continue;
+        const h = 34 + Math.random() * 165;
+        const w = 20 + Math.random() * 34;
+        skyline.push({
+          x, z, h, w, d: w * (0.6 + Math.random() * 0.7),
+          ry: Math.random() > 0.5 ? 0 : Math.PI / 2,
+        });
+      }
     }
+    instanced(
+      new THREE.BoxGeometry(1, 1, 1), cityWindowMat, skyline.length,
+      reader(skyline.map((b) => ({
+        x: b.x, y: b.h / 2, z: b.z, ry: b.ry, sx: b.w, sy: b.h, sz: b.d,
+      }))),
+      [0x8a8fa8, 0x99a0b8, 0x7f8498, 0xa0a6bd],
+    );
+
+    // ── mid-rise blocks filling the city behind the houses
+    instanced(new THREE.BoxGeometry(1, 1, 1), cityWindowMat, 110, () => {
+      const s = spot(64, 80, trackRadius + 360);
+      if (!s) return null;
+      const h = 14 + Math.random() * 58;
+      const w = 12 + Math.random() * 20;
+      return {
+        x: s.x, y: h / 2, z: s.z, scale: 1,
+        sx: w, sy: h, sz: w * (0.72 + Math.random() * 0.7),
+        ry: Math.random() > 0.5 ? 0 : Math.PI / 2,
+      };
+    }, [0x7a7f94, 0x8a7d88, 0x6d7386, 0x91857c]);
+
+    // ── city street grid stretching out to the horizon
+    const extent = trackRadius + 480;
+    const block = 170;
+    const gridRoads = [];
+    const gridWalks = [];
+    const gridDashes = [];
+    for (let k = -Math.ceil(extent / block); k <= Math.ceil(extent / block); k++) {
+      const p = k * block;
+      gridRoads.push({ x: p, z: 0, sx: 11, sz: extent * 2 });
+      gridRoads.push({ x: 0, z: p, sx: extent * 2, sz: 11 });
+      for (const off of [-6.6, 6.6]) {
+        gridWalks.push({ x: p + off, z: 0, sx: 2, sz: extent * 2 });
+        gridWalks.push({ x: 0, z: p + off, sx: extent * 2, sz: 2 });
+      }
+      for (let d = -extent + 9; d < extent; d += 24) {
+        gridDashes.push({ x: p, z: d, sx: 0.3, sz: 6 });
+        gridDashes.push({ x: d, z: p, sx: 6, sz: 0.3 });
+      }
+    }
+    instanced(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: 0x1a1b22, roughness: 0.96, metalness: 0.02 }),
+      gridRoads.length,
+      reader(gridRoads.map((r) => ({ x: r.x, y: -0.035, z: r.z, sx: r.sx, sy: 0.03, sz: r.sz, ry: 0 }))),
+    );
+    instanced(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: 0x52525f, roughness: 0.94 }),
+      gridWalks.length,
+      reader(gridWalks.map((w) => ({ x: w.x, y: -0.028, z: w.z, sx: w.sx, sy: 0.028, sz: w.sz, ry: 0 }))),
+    );
+    instanced(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: 0xb9b3c8, roughness: 0.7 }),
+      gridDashes.length,
+      reader(gridDashes.map((d) => ({ x: d.x, y: -0.015, z: d.z, sx: d.sx, sy: 0.008, sz: d.sz, ry: 0 }))),
+    );
+
+    // ── junction positions (used by houses, lights, crossings and side streets)
+    const metresPerSample = track.length / track.samples.length;
+    const junctionStep = Math.max(1, Math.round(155 / metresPerSample));
+    const junctions = [];
+    for (let i = junctionStep; i < track.samples.length; i += junctionStep) {
+      junctions.push(track.samples[i]);
+    }
+    const junctionIndex = new Set();
+    for (let i = junctionStep; i < track.samples.length; i += junctionStep) junctionIndex.add(i);
+    const nearJunction = (i, radius) => {
+      for (let d = -radius; d <= radius; d++) if (junctionIndex.has((i + d + track.samples.length) % track.samples.length)) return true;
+      return false;
+    };
+
+    // ── houses lining both kerbs, rotated to face the street
+    const houseSpots = [];
+    const houseStride = Math.max(1, Math.round(26 / metresPerSample));
+    for (let i = 0; i < track.samples.length; i += houseStride) {
+      if (nearJunction(i, Math.max(1, Math.round(22 / metresPerSample)))) continue;
+      const s = track.samples[i];
+      for (const sign of [-1, 1]) {
+        if (Math.random() < 0.12) continue;
+        const off = track.wallOffset + 7 + Math.random() * 20;
+        const x = s.point.x + s.side.x * sign * off;
+        const z = s.point.z + s.side.z * sign * off;
+        if (track.distanceToTrack(x, z) < track.wallOffset + 4) continue;
+        if (Math.hypot(x - standPos.x, z - standPos.z) < 34) continue;
+        houseSpots.push({
+          x, z,
+          w: 7 + Math.random() * 6,
+          d: 6 + Math.random() * 6,
+          h: 3.8 + Math.random() * 3.2,
+          roofH: 1.7 + Math.random() * 1.7,
+          ry: Math.atan2(-sign * s.side.x, -sign * s.side.z),
+        });
+      }
+    }
+    const bodySpots = houseSpots.map((h) => ({
+      x: h.x, y: h.h / 2, z: h.z, ry: h.ry, sx: h.w, sy: h.h, sz: h.d,
+    }));
+    const roofSpots = houseSpots.map((h) => ({
+      x: h.x, y: h.h, z: h.z, ry: h.ry, sx: h.w * 1.06, sy: h.roofH, sz: h.d * 1.06,
+    }));
+    const roofGeo = new THREE.ConeGeometry(0.76, 1, 4, 1);
+    roofGeo.rotateY(Math.PI / 4);
+    roofGeo.translate(0, 0.5, 0);
+    const winParts = [];
+    for (const wx of [-0.27, 0, 0.27]) {
+      for (const wy of [0.08, 0.28]) {
+        const pane = new THREE.PlaneGeometry(0.17, 0.17);
+        pane.translate(wx, wy, 0.501);
+        winParts.push(pane);
+      }
+    }
+    const houseWindowGeo = mergeGeometries(winParts, false);
+    instanced(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 }),
+      houseSpots.length, reader(bodySpots), [0x8d7f72, 0x80747e, 0x6e7484, 0x94897b, 0x74806d, 0x86707a],
+    );
+    instanced(
+      roofGeo,
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 }),
+      houseSpots.length, reader(roofSpots), [0x2d2632, 0x3a2b2b, 0x222d36, 0x40313a, 0x2b332e],
+    );
+    instanced(
+      houseWindowGeo,
+      new THREE.MeshStandardMaterial({
+        color: 0xffe0b0, emissive: 0xffc070, emissiveIntensity: 1.9, roughness: 0.35,
+      }),
+      houseSpots.length, reader(bodySpots),
+    );
+
+    // ── residential blocks filling the grid between the boulevards
+    const blockHouses = [];
+    for (let attempt = 0; attempt < 900 && blockHouses.length < 260; attempt++) {
+      const s = spot(52, 70, trackRadius + 430);
+      if (!s) continue;
+      // Keep the painted grid streets and their pavements clear.
+      const nearGrid = (v) => {
+        const m = ((v % block) + block) % block;
+        return Math.min(m, block - m) < 15;
+      };
+      if (nearGrid(s.x) || nearGrid(s.z)) continue;
+      blockHouses.push({
+        x: s.x, z: s.z,
+        w: 6 + Math.random() * 7,
+        d: 5 + Math.random() * 6,
+        h: 3.4 + Math.random() * 3.6,
+        roofH: 1.5 + Math.random() * 1.8,
+        ry: Math.random() * Math.PI * 2,
+      });
+    }
+    instanced(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 }),
+      blockHouses.length,
+      reader(blockHouses.map((h) => ({ x: h.x, y: h.h / 2, z: h.z, ry: h.ry, sx: h.w, sy: h.h, sz: h.d }))),
+      [0x8d7f72, 0x80747e, 0x6e7484, 0x94897b, 0x74806d, 0x86707a],
+    );
+    instanced(
+      roofGeo,
+      new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 }),
+      blockHouses.length,
+      reader(blockHouses.map((h) => ({ x: h.x, y: h.h, z: h.z, ry: h.ry, sx: h.w * 1.06, sy: h.roofH, sz: h.d * 1.06 }))),
+      [0x2d2632, 0x3a2b2b, 0x222d36, 0x40313a, 0x2b332e],
+    );
+    instanced(
+      houseWindowGeo,
+      new THREE.MeshStandardMaterial({
+        color: 0xffe0b0, emissive: 0xffc070, emissiveIntensity: 1.9, roughness: 0.35,
+      }),
+      blockHouses.length,
+      reader(blockHouses.map((h) => ({ x: h.x, y: h.h / 2, z: h.z, ry: h.ry, sx: h.w, sy: h.h, sz: h.d }))),
+    );
+
+    // ── traffic lights and zebra crossings at every junction
+    const junctionSpots = [];
+    for (const s of junctions) {
+      for (const sign of [-1, 1]) {
+        junctionSpots.push({
+          x: s.point.x + s.side.x * sign * (track.wallOffset + 2.2),
+          z: s.point.z + s.side.z * sign * (track.wallOffset + 2.2),
+          ry: Math.atan2(s.tangent.x, s.tangent.z),
+          tangent: s.tangent,
+          sign,
+        });
+      }
+    }
+    const lightMats = {
+      pole: new THREE.MeshStandardMaterial({ color: 0x26262f, metalness: 0.6, roughness: 0.5 }),
+      head: new THREE.MeshStandardMaterial({ color: 0x14141a, metalness: 0.5, roughness: 0.55 }),
+      red: new THREE.MeshStandardMaterial({ color: 0xff2130, emissive: 0xff1020, emissiveIntensity: 3.4, roughness: 0.3 }),
+      amber: new THREE.MeshStandardMaterial({ color: 0x3a2a0d, emissive: 0xffa020, emissiveIntensity: 0.35, roughness: 0.4 }),
+      green: new THREE.MeshStandardMaterial({ color: 0x0d2a18, emissive: 0x2fd06a, emissiveIntensity: 0.4, roughness: 0.4 }),
+    };
+    const poleGeo = new THREE.CylinderGeometry(0.09, 0.13, 4.5, 6);
+    poleGeo.translate(0, 2.25, 0);
+    const headGeo = new THREE.BoxGeometry(0.56, 1.3, 0.34);
+    headGeo.translate(0, 3.55, 0);
+    const lampGeo = (y) => {
+      const g = new THREE.BoxGeometry(0.32, 0.3, 0.06);
+      g.translate(0, y, -0.19);
+      return g;
+    };
+    const lightMeshes = [
+      [poleGeo, lightMats.pole, 0],
+      [headGeo, lightMats.head, 0],
+      [lampGeo(3.95), lightMats.red, 0],
+      [lampGeo(3.55), lightMats.amber, 0],
+      [lampGeo(3.15), lightMats.green, 0],
+    ];
+    for (const [geo, mat] of lightMeshes) {
+      const mesh = new THREE.InstancedMesh(geo, mat, junctionSpots.length);
+      junctionSpots.forEach((spotItem, index) => {
+        dummy.position.set(spotItem.x, 0, spotItem.z);
+        dummy.rotation.set(0, spotItem.ry, 0);
+        dummy.scale.setScalar(1);
+        dummy.updateMatrix();
+        mesh.setMatrixAt(index, dummy.matrix);
+      });
+      mesh.count = junctionSpots.length;
+      mesh.castShadow = true;
+      group.add(mesh);
+    }
+
+    // Zebra crossings just before each junction, painted over the tarmac.
+    const crossings = [];
+    for (const s of junctions) {
+      for (let k = -3; k <= 3; k++) {
+        crossings.push({
+          x: s.point.x + s.side.x * k * 2.8 - s.tangent.x * 3.2,
+          z: s.point.z + s.side.z * k * 2.8 - s.tangent.z * 3.2,
+          ry: Math.atan2(s.tangent.x, s.tangent.z),
+        });
+      }
+    }
+    instanced(
+      new THREE.BoxGeometry(1.25, 0.012, 3.1),
+      new THREE.MeshStandardMaterial({ color: 0xded8e8, roughness: 0.7 }),
+      crossings.length,
+      reader(crossings.map((c) => ({ x: c.x, y: 0.022, z: c.z, ry: c.ry }))),
+    );
+
+    // Side streets running away from the circuit at every junction.
+    const sideStreets = [];
+    for (const s of junctions) {
+      for (const sign of [-1, 1]) {
+        const dist = track.wallOffset + 1.5 + 11;
+        sideStreets.push({
+          x: s.point.x + s.side.x * sign * dist,
+          z: s.point.z + s.side.z * sign * dist,
+          ry: Math.atan2(s.side.x * sign, s.side.z * sign),
+        });
+      }
+    }
+    instanced(
+      new THREE.BoxGeometry(11, 0.035, 22),
+      new THREE.MeshStandardMaterial({ color: 0x1c1d25, roughness: 0.95 }),
+      sideStreets.length,
+      reader(sideStreets.map((street) => ({ x: street.x, y: -0.03, z: street.z, ry: street.ry }))),
+    );
+
+    // ── street lamps down both sides of the circuit
+    const lampSpots = [];
+    const lampStride = Math.max(1, Math.round(76 / metresPerSample));
+    let lampSide = 1;
+    for (let i = 0; i < track.samples.length; i += lampStride) {
+      const s = track.samples[i];
+      lampSide *= -1;
+      lampSpots.push({
+        x: s.point.x + s.side.x * lampSide * (track.wallOffset + 1.6),
+        z: s.point.z + s.side.z * lampSide * (track.wallOffset + 1.6),
+        hx: s.point.x + s.side.x * lampSide * (track.wallOffset + 0.4),
+        hz: s.point.z + s.side.z * lampSide * (track.wallOffset + 0.4),
+        ry: Math.atan2(s.tangent.x, s.tangent.z),
+      });
+    }
+    const lampPoleGeo = new THREE.CylinderGeometry(0.11, 0.17, 7.6, 6);
+    lampPoleGeo.translate(0, 3.8, 0);
+    const lampPoleMesh = new THREE.InstancedMesh(
+      lampPoleGeo,
+      new THREE.MeshStandardMaterial({ color: 0x2a2a34, metalness: 0.6, roughness: 0.5 }),
+      lampSpots.length,
+    );
+    const lampHeadMesh = new THREE.InstancedMesh(
+      new THREE.BoxGeometry(1.25, 0.18, 0.42),
+      new THREE.MeshStandardMaterial({ color: 0xffe6b0, emissive: 0xffc46b, emissiveIntensity: 2.2 }),
+      lampSpots.length,
+    );
+    lampSpots.forEach((spotItem, index) => {
+      dummy.position.set(spotItem.x, 0, spotItem.z);
+      dummy.rotation.set(0, spotItem.ry, 0);
+      dummy.scale.setScalar(1);
+      dummy.updateMatrix();
+      lampPoleMesh.setMatrixAt(index, dummy.matrix);
+      dummy.position.set(spotItem.hx, 7.55, spotItem.hz);
+      dummy.updateMatrix();
+      lampHeadMesh.setMatrixAt(index, dummy.matrix);
+    });
+    lampPoleMesh.count = lampSpots.length;
+    lampHeadMesh.count = lampSpots.length;
+    lampPoleMesh.castShadow = true;
+    group.add(lampPoleMesh, lampHeadMesh);
   }
 
   if (circuit.theme === 'industrial') {

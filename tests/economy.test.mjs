@@ -11,15 +11,19 @@ import {
   nextRankProgress,
   positionLabel,
   practiceRentalFee,
+  isFreeRunMode,
 } from '../js/economy.js';
 import { CIRCUITS, getCircuit } from '../js/data/circuits.js';
 import { CAREER_EVENTS, CAREER_SERIES, getCareerEvent } from '../js/data/career.js';
 
 const circuit = getCircuit('sunset-coast');
 
-test('four difficulties and four modes are available', () => {
+test('four difficulties and five modes are available', () => {
   assert.deepEqual(DIFFICULTIES.map((d) => d.id), ['easy', 'normal', 'hard', 'expert']);
-  assert.deepEqual(MODES.map((m) => m.id), ['career', 'quick', 'time-trial', 'practice']);
+  assert.deepEqual(MODES.map((m) => m.id), ['career', 'quick', 'time-trial', 'practice', 'drift']);
+  assert.equal(isFreeRunMode('drift'), true);
+  assert.equal(isFreeRunMode('practice'), true);
+  assert.equal(isFreeRunMode('quick'), false);
   assert.equal(getDifficulty('missing').id, 'normal');
   assert.equal(getMode('missing').id, 'quick');
 });
@@ -109,6 +113,13 @@ test('time trial and practice pay out differently', () => {
 
   const noDrift = computeRewards({ mode: 'practice', driftScore: 0 });
   assert.equal(noDrift.total, 0);
+
+  const drift = computeRewards({ mode: 'drift', circuit, laps: Infinity, driftScore: 5000 });
+  assert.ok(drift.total > practice.total);
+  assert.ok(drift.total <= 3600);
+  assert.equal(drift.position, null);
+  assert.ok(drift.lines.some((line) => line.label === 'Drift session bonus'));
+  assert.equal(computeRewards({ mode: 'drift', driftScore: 0 }).total, 0);
 });
 
 test('records and drift add visible bonus lines', () => {

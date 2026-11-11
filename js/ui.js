@@ -36,7 +36,8 @@ function esc(str) {
  * up in a race, time trial or online lobby, and practice lists them first.
  */
 function circuitsFor(modeId) {
-  const list = CIRCUITS.filter((c) => modeId === 'practice' || !c.practiceOnly);
+  // Only practice offers the test runway; free drift gets every street venue.
+  const list = CIRCUITS.filter((c) => !c.practiceOnly || modeId === 'practice');
   if (modeId !== 'practice') return list;
   return [...list].sort((a, b) => Number(!!b.practiceOnly) - Number(!!a.practiceOnly));
 }
@@ -255,10 +256,11 @@ export class UI {
       this.raceConfig.mode = card.dataset.mode;
       // Leaving practice: a rented circuit may be locked in the new mode (and
       // the practice runway is not a race venue), so fall back to a circuit
-      // the player actually owns.
+      // the player actually owns. Free drift opens every street venue.
+      const freeMode = this.raceConfig.mode === 'practice' || this.raceConfig.mode === 'drift';
       const allowed = circuitsFor(this.raceConfig.mode);
       if (!allowed.some((c) => c.id === this.raceConfig.circuitId)
-        || !this.store?.circuitUnlocked(this.raceConfig.circuitId)) {
+        || (!freeMode && !this.store?.circuitUnlocked(this.raceConfig.circuitId))) {
         const first = allowed.find((c) => this.store?.circuitUnlocked(c.id)) || allowed[0];
         this.raceConfig.circuitId = first.id;
       }
@@ -868,14 +870,16 @@ export class UI {
 
     $('circuitList').innerHTML = circuits.map((circuit) => {
       const practice = mode.id === 'practice';
+      const drift = mode.id === 'drift';
       const unlocked = this.store.circuitUnlocked(circuit.id);
-      const open = unlocked || practice;
+      const open = unlocked || practice || drift;
       const fee = practice ? this.store.practiceFee(circuit.id) : 0;
       const active = circuit.id === this.raceConfig.circuitId;
       const best = this.store.bestLapFor(circuit.id);
       let detail;
       if (circuit.practiceOnly) detail = `TEST TRACK · ${circuit.lengthKm} KM`;
       else if (fee) detail = `RENT ${formatCredits(fee)} CR · ${circuit.lengthKm} KM`;
+      else if (drift) detail = `${circuit.lengthKm} KM · FREE DRIFT`;
       else if (unlocked) detail = best ? `BEST ${fmtTime(best)}` : `${circuit.lengthKm} KM · ${circuit.difficultyLabel}`;
       else detail = `RANK ${(RANK_LABELS[circuit.unlockRank] || 'LOCKED').toUpperCase()}`;
       const classes = ['circuit-card', active ? 'active' : '', open ? '' : 'locked', fee ? 'rental' : '']
@@ -911,16 +915,18 @@ export class UI {
     const diff = getDifficulty(this.raceConfig.difficulty);
     const car = this.store.selectedCar;
     const aiMode = mode.id === 'quick' || mode.id === 'career';
-    const laps = mode.id === 'practice' ? 'Free drive' : `${circuit.laps} laps`;
+    const laps = mode.id === 'practice' ? 'Free drive'
+      : mode.id === 'drift' ? 'Free drift' : `${circuit.laps} laps`;
     const opponents = aiMode ? `${this.raceConfig.opponents} AI` : 'Solo';
     const rental = mode.id === 'practice' ? this.store.practiceFee(circuit.id) : 0;
+    const freePayout = mode.id === 'practice' || mode.id === 'drift';
     $('setupSummary').innerHTML = `
       <div class="summary-row"><span>MODE</span><strong>${mode.label}</strong></div>
       <div class="summary-row"><span>CIRCUIT</span><strong>${circuit.name} · ${circuit.lengthKm} km</strong></div>
       ${rental ? `<div class="summary-row"><span>TRACK RENTAL</span><strong>${formatCredits(rental)} CR · per session</strong></div>` : ''}
       <div class="summary-row"><span>CAR</span><strong>${car.name}</strong></div>
       <div class="summary-row"><span>RACE</span><strong>${laps} · ${opponents} · ${aiMode ? diff.label : 'No rivals'}</strong></div>
-      <div class="summary-row"><span>PAYOUT</span><strong>${mode.id === 'practice' ? 'Drift score only' : `Base ${formatCredits(basePurse({ mode: mode.id, circuit, laps: mode.id === 'time-trial' ? 3 : circuit.laps }))} CR`}</strong></div>`;
+      <div class="summary-row"><span>PAYOUT</span><strong>${freePayout ? 'Drift score only' : `Base ${formatCredits(basePurse({ mode: mode.id, circuit, laps: mode.id === 'time-trial' ? 3 : circuit.laps }))} CR`}</strong></div>`;
   }
 
   /* ───────────────────────── career ───────────────────────── */
@@ -1078,6 +1084,7 @@ export class UI {
   renderResults(data) {
     const titles = {
       practice: ['SESSION COMPLETE', 'FREE<br /><em>DRIVE.</em>'],
+      drift: ['DRIFT SESSION', 'ANGLE<br /><em>OVER SPEED.</em>'],
       'time-trial': ['TIME TRIAL COMPLETE', 'AGAINST THE<br /><em>CLOCK.</em>'],
       online: ['ONLINE RACE', 'CHEQUERED<br /><em>FLAG.</em>'],
     };
@@ -1098,6 +1105,7 @@ export class UI {
       if (!data.pending && !data.position) $('resultTitle').innerHTML = 'DID NOT<br /><em>FINISH.</em>';
     }
     $('btnAgain').innerHTML = data.mode === 'practice' ? 'DRIVE AGAIN <span>↻</span>'
+      : data.mode === 'drift' ? 'DRIFT AGAIN <span>↻</span>'
       : data.mode === 'online' ? 'BACK TO LOBBY <span>↻</span>' : 'RACE AGAIN <span>↻</span>';
     $('resultDriver').textContent = data.driver;
     $('resultTotal').textContent = fmtTime(data.total);
@@ -1227,10 +1235,11 @@ export class UI {
 
   setPauseMode(mode) {
     const isOnline = mode === 'online';
-    $('btnEndSession').classList.toggle('hidden', mode !== 'practice');
+    const freeRun = mode === 'practice' || mode === 'drift';
+    $('btnEndSession').classList.toggle('hidden', !freeRun);
     this.renderSettings();
     $('btnRestart').classList.toggle('hidden', isOnline);
-    $('btnRestart').textContent = mode === 'practice' ? 'RESTART SESSION' : 'RESTART RACE';
+    $('btnRestart').textContent = freeRun ? 'RESTART SESSION' : 'RESTART RACE';
     $('btnQuit').textContent = isOnline ? 'FORFEIT · BACK TO GARAGE' : 'QUIT TO GARAGE';
     $('pauseCopy').textContent = isOnline
       ? 'This is a live race: your car is stopped while your rivals keep driving.'
@@ -1403,7 +1412,7 @@ export class UI {
     const history = (data.history || []).slice(0, 8).map((row) => {
       const circuit = getCircuit(row.circuitId);
       const when = new Date(row.at);
-      const place = row.mode === 'practice' || row.mode === 'time-trial'
+      const place = row.mode === 'practice' || row.mode === 'drift' || row.mode === 'time-trial'
         ? getMode(row.mode).label
         : row.position
           ? `${row.mode === 'online' ? 'ONLINE · ' : ''}P${row.position}/${row.totalRacers}`

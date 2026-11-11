@@ -1058,7 +1058,7 @@ body.touch-ui .hud-bottom { left: 50%; transform: translateX(-50%); }
   background: rgba(10, 6, 18, 0.14);
 }
 
-/* Mobile HUD: nitro + damage become a borderless top-left overlay, and the
+/* Mobile HUD: nitro becomes a borderless top-left overlay, and the
    outright camera/pause buttons stay in the top action row. */
 body.touch-ui .nitro {
   left: max(16px, env(safe-area-inset-left));
@@ -1071,12 +1071,9 @@ body.touch-ui .nitro {
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
-body.touch-ui .nitro .damage-head { margin-top: 10px; }
 body.touch-ui .hud-driver { display: none; }
-body.touch-ui .nitro-head,
-body.touch-ui .nitro .damage-head { text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85); }
-body.touch-ui .nitro-bar,
-body.touch-ui .damage-bar { box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4); }
+body.touch-ui .nitro-head { text-shadow: 0 1px 8px rgba(0, 0, 0, 0.85); }
+body.touch-ui .nitro-bar { box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4); }
 body.touch-ui .hud-position { left: 180px; top: 12px; }
 body.touch-ui .hud-actions { margin-left: auto; }
 body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15px; }
@@ -1290,18 +1287,6 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   background: linear-gradient(90deg, var(--green), var(--gold), var(--hot));
   transition: width 0.06s linear;
 }
-.damage-head {
-  margin-top: 13px; margin-bottom: 6px;
-  font-size: 11px; letter-spacing: 0.2em; color: var(--faint);
-}
-.damage-bar { height: 6px; background: rgba(255, 255, 255, 0.1); overflow: hidden; }
-.damage-bar i {
-  display: block; height: 100%; width: 0%;
-  background: linear-gradient(90deg, var(--gold), var(--hot));
-  transition: width 0.15s linear;
-}
-.damage-bar i.critical { background: var(--hot); box-shadow: 0 0 14px rgba(255, 61, 127, 0.85); }
-
 .account-chip {
   display: flex; align-items: center; gap: 9px;
   background: rgba(255, 255, 255, 0.03);

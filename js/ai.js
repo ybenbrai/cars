@@ -187,7 +187,7 @@ export class AIDriver {
       } else if (Math.abs(along) <= 1.5 && Math.abs(lat) < 3.4 && T.lean > 0) {
         // Side by side: lean in to squeeze the other car towards the edge.
         underAttack = true;
-        // Enough to squeeze, not ram: contact damages both cars.
+        // Enough to squeeze, not ram: contact unsettles both cars.
         const push = Math.sign(lat || 1) * 0.7 * T.lean * aggression;
         leanLine = this.currentLine + push;
       }

@@ -3,11 +3,11 @@ import * as THREE from 'three';
 // Air between the tyre and its wheel arch. Body lean is limited so the arch
 // lip never drops into this gap (see setBodyTilt), otherwise the black tyre
 // shows through the paint in fast corners.
-const ARCH_GAP = 0.065;
+const ARCH_GAP = 0.045;
 // Shell thickness above the arch, including the drop of the rolled edge.
-const FENDER_COVER = 0.08;
+const FENDER_COVER = 0.055;
 // Highest the wing crowns may rise above the bonnet line.
-const MAX_WING_LIFT = 0.1;
+const MAX_WING_LIFT = 0.05;
 // Length (m) over which a wing crown eases back into the bonnet or deck.
 const WING_FADE = 0.4;
 // Length over which a wing line blends into the beltline inside the cabin.
@@ -24,16 +24,16 @@ const TRIM = 0x101116;
 // value widens the body over each axle, tumble controls how much the glass
 // leans in, and roof selects the greenhouse profile.
 const STYLE_SHAPE = {
-  hatch: { fender: 1.035, tumble: 0.975, hood: 1.0, roof: 'hatch' },
-  sedan: { fender: 1.038, tumble: 0.972, hood: 1.0, roof: 'notch' },
-  sports: { fender: 1.045, tumble: 0.965, hood: 0.94, roof: 'fast' },
-  muscle: { fender: 1.052, tumble: 0.975, hood: 1.0, roof: 'fast' },
-  super: { fender: 1.05, tumble: 0.955, hood: 0.84, roof: 'fast' },
-  hyper: { fender: 1.055, tumble: 0.95, hood: 0.8, roof: 'fast' },
-  suv: { fender: 1.022, tumble: 0.992, hood: 1.0, roof: 'boxy' },
-  offroad: { fender: 1.028, tumble: 0.99, hood: 1.0, roof: 'boxy' },
-  roadster: { fender: 1.04, tumble: 0.965, hood: 0.92, roof: 'none' },
-  gt: { fender: 1.045, tumble: 0.97, hood: 0.96, roof: 'fast' },
+  hatch: { fender: 1.016, tumble: 0.975, hood: 1.0, roof: 'hatch' },
+  sedan: { fender: 1.018, tumble: 0.972, hood: 1.0, roof: 'notch' },
+  sports: { fender: 1.022, tumble: 0.968, hood: 0.95, roof: 'fast' },
+  muscle: { fender: 1.026, tumble: 0.975, hood: 1.0, roof: 'fast' },
+  super: { fender: 1.024, tumble: 0.955, hood: 0.88, roof: 'fast' },
+  hyper: { fender: 1.026, tumble: 0.95, hood: 0.84, roof: 'fast' },
+  suv: { fender: 1.012, tumble: 0.992, hood: 1.0, roof: 'boxy' },
+  offroad: { fender: 1.014, tumble: 0.99, hood: 1.0, roof: 'boxy' },
+  roadster: { fender: 1.02, tumble: 0.965, hood: 0.94, roof: 'none' },
+  gt: { fender: 1.022, tumble: 0.97, hood: 0.97, roof: 'fast' },
 };
 
 function rbox(w, h, d, r = 0.08) {
@@ -542,23 +542,23 @@ export class CarModel {
     ];
     const fender = shape.fender;
     const widthKeys = [
-      [0, 0.77],
-      [0.03, 0.88],
-      [0.1, 0.94],
-      [hyp(tWheelRear - 0.09), fender - 0.05],
+      [0, 0.80],
+      [0.03, 0.89],
+      [0.1, 0.955],
+      [hyp(tWheelRear - 0.1), fender - 0.018],
       [tWheelRear, fender],
-      [hyp(tWheelRear + 0.08), fender - 0.045],
-      [cabinMid, fender - 0.05],
-      [hyp(tWheelFront - 0.08), fender - 0.045],
+      [hyp(tWheelRear + 0.09), fender - 0.016],
+      [cabinMid, fender - 0.02],
+      [hyp(tWheelFront - 0.09), fender - 0.016],
       [tWheelFront, fender],
-      [hyp(tWheelFront + 0.09), fender - 0.05],
-      [0.9, 0.93],
-      [0.97, 0.82],
-      [1, 0.72],
+      [hyp(tWheelFront + 0.1), fender - 0.018],
+      [0.9, 0.94],
+      [0.97, 0.87],
+      [1, 0.79],
     ];
 
     const stations = [];
-    const STATIONS = 112;
+    const STATIONS = 144;
     const archR = b.wheelRadius + ARCH_GAP;
     // Wing crown needed over each axle: enough to clear the arch at the
     // outer edge of the bonnet line there.
@@ -2037,17 +2037,6 @@ export class CarModel {
       this.plateMat.needsUpdate = true;
     }
 
-    this.setDamage(this.damageAmount || 0);
-  }
-
-  setDamage(amount) {
-    const v = Math.max(0, Math.min(1, amount || 0));
-    this.damageAmount = v;
-    const base = this.basePaint || this.paintMat.color;
-    const dark = new THREE.Color(0x120f12);
-    this.paintMat.color.copy(base).lerp(dark, v * 0.58);
-    this.paintMat.roughness = Math.min(0.9, (this.lookFinishRoughness ?? 0.24) + v * 0.35);
-    this.paintMat.clearcoat = Math.max(0.05, (this.lookFinishClearcoat ?? 1) - v * 0.7);
   }
 
   setSteer(angle) {

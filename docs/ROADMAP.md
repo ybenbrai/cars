@@ -56,9 +56,10 @@ whether credits are per-car, and how to avoid turning the game into a grind.
 
 ## Non-goals for now
 
-- Full racing simulation (tire temperatures, fuel, damage)
+- Full racing simulation (tire temperatures, fuel, mechanical wear)
 - Real-world licensed cars or brands
-- A large open world
+- Free-roam open world: the city circuits are closed street loops, not an
+  explorable sandbox
 - Server-authoritative physics or anti-cheat beyond sanity checks (online
   races relay client positions; they need the bundled Node server, and static
   hosts stay guest-only)

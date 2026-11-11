@@ -38,7 +38,7 @@ import {
 } from './data/cars.js';
 import { CIRCUITS, getCircuit } from './data/circuits.js';
 import { getCareerEvent } from './data/career.js';
-import { getDifficulty, getMode, computeRewards } from './economy.js';
+import { getDifficulty, getMode, computeRewards, isFreeRunMode } from './economy.js';
 import { bodyCircles, deepestContact } from './collisionMath.js';
 
 const FIXED = 1 / 120;
@@ -485,14 +485,18 @@ function resolveRaceConfig(config = {}) {
   // `startRace`). Every other mode still requires the circuit to be unlocked
   // and cannot use a practice-only venue such as the test runway.
   const requested = getCircuit(circuitId);
-  if (mode.id !== 'practice' && !config.dailyChallenge && (requested.practiceOnly || !store.circuitUnlocked(circuitId))) {
+  // Practice and free drift open locked venues without a rental. Only practice
+  // may use a practice-only venue such as the test runway.
+  const freeCircuit = mode.id === 'practice' || mode.id === 'drift';
+  if (mode.id !== 'practice' && !config.dailyChallenge
+    && (requested.practiceOnly || (!freeCircuit && !store.circuitUnlocked(circuitId)))) {
     circuitId = fallbackCircuit.id;
   }
   const circuit = getCircuit(circuitId);
   const difficulty = getDifficulty(config.difficulty || event?.difficulty || 'normal');
-  const solo = mode.id === 'time-trial' || mode.id === 'practice';
+  const solo = mode.id === 'time-trial' || isFreeRunMode(mode.id);
   const opponents = solo ? 0 : clamp(Math.round(config.opponents ?? event?.opponents ?? 3), 1, 7);
-  const laps = solo ? (mode.id === 'practice' ? Infinity : 3) : (config.laps || event?.laps || circuit.laps || 3);
+  const laps = solo ? (isFreeRunMode(mode.id) ? Infinity : 3) : (config.laps || event?.laps || circuit.laps || 3);
   // Career and daily events run in their own (default) conditions.
   const conditions = normalizeConditions(event || config.dailyChallenge ? {} : config);
   return {
@@ -811,14 +815,13 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
 
   const label = setup.mode === 'career' ? setup.event?.name || 'CAREER' : setup.modeLabel;
   hud.setDriver(store.name, label);
-  hud.setLap(1, race.laps, race.mode === 'practice');
+  hud.setLap(1, race.laps, isFreeRunMode(race.mode));
   hud.setLapTime(0);
   hud.setBest(store.bestLapFor(setup.circuit.id));
   hud.setPosition(totalRacers, totalRacers);
   hud.setScore(0);
   hud.setSpeed(0, 'N', playerCar.maxSpeedKmh);
   hud.setRpm(0.06);
-  hud.setDamage(0);
   hud.setBoost(playerCar.boost);
   hud.setDrift(false);
   hud.setWrongWay(false);
@@ -956,7 +959,7 @@ function onCross(racer) {
     return;
   }
 
-  if (race.mode === 'practice') {
+  if (isFreeRunMode(race.mode)) {
     // Free drive still times every flying lap so it is useful for learning.
     if (racer.crossings > 1) {
       const lapTime = race.time - race.lapStart;
@@ -1164,7 +1167,7 @@ function finishRace() {
   audio.finish();
 
   const previousRecord = store.bestLapFor(race.circuit.id);
-  const newLapRecord = race.mode !== 'practice'
+  const newLapRecord = !isFreeRunMode(race.mode)
     && bestLap != null && (!previousRecord || bestLap < previousRecord);
   const rankBefore = store.rank;
   const wasCleared = race.eventId ? store.data.career.completed.includes(race.eventId) : false;
@@ -1368,7 +1371,7 @@ function exitPhoto() {
 
 /** Practice has no chequered flag: ending the session banks the drift score. */
 function endSession() {
-  if (state !== 'paused' || !race || race.mode !== 'practice') return;
+  if (state !== 'paused' || !race || !isFreeRunMode(race.mode)) return;
   state = 'racing';
   ui.show(null);
   finishRace();
@@ -1506,7 +1509,7 @@ function toggleSound() {
 function updateHud(dt) {
   if (!race) return;
   const car = race.player.car;
-  const freeDrive = race.mode === 'practice';
+  const freeDrive = isFreeRunMode(race.mode);
 
   hud.setLapTime(race.time - (race.player.crossings === 0 ? 0 : race.lapStart));
   hud.setSpeed(car.speedKmh, car.gear, car.maxSpeedKmh);
@@ -1526,7 +1529,6 @@ function updateHud(dt) {
     race.lastGear = car.gear;
   }
 
-  hud.setDamage(car.damage);
   hud.setBoost(car.boost);
   hud.setScore(race.score + Math.round(race.driftBank));
   if (!freeDrive) {
@@ -1641,7 +1643,6 @@ function frame(now) {
     audio.launch(launchRpm, revving, dt);
 
     hud.setBoost(race.player.car.boost);
-    hud.setDamage(race.player.car.damage);
     hud.drawMap(race.player.car, race.racers.map((r) => ({ pos: r.car.pos, isPlayer: r.isPlayer, color: r.color })), 1, 0);
   }
 

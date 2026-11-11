@@ -41,7 +41,7 @@ shows a rotate hint and the race pauses underneath it, while the on-screen
 buttons stay see-through so the road is never hidden. Steering sits at the
 bottom left; the brake and gas pedals are at the bottom right, with a handbrake
 lever beside the brake and the N2O circle mounted on the gas pedal (it also
-applies throttle). Camera, pause and the borderless nitro/damage panel sit along
+applies throttle). Camera, pause and the borderless nitro panel sit along
 the top. The game also pauses itself when the tab loses visibility during a race
 or countdown.
 
@@ -84,19 +84,19 @@ VIPER X at `1.12` needs deliberate weight transfer to rotate.
 
 ## Race rules
 
-- The race is **three laps**.
-- There are **eight gates**: gate `0` is start/finish and gates `1–7` are
+- The race length is set per circuit: usually **three laps**; Downtown Run is
+  two and Dockyard is four.
+- Each circuit has **5–12 gates**: gate `0` is start/finish and the rest are
   checkpoints.
 - Gates must be passed **in order**. The next gate glows cyan; passed gates flash
   green.
 - A checkpoint grants **+5 nitro** and a chime.
 - Crossing the finish line on the final lap ends the race.
 - A new best lap is saved immediately, even if you quit afterwards.
-- The total time is the sum of all three laps. Drift score is separate from the
+- The total time is the sum of all laps. Drift score is separate from the
   time result.
-- Hitting walls or rivals adds damage (shown in the HUD), which costs a little
-  top speed and power. Above 50 % damage the bonnet trails smoke. Damage slowly
-  repairs while you drive, and there is no failure state.
+- Hitting walls or rivals unsettles the car: contact scrubs momentum and kicks
+  the body sideways, but there is no health bar and no failure state.
 - Kerbs count as track. On the dirt beyond them grip drops and the car eases
   down to about 80 % of its top speed (93 % for SUVs and off-roaders) over a
   couple of seconds rather than braking hard. `R` safely returns you to the
@@ -143,6 +143,16 @@ are recorded like any other practice session, but the runway is excluded from
 profile records and online venues because it is a test track rather than a race
 circuit.
 
+## Free Drift
+
+Free Drift is a solo session with no rivals and no lap limit. Every street
+circuit is open, so a new player can slide on the wide **Neon Skidpad** (1.7 km,
+15.5 m of tarmac) or explore the city streets without unlocking them first.
+There is no purse and no chequered flag: the session pays a bonus based on the
+drift score you banked, capped at 3,600 CR, so it rewards angle and chained
+slides rather than lap times. Pause → **END SESSION** banks the score at any
+time; `RESTART SESSION` resets the run.
+
 ## Braking and wheel lock
 
 - Brakes stop a sports car at about **1.2 g** (roughly 35 m from 100 km/h),
@@ -186,7 +196,7 @@ Racecraft (applies to every nearby car, including you):
 - **Defending** (Normal and up, strongest on Expert): a car closing from behind
   makes them move across to cover its line.
 - **Leaning** (Normal and up): side by side, aggressive drivers squeeze you
-  towards the edge. Contact damages both cars.
+  towards the edge. Contact unsettles both cars.
 - **Nitro:** they steer for nitro bottles when their tank is not full, fire
   nitro on straights where they can still accelerate and to pass or hold off
   an attack, and keep a reserve for a fight on the higher difficulties. Their
@@ -275,24 +285,32 @@ trail-braking works; holding `S` from a standstill engages reverse.
 - Wall contact projects the car back inside the corridor, reflects the normal
   velocity and damps the rest, so you scrub speed instead of sticking.
 
-## The circuit
+## The circuits
 
-The sunset circuit is a closed Catmull-Rom loop generated from 28 control points.
-It combines a long bottom straight, a fast right-hand sweep, a tight infield
-complex and a technical back section. Landmarks include the start arch,
-grandstands, light towers, palms, rocks and mesas.
+The launch circuit, **Sunset Coast**, is a closed Catmull-Rom loop generated
+from 28 control points. It combines a long bottom straight, a fast right-hand
+sweep, a tight infield complex and a technical back section. Landmarks include
+the start arch, grandstands, light towers, palms, rocks and mesas.
+
+**Downtown Run** is the big city venue: a 3.8 km street loop through a four-block
+grid, with houses lining both kerbs, painted side streets, a lit downtown
+skyline, street lamps and red traffic lights at every junction. Its twelve gates
+include a tight in-field block section and long boulevards. **Neon Skidpad** is
+the dedicated drift park: a wide, walled 1.7 km loop built for long sweepers and
+one big hairpin.
 
 The minimap is drawn from the same sampled centerline used by the physics, with
 the active gate highlighted and the car shown as an arrow.
 
 ## HUD
 
-- **Top center** — lap counter, current lap time and best lap.
-- **Top left** — driver name; on touch, the borderless nitro and damage panel.
+- **Top center** — lap counter, current lap time and best lap. Free-run
+  sessions show `∞ / FREE DRIVE` instead of a lap total.
+- **Top left** — driver name; on touch, the borderless nitro panel.
 - **Top right** — sound, camera and pause buttons.
 - **Right** — minimap and total drift score.
 - **Bottom center** — speedometer and gear.
-- **Bottom left** — nitro and damage bars on desktop/mouse layouts.
+- **Bottom left** — the nitro bar on desktop/mouse layouts.
 - **Center** — live drift chain and score while sliding.
 - **Warnings** — `WRONG WAY` appears after 0.9 s of sustained opposite travel.
 

@@ -32,10 +32,13 @@ feel good immediately, but leave enough depth to chase a clean lap.
   your way up.
 - **A real garage.** Change paint, finish, rims, spoiler, stripes, tint,
   underglow and the license plate with a live 3D preview.
-- **Eight circuits, four modes.** Career (ten events), Quick Race against up to
-  seven AI rivals on four difficulty levels, Time Trial and Practice. Practice
-  opens every circuit; locked ones are rented per session. Practice also has a
-  dedicated airport-style test runway: a 3.6 km straight for top-speed runs.
+- **Ten circuits, five modes.** Career (ten events), Quick Race against up to
+  seven AI rivals on four difficulty levels, Time Trial, Practice and Free
+  Drift. Practice opens every circuit; locked ones are rented per session.
+  Free Drift runs solo with no clock and pays out on drift score. Practice also
+  has a dedicated airport-style test runway: a 3.6 km straight for top-speed
+  runs. **Downtown Run** is a 3.8 km street loop through a full city grid of
+  houses, boulevards and red traffic lights.
 - **Online races.** Quick match or private rooms with a share code, up to six
   drivers, live positions and server-ranked results (needs the bundled server
   and an account).
@@ -100,7 +103,7 @@ for landscape: phones are asked to rotate (and locked where the browser allows
 it), with see-through steering at the bottom left and pedal-shaped brake/gas
 buttons at the bottom right. A handbrake lever sits beside the brake, the N2O
 circle is mounted on the gas pedal (pressing it also applies throttle), and
-camera/pause plus the borderless nitro/damage panel sit along the top. The game
+camera/pause plus the borderless nitro panel sit along the top. The game
 pauses itself when the tab loses visibility.
 
 ## Cars

@@ -1,8 +1,5 @@
 import * as THREE from 'three';
 
-/** Damage (0–1) above which the car trails smoke from the bonnet. */
-export const DAMAGE_SMOKE_AT = 0.5;
-
 const MAX_PARTICLES = 340;
 const MAX_SKIDS = 520;
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
@@ -13,7 +10,6 @@ export class Effects {
     this.car = null;
     this.emitAcc = 0;
     this.skidAcc = 0;
-    this.damageAcc = 0;
     this.skidIndex = 0;
     this.skidDummy = new THREE.Object3D();
     this.flameCars = new Set(); // every car that shows nitro flames
@@ -333,36 +329,6 @@ export class Effects {
 
       if (!smoke) this.emitAcc = Math.min(this.emitAcc, 2);
 
-      // Damage smoke: only a badly damaged car smokes (a few wall scrapes no
-      // longer do it), and the trail thickens with the damage.
-      if (car.damage > DAMAGE_SMOKE_AT && car.speed > 4) {
-        const severity = (car.damage - DAMAGE_SMOKE_AT) / (1 - DAMAGE_SMOKE_AT);
-        this.damageAcc += dt * (4 + severity * 30);
-        let guard = 0;
-        while (this.damageAcc >= 1 && guard < 6) {
-          this.damageAcc -= 1;
-          guard++;
-          const hoodX = car.pos.x + car.forward.x * car.def.body.length * 0.28;
-          const hoodZ = car.pos.z + car.forward.z * car.def.body.length * 0.28;
-          const shade = 0.24 + Math.random() * 0.16;
-          this.spawnParticle(
-            hoodX + (Math.random() - 0.5) * 0.6,
-            0.5 + Math.random() * 0.35,
-            hoodZ + (Math.random() - 0.5) * 0.6,
-            -car.vel.x * 0.05 + (Math.random() - 0.5) * 1.1,
-            0.8 + Math.random() * 1.4,
-            -car.vel.z * 0.05 + (Math.random() - 0.5) * 1.1,
-            0.6 + Math.random() * 0.7,
-            2.6,
-            1.0 + Math.random() * 0.7,
-            new THREE.Color().setHSL(0.02, 0.04, shade),
-            0.18 + severity * 0.3,
-          );
-        }
-      } else {
-        this.damageAcc = 0;
-      }
-
       // skid marks
       if (smoke && car.speed > 6) {
         this.skidAcc += car.speed * dt;
@@ -430,7 +396,6 @@ export class Effects {
     for (const p of this.particles) p.life = 0;
     this.emitAcc = 0;
     this.skidAcc = 0;
-    this.damageAcc = 0;
     for (let i = 0; i < MAX_PARTICLES; i++) this.alphas[i] = 0;
     this.points.geometry.attributes.aAlpha.needsUpdate = true;
     const zero = new THREE.Matrix4().makeScale(0, 0, 0);

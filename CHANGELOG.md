@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- FREE DRIFT: a solo, no-clock session on every street circuit, built around
+  angle rather than lap times. The session pays a bonus from the banked drift
+  score (capped at 3,600 CR); pause → END SESSION banks it at any time.
+- Downtown Run: a 3.8 km street circuit through a full city grid, with houses
+  lining both kerbs, painted side streets, a lit downtown skyline, street
+  lamps and red traffic lights at every junction.
+- Neon Skidpad: a wide, walled 1.7 km drift park with long sweepers and one
+  big hairpin.
+- Cars are rebuilt from lofted superellipse sections instead of stacked rounded
+  boxes: circular wheel arches cut into the shell, lathed tyres with tread,
+  brake discs and calipers, painted roof skins framed by A/B/C pillars, and
+  merged static meshes to keep mobile draw calls down.
 - Workshop tuning views in the garage: pointing at (or tapping) a part
   moves the camera to it. Engine and turbo open the bonnet to show the
   engine (turbo and filter appear with their upgrades), suspension raises
@@ -165,7 +177,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Mobile race HUD: the nitro/damage panel is now a borderless top-left overlay,
+- Mobile race HUD: the nitro panel is now a borderless top-left overlay,
   the old refill hint is gone and camera/pause stay in the top action row.
   Brake and gas are large pedal-shaped pads in the bottom-right; the handbrake
   is a lever beside the brake and the N2O circle sits on the gas pedal, where
@@ -261,9 +273,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - License plates were hidden inside the rear diffuser (and behind the diffuser
   fins on supercars and hypercars) and were dark text on a dark plate; they are
   now light plates with a faint plate light, readable from the chase camera.
-- Bonnet smoke now only appears on a heavily damaged car (over 50 % damage)
-  and damage repairs about three times faster, so a couple of wall scrapes no
-  longer leave the car smoking for the rest of the lap.
+
+### Removed
+
+- All damage mechanics and the damage bar: collisions still unsettle the car
+  and scrub momentum, but there is no health bar, smoke trail, top-speed
+  penalty, repair timer or darkened paint.
 
 ### Security
 

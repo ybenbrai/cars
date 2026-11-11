@@ -56,8 +56,8 @@ const PALETTES = {
   },
   city: {
     skyTop: '#070912', skyMid: '#181a34', skyLow: '#3b2c63', skyHorizon: '#d1608a',
-    sun: '#ffe2f2', sunGlow: '#ff5fa2', fog: 0x2a2340, fogNear: 150, fogFar: 780,
-    ground: '#23232c', groundStyle: 'asphalt', env: 0.7,
+    sun: '#ffe2f2', sunGlow: '#ff5fa2', fog: 0x2a2340, fogNear: 150, fogFar: 980,
+    ground: '#8d8d99', groundStyle: 'city', env: 0.7,
     hemiSky: 0x9db4ff, hemiGround: 0x241a33, sunLight: 0xffb8d8, fillLight: 0x3f7bff, bounceLight: 0xff3d7f,
     road: '#2b2b34', line: '#e8e2f2', curbA: '#e6e0f0', curbB: '#2c50c8',
     barrier: 0x6d7189, marker: 0x5ce1e6, accent: 0x5ce1e6,
@@ -135,6 +135,55 @@ function runwayControlPoints({ straight = 3600, radius = 120, gridRun = 200, spa
   return cp;
 }
 
+// A city street loop: long straights joined by rounded 90° corners. Each
+// corner is a quadratic Bezier sampled every few metres so no single control
+// point turns sharply enough for the road ribbon to fold (see tests/circuits).
+function streetLoop(corners, { corner = 52, step = 42, arcSteps = 10 } = {}) {
+  const n = corners.length;
+  const exits = [];
+  const entries = [];
+  for (let i = 0; i < n; i++) {
+    const p = corners[i];
+    const prev = corners[(i - 1 + n) % n];
+    const next = corners[(i + 1) % n];
+    const inLen = Math.hypot(p[0] - prev[0], p[1] - prev[1]) || 1;
+    const outLen = Math.hypot(next[0] - p[0], next[1] - p[1]) || 1;
+    const r = Math.min(corner, inLen * 0.4, outLen * 0.4);
+    entries.push([p[0] - ((p[0] - prev[0]) / inLen) * r, p[1] - ((p[1] - prev[1]) / inLen) * r]);
+    exits.push([p[0] + ((next[0] - p[0]) / outLen) * r, p[1] + ((next[1] - p[1]) / outLen) * r]);
+  }
+  const cp = [];
+  const lerp = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  for (let i = 0; i < n; i++) {
+    // Straight in from the previous corner.
+    const from = exits[(i - 1 + n) % n];
+    const to = entries[i];
+    const run = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    const steps = Math.max(1, Math.round(run / step));
+    for (let k = 1; k < steps; k++) cp.push(lerp(from, to, k / steps));
+    // Quadratic corner: from the straight's end, through the waypoint, to the
+    // next straight. It never touches the waypoint, so the turn stays smooth.
+    const p = corners[i];
+    for (let k = 0; k <= arcSteps; k++) {
+      const t = k / arcSteps;
+      const u = 1 - t;
+      cp.push([
+        u * u * to[0] + 2 * u * t * p[0] + t * t * exits[i][0],
+        u * u * to[1] + 2 * u * t * p[1] + t * t * exits[i][1],
+      ]);
+    }
+  }
+  return cp;
+}
+
+// A four-kilometre downtown street circuit: long boulevards, twelve 90° city
+// corners and a few tight in-field blocks. This is the "open world" venue.
+const DOWNTOWN_CP = streetLoop([
+  [-410, -370], [380, -370], [380, -100], [220, -100], [220, 100], [410, 100],
+  [410, 370], [80, 370], [80, 200], [-140, 200], [-140, 380], [-410, 380],
+  [-410, 50], [-240, 50], [-240, -170], [-410, -170],
+]);
+
 const RAW = [
   {
     id: 'sunset-coast',
@@ -177,6 +226,40 @@ const RAW = [
     cp: radial({
       radius: 168, squashX: 1.18, squashZ: 0.9, points: 40, rotate: 0.18,
       harmonics: [[2, 0.13], [3, 0.09, 0.6], [5, 0.045, 1.4]],
+    }),
+  },
+  {
+    id: 'downtown-run',
+    name: 'DOWNTOWN RUN',
+    location: 'Sunset City',
+    subtitle: 'Four kilometres of boulevard, city blocks and late-braking nineties. The whole downtown is the circuit.',
+    theme: 'city',
+    unlockRank: 0,
+    difficulty: 2,
+    width: 10.5,
+    gates: 12,
+    laps: 2,
+    pads: [0.055, 0.17, 0.29, 0.41, 0.54, 0.66, 0.78, 0.9],
+    features: ['4 km street circuit', 'Houses & city blocks', 'Traffic-light corners'],
+    cp: DOWNTOWN_CP,
+  },
+  {
+    id: 'neon-drift',
+    name: 'NEON SKIDPAD',
+    location: 'Kowloon Docks',
+    subtitle: 'A wide walled drift park: long sweepers, one big hairpin and nothing but angle to chase.',
+    theme: 'city',
+    drift: true,
+    unlockRank: 0,
+    difficulty: 1,
+    width: 15.5,
+    gates: 5,
+    laps: 3,
+    pads: [0.08, 0.33, 0.58, 0.83],
+    features: ['15 m wide tarmac', 'Long drift sweepers', 'Free drift mode'],
+    cp: radial({
+      radius: 235, squashX: 1.18, squashZ: 0.92, points: 48, rotate: 0.7,
+      harmonics: [[2, 0.18], [3, 0.12, 0.8], [4, 0.05, 2.1]],
     }),
   },
   {

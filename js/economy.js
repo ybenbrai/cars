@@ -25,7 +25,16 @@ export const MODES = [
     id: 'practice', label: 'PRACTICE', short: 'Free drive',
     blurb: 'No opponents, no timer, no pressure. Every circuit is open: unlocked ones are free, locked ones are rented per session.',
   },
+  {
+    id: 'drift', label: 'FREE DRIFT', short: 'Angle over speed',
+    blurb: 'No rivals, no clock. Chain slides, build combos and bank credits from your drift score on the wide skidpad.',
+  },
 ];
+
+/** Practice and free drift are solo sessions without a chequered flag. */
+export function isFreeRunMode(id) {
+  return id === 'practice' || id === 'drift';
+}
 
 export function getDifficulty(id) {
   return DIFFICULTIES.find((d) => d.id === id) || DIFFICULTIES[1];
@@ -50,8 +59,8 @@ export function practiceRentalFee(circuit, rank = 0) {
 
 export function basePurse({ mode, circuit, laps }) {
   const km = circuit?.lengthKm || 0.6;
+  if (isFreeRunMode(mode)) return 0;
   if (mode === 'time-trial') return Math.round(480 + km * 320 + laps * 75);
-  if (mode === 'practice') return 0;
   return Math.round(720 + km * 460 + laps * 150);
 }
 
@@ -80,6 +89,15 @@ export function computeRewards({
   if (mode === 'practice') {
     const drift = Math.min(2200, Math.round((driftScore || 0) * 0.28));
     if (drift) lines.push({ label: 'Drift bonus', value: drift });
+    total += drift;
+    return { total, lines, difficulty: diff, position: null };
+  }
+
+  if (mode === 'drift') {
+    // A dedicated drift session is paid purely on style: longer chained slides
+    // pay more, but the cap keeps a single session from printing credits.
+    const drift = Math.min(3600, Math.round((driftScore || 0) * 0.45));
+    if (drift) lines.push({ label: 'Drift session bonus', value: drift });
     total += drift;
     return { total, lines, difficulty: diff, position: null };
   }

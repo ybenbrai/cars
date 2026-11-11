@@ -81,7 +81,6 @@ export class Car {
     this.impact = 0;
     this.wallHit = 0;
     this.wallNormal = { x: 0, z: 0 };
-    this.damage = 0;
     this.offroad = false;
     this.trackInfo = null;
     this.wheelSpin = 0;
@@ -145,7 +144,6 @@ export class Car {
     this.wallHit = 0;
     this.wallNormal.x = 0;
     this.wallNormal.z = 0;
-    this.damage = 0;
     this.offroad = false;
     this.trackInfo = null;
     this.wheelSpin = 0;
@@ -159,7 +157,6 @@ export class Car {
     this.model.setBodyTilt(0, 0);
     this.model.setSteer(0);
     this.model.setSpin(0);
-    this.model.setDamage(0);
     this.syncTransform();
     this.prevPos.copy(this.pos);
     this.prevHeading = this.heading;
@@ -213,12 +210,10 @@ export class Car {
   /** Collision response used by the race director for car-to-car contact. */
   takeHit(strength, nx = 0, nz = 0) {
     const push = clamp(strength, 0, 1);
-    this.damage = clamp(this.damage + push * 0.16, 0, 1);
     this.impact = Math.max(this.impact, push);
     this.vel.x += nx * push * 5.5;
     this.vel.z += nz * push * 5.5;
     this.vel.multiplyScalar(0.94);
-    this.model.setDamage(this.damage);
   }
 
   update(dt, input, track) {
@@ -311,8 +306,7 @@ export class Car {
     }
 
     const offroad = this.offroad;
-    const damagePenalty = 1 - this.damage * 0.16;
-    const maxNow = this.maxSpeed * pace * damagePenalty * (offroad ? this.offroadPace : 1) + (this.boosting ? 7 : 0);
+    const maxNow = this.maxSpeed * pace * (offroad ? this.offroadPace : 1) + (this.boosting ? 7 : 0);
 
     if (throttle) {
       if (nF < -0.5) {
@@ -321,7 +315,7 @@ export class Car {
         const drive = driveAccel({
           speed: nF, maxSpeed: maxNow, powerK: this.powerK, launch: this.launch,
         });
-        nF += drive * pace * (this.boosting ? 1.45 : 1) * damagePenalty * dt;
+        nF += drive * pace * (this.boosting ? 1.45 : 1) * dt;
       }
     }
     if (brake) {
@@ -347,7 +341,7 @@ export class Car {
     if (offroad) {
       nF *= Math.exp(-this.offroadDrag * dt);
     }
-    // Over the current limit (dirt, damage, nitro ending): bleed speed off
+    // Over the current limit (dirt, nitro ending): bleed speed off
     // over a second or two instead of snapping down to the limit.
     if (nF > maxNow + 1.5) nF -= (nF - maxNow) * 1.6 * dt;
     nF = clamp(nF, -BASE.reverseMax, this.maxSpeed * 1.6);
@@ -405,10 +399,6 @@ export class Car {
           this.forward.set(Math.sin(this.heading), 0, Math.cos(this.heading));
           this.right.set(-Math.cos(this.heading), 0, Math.sin(this.heading));
         }
-        if (bounce.hit > 0.08) {
-          this.damage = clamp(this.damage + bounce.hit * 0.08, 0, 1);
-          this.model.setDamage(this.damage);
-        }
         this.impact = Math.max(this.impact, bounce.hit);
       }
     }
@@ -426,8 +416,6 @@ export class Car {
       // Passive recharge keeps nitro useful without making it free.
       this.boost = Math.min(100, this.boost + 2.6 * dt);
     }
-    // Damage slowly repairs itself (about 40 s from heavy damage to none).
-    this.damage = Math.max(0, this.damage - 0.025 * dt);
 
     this.braking = !!brake || handbrake;
     if (!this.locked) this.wheelSpin += (nF * dt) / this.def.body.wheelRadius;
