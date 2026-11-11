@@ -25,6 +25,8 @@ No install. No account. No build step.
 Sunset Drift is a compact arcade racer built around a simple idea: make drifting
 feel good immediately, but leave enough depth to chase a clean lap.
 
+- **Five languages.** English, Español, Français, Português and Deutsch, picked
+  from the browser and switchable in the pause menu.
 - **Twenty cars across eight classes.** Hatchbacks to hypercars, each with its
   own body, stats, price and rank requirement. Start with 30,000 CR and earn
   your way up.

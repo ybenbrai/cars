@@ -1889,3 +1889,14 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   background: none; border: 0; padding: 0; cursor: pointer;
   font-family: var(--font-display); font-size: 11px; letter-spacing: 0.16em; color: var(--orange);
 }
+
+/* Language picker (first screen) */
+.lang-picker { display: flex; gap: 6px; margin-top: 14px; }
+.lang-picker .seg { padding: 6px 10px; font-size: 11px; }
+
+/* Five language buttons stay on one row in the pause menu. */
+.pause-setting .segmented { flex-wrap: nowrap; }
+.pause-setting .seg { min-width: 0; padding-left: 2px; padding-right: 2px; }
+
+/* Stat labels in other languages can be a little longer. */
+.stage-stat span { width: 74px; white-space: nowrap; }

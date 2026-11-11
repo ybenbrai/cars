@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Languages: English, Español, Français, Português and Deutsch. The game
+  follows the browser language on first visit; switch any time from the
+  first screen or the pause menu. Covers menus, settings, race setup,
+  tutorial tips, results and HUD labels.
 - New circuit CORAL BAY: a tight twilight harbour loop with esses and a
   hairpin (Pro rank), with its own cooler sky and turquoise kerbs, a career
   event (CORAL TWILIGHT) and daily-challenge targets. Circuits can now

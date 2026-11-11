@@ -28,6 +28,7 @@ import { normalizeConditions, conditionsKey, paletteFor, RAIN_GRIP } from './con
 import { Rain } from './rain.js';
 import { PhotoMode } from './photoMode.js';
 import { Tutorial } from './tutorial.js';
+import { setLanguage, detectLanguage } from './i18n.js';
 import {
   GhostRecorder, GhostCar, loadGhost, saveGhostIfFaster,
 } from './ghost.js';
@@ -173,6 +174,10 @@ const cloud = new CloudSync({
 
 function attachStore(next) {
   store = next;
+  // First visit: follow the browser's language when we have it.
+  if (!store.data.settings.lang) store.data.settings.lang = detectLanguage();
+  setLanguage(store.data.settings.lang);
+  ui.renderLanguagePicker();
   quality.setMode(store.data.settings.quality || 'auto');
   audio.setVolumes(store.data.settings.volume ?? 1, store.data.settings.musicVolume ?? 1);
   input.setBindings(store.data.settings.keys);
@@ -367,6 +372,10 @@ function changeSetting(key, value) {
   } else if (key === 'volume' || key === 'musicVolume') {
     store.data.settings[key] = Number(value) / 100;
     audio.setVolumes(store.data.settings.volume ?? 1, store.data.settings.musicVolume ?? 1);
+  } else if (key === 'lang') {
+    store.data.settings.lang = value;
+    setLanguage(value);
+    ui.renderLanguagePicker();
   } else if (key === 'shake') {
     store.data.settings.shake = value !== 'off';
   } else if (key === 'signals') {

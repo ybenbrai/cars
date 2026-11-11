@@ -14,6 +14,7 @@ import { dailyChallenge, DAILY_TIERS } from './daily.js';
 import { TIMES, WEATHERS } from './conditions.js';
 import { ACHIEVEMENTS } from './achievements.js';
 import { DRIVE_ACTIONS, keyLabel, resolveBindings } from './input.js';
+import { LANGUAGES, currentLanguage } from './i18n.js';
 import {
   UPGRADE_PARTS, MAX_UPGRADE_LEVEL, upgradeCost, upgradedStats,
 } from './data/upgrades.js';
@@ -1075,6 +1076,21 @@ export class UI {
     $('coach').classList.add('hidden');
   }
 
+  /** Language buttons on the first (driver name) screen. */
+  renderLanguagePicker() {
+    const el = $('langPicker');
+    if (!el) return;
+    el.innerHTML = LANGUAGES.map((l) => `<button class="seg ${l.id === currentLanguage() ? 'active' : ''}"
+      data-lang="${l.id}" title="${l.name}">${l.label}</button>`).join('');
+    if (!this.langBound) {
+      this.langBound = true;
+      el.addEventListener('click', (e) => {
+        const b = e.target.closest('[data-lang]');
+        if (b) this.cb.onSetting?.('lang', b.dataset.lang);
+      });
+    }
+  }
+
   setPhotoBar(visible) {
     $('photoBar').classList.toggle('hidden', !visible);
   }
@@ -1092,6 +1108,7 @@ export class UI {
     $('pauseSettings').innerHTML = row('GRAPHICS', 'quality', settings.quality || 'auto', [
       ['auto', 'AUTO'], ['high', 'HIGH'], ['medium', 'MED'], ['low', 'LOW'],
     ]) + row('TURN SIGNALS', 'signals', settings.signals === false ? 'off' : 'on', [['on', 'ON'], ['off', 'OFF']])
+      + row('LANGUAGE', 'lang', currentLanguage(), LANGUAGES.map((l) => [l.id, l.label]))
       + row('CAMERA SHAKE', 'shake', settings.shake === false ? 'off' : 'on', [['on', 'ON'], ['off', 'OFF']])
       + row('SOUND', 'volume', String(Math.round((settings.volume ?? 1) * 100)), [['0', 'OFF'], ['35', 'LOW'], ['70', 'MED'], ['100', 'MAX']])
       + row('MUSIC', 'musicVolume', String(Math.round((settings.musicVolume ?? 1) * 100)), [['0', 'OFF'], ['35', 'LOW'], ['70', 'MED'], ['100', 'MAX']]);
