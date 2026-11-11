@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Tuning preview: each part shows its next stage and how many PR points it
+  adds; pointing at a price previews the new stat bars before you buy.
+- More visible tuning: a bonnet scoop from Turbo stage 3, a carbon bonnet
+  from Weight Reduction stage 3 and wider tyres from Tyres stage 4.
 - Tuning shows on the car: suspension stages lower the body (up to 4 cm)
   and intake & exhaust stages fit bigger exhaust tips, in the garage and
   on track.

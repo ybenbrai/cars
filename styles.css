@@ -1911,3 +1911,7 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
 .pr-badge strong { font-family: var(--font-display); font-size: 20px; letter-spacing: 0.06em; color: var(--gold); }
 .pr-badge em { font-style: normal; font-family: var(--font-display); font-size: 11px; letter-spacing: 0.12em; color: var(--green); }
 .car-price .pr { display: block; font-size: 11px; letter-spacing: 0.12em; color: var(--muted); margin-top: 3px; }
+
+/* Tuning preview */
+.upgrade-next { font-style: normal; font-family: var(--font-display); font-size: 11px; letter-spacing: 0.08em; color: var(--green); }
+.stage-stats.previewing .stage-stat.tuned b { color: var(--green); text-shadow: 0 0 10px rgba(141, 255, 176, 0.6); }

@@ -395,6 +395,7 @@ const PATTERNS = [
   [/^(BRONZE|SILVER|GOLD) ([\d:.]+)$/, ['{1} $2', '{1} $2', '{1} $2', '{1} $2']],
   [/^RENT ([\d.,]+ CR)$/, ['ALQUILER $1', 'LOCATION $1', 'ALUGUEL $1', 'MIETE $1']],
   [/^(\+\d+) OVER STOCK$/, ['$1 SOBRE SERIE', '$1 SUR LA SÉRIE', '$1 SOBRE O ORIGINAL', '$1 ÜBER SERIE']],
+  [/^NEXT: (.+)$/, ['SIGUIENTE: $1', 'SUIVANT : $1', 'PRÓXIMO: $1', 'NÄCHSTE: $1']],
   [/^TIP (\d+)\/(\d+)$/, ['CONSEJO $1/$2', 'ASTUCE $1/$2', 'DICA $1/$2', 'TIPP $1/$2']],
   [/^(\d+) laps$/, ['$1 vueltas', '$1 tours', '$1 voltas', '$1 Runden']],
 ];

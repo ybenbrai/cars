@@ -724,10 +724,15 @@ export class UI {
       const cost = maxed ? 0 : upgradeCost(car, level + 1);
       const short = !maxed && this.store.wallet < cost;
       const pips = Array.from({ length: MAX_UPGRADE_LEVEL }, (_, i) => `<i class="${i < level ? 'on' : ''}"></i>`).join('');
+      // What the next stage gives, in performance-rating points.
+      const gain = maxed ? 0
+        : performanceRating(car, { ...levels, [part.id]: level + 1 }) - performanceRating(car, levels);
+      const next = maxed ? '' : `<em class="upgrade-next">NEXT: ${esc(part.levels[level + 1])} · +${gain} PR</em>`;
       return `<div class="upgrade-row">
         <div class="upgrade-info">
           <strong>${part.name}</strong>
           <span>${esc(part.levels[level])} · ${esc(part.blurb)}</span>
+          ${next}
           <div class="upgrade-pips" aria-label="Level ${level} of ${MAX_UPGRADE_LEVEL}">${pips}</div>
         </div>
         <button class="upgrade-buy" data-upgrade="${part.id}" ${maxed || short ? 'disabled' : ''}
@@ -746,6 +751,24 @@ export class UI {
   bindPerformance() {
     this.customRoot.querySelectorAll('[data-upgrade]').forEach((el) => {
       el.addEventListener('click', () => this.cb.onBuyUpgrade?.(this.stageCarId, el.dataset.upgrade));
+      // Preview: show the stat bars with the next stage while pointing at it.
+      const preview = () => {
+        const car = getCar(this.stageCarId);
+        const levels = this.store.upgradesFor(car.id);
+        if (levels[el.dataset.upgrade] >= MAX_UPGRADE_LEVEL) return;
+        const next = { ...levels, [el.dataset.upgrade]: levels[el.dataset.upgrade] + 1 };
+        $('stageStats').innerHTML = stageStatRows(car, upgradedStats(car, next));
+        $('stageStats').classList.add('previewing');
+      };
+      const restore = () => {
+        const car = getCar(this.stageCarId);
+        $('stageStats').innerHTML = stageStatRows(car, upgradedStats(car, this.store.upgradesFor(car.id)));
+        $('stageStats').classList.remove('previewing');
+      };
+      el.addEventListener('pointerenter', preview);
+      el.addEventListener('focus', preview);
+      el.addEventListener('pointerleave', restore);
+      el.addEventListener('blur', restore);
     });
   }
 

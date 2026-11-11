@@ -2112,7 +2112,42 @@ export class CarModel {
     this.lowered = 0.008 * suspension;
     const tip = 1 + 0.08 * intake;
     for (const mesh of this.exhaustTips || []) mesh.scale.set(tip, mesh.geometry.type === 'CircleGeometry' ? tip : 1, tip);
+
+    // Turbo stage 3+: bonnet scoop. Weight reduction stage 3+: carbon
+    // bonnet. Tyres stage 4+: wider rubber. Built on first use.
+    const turbo = levels?.turbo || 0;
+    const weight = levels?.weight || 0;
+    const tyres = levels?.tyres || 0;
+    if ((turbo >= 3 || weight >= 3) && !this.tuneParts) this.buildTuneParts();
+    if (this.tuneParts) {
+      this.tuneParts.scoop.visible = turbo >= 3;
+      this.tuneParts.bonnet.visible = weight >= 3;
+    }
+    const wide = tyres >= 4 ? 1 + 0.06 * (tyres - 3) : 1;
+    for (const wheel of this.wheels || []) wheel.spin.scale.x = wide;
     this.setBodyTilt(this.body.rotation.z, this.body.rotation.x);
+  }
+
+  /** Bonnet scoop and carbon bonnet shown by tuning (see setTuning). */
+  buildTuneParts() {
+    const b = this.bodyDef;
+    const L = b.length;
+    const W = b.width;
+    const z0 = b.cabinZ + b.cabinLength / 2 + 0.06;
+    const z1 = L / 2 - 0.16;
+    const bonnet = new THREE.Mesh(this.topRibbon(0, W * 0.62, z0, z1, 0.004), this.carbonMat);
+    bonnet.castShadow = false;
+    this.body.add(bonnet);
+    const zs = z0 + (z1 - z0) * 0.38;
+    const scoop = new THREE.Group();
+    const shell = new THREE.Mesh(rbox(W * 0.26, 0.075, 0.46, 0.03), this.carbonMat);
+    const mouth = new THREE.Mesh(rbox(W * 0.22, 0.045, 0.02, 0.01), this.archMat);
+    mouth.position.set(0, 0.006, 0.231);
+    scoop.add(shell, mouth);
+    scoop.position.set(0, this.topYAt(0, zs) + 0.025, zs);
+    scoop.rotation.x = -0.05;
+    this.body.add(scoop);
+    this.tuneParts = { scoop, bonnet };
   }
 
   setBodyTilt(roll, pitch) {
