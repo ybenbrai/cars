@@ -340,6 +340,9 @@ export class UI {
     $('btnRestart').addEventListener('click', () => this.cb.onRestart?.());
     $('btnQuit').addEventListener('click', () => this.cb.onQuit?.());
     $('btnEndSession').addEventListener('click', () => this.cb.onEndSession?.());
+    $('btnPhoto').addEventListener('click', () => this.cb.onPhoto?.());
+    $('btnPhotoSave').addEventListener('click', () => this.cb.onPhotoSave?.());
+    $('btnPhotoExit').addEventListener('click', () => this.cb.onPhotoExit?.());
     $('pauseSettings').addEventListener('click', (event) => {
       const btn = event.target.closest('[data-setting]');
       if (!btn) return;
@@ -1033,6 +1036,10 @@ export class UI {
 
   setGarageBest(seconds) {
     $('garageBest').textContent = seconds ? fmtTime(seconds) : '--:--.--';
+  }
+
+  setPhotoBar(visible) {
+    $('photoBar').classList.toggle('hidden', !visible);
   }
 
   /** Graphics quality and turn-signal toggles shown in the pause menu. */

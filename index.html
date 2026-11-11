@@ -450,11 +450,19 @@
           <button class="btn primary" id="btnResume">RESUME <span>▶</span></button>
           <button class="btn primary hidden" id="btnEndSession">END SESSION · BANK DRIFT</button>
           <button class="btn ghost" id="btnRestart">RESTART RACE</button>
+          <button class="btn ghost" id="btnPhoto">PHOTO MODE</button>
           <button class="btn ghost" id="btnQuit">QUIT TO GARAGE</button>
         </div>
         <div class="pause-settings" id="pauseSettings" aria-label="Settings"></div>
       </div>
     </section>
+
+    <!-- ═══════════════ PHOTO MODE ═══════════════ -->
+    <div class="photo-bar hidden" id="photoBar">
+      <span class="photo-hint">DRAG TO ORBIT · SCROLL OR PINCH TO ZOOM</span>
+      <button class="btn primary" id="btnPhotoSave">SAVE PHOTO</button>
+      <button class="btn ghost" id="btnPhotoExit">DONE</button>
+    </div>
 
     <!-- ═══════════════ TOUCH ═══════════════ -->
     <div id="touch" class="hidden">

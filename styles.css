@@ -1822,3 +1822,20 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   .series-head > span:not(.trophy):not(.series-progress) { display: none; }
   .series-head strong { font-size: 13px; }
 }
+
+/* Photo mode */
+.photo-bar {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%); z-index: 40;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 12px; background: rgba(10, 6, 18, 0.78);
+  border: 1px solid var(--line-strong); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+}
+.photo-bar .btn { padding: 11px 18px; font-size: 12.5px; }
+.photo-hint {
+  font-family: var(--font-display); font-size: 11px; letter-spacing: 0.16em; color: var(--muted);
+  padding: 0 6px; white-space: nowrap;
+}
+@media (max-width: 860px), (orientation: landscape) and (max-height: 520px) {
+  .photo-hint { display: none; }
+  .photo-bar { bottom: 12px; }
+}

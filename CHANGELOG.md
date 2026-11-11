@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Photo mode (pause menu): the race freezes, drag to orbit around your car,
+  scroll or pinch to zoom, and save a watermarked PNG to share.
+- Landscape phone layout: menu beside the car, slim header, compact pause
+  menu with settings in two columns.
 - Time of day and weather in race setup: NIGHT darkens any circuit (your
   headlights light the road) and RAIN adds falling rain, grey skies,
   shorter fog, darker wet tarmac and 16 % less grip and braking for every

@@ -26,6 +26,7 @@ import { TurnSignals } from './signals.js';
 import { dailyChallenge, tierFor } from './daily.js';
 import { normalizeConditions, conditionsKey, paletteFor, RAIN_GRIP } from './conditions.js';
 import { Rain } from './rain.js';
+import { PhotoMode } from './photoMode.js';
 import {
   GhostRecorder, GhostCar, loadGhost, saveGhostIfFaster,
 } from './ghost.js';
@@ -73,6 +74,7 @@ composer.addPass(bloom);
 composer.addPass(new OutputPass());
 // Graphics quality (AUTO steps down on slow devices; see quality.js).
 const quality = new QualityManager({ renderer, composer, bloom, scene, dpr });
+const photo = new PhotoMode(camera, renderer.domElement);
 
 const effects = new Effects(scene);
 const input = new Input();
@@ -116,6 +118,9 @@ const ui = new UI({
   onPause: pauseGame,
   onCamera: toggleCamera,
   onResume: resumeGame,
+  onPhoto: enterPhoto,
+  onPhotoSave: () => photo.requestShot(),
+  onPhotoExit: exitPhoto,
   onRestart: () => (race?.online ? backToOnlineLobby() : safeStartRace(lastRaceConfig, { chargeRental: false })),
   onQuit: () => {
     leaveOnlineRace();
@@ -1171,6 +1176,27 @@ function resumeGame() {
   ui.setTouchVisible(true);
 }
 
+/** Photo mode: the race stays frozen while a free camera orbits the car. */
+function enterPhoto() {
+  if (state !== 'paused' || !race) return;
+  state = 'photo';
+  ui.show(null);
+  ui.setHudVisible(false);
+  ui.setTouchVisible(false);
+  ui.setPhotoBar(true);
+  race.player.car.model.cockpit?.update(0, 0, false);
+  photo.enter(race.player.car);
+}
+
+function exitPhoto() {
+  if (state !== 'photo') return;
+  photo.exit();
+  ui.setPhotoBar(false);
+  ui.setHudVisible(true);
+  state = 'paused';
+  ui.show('pause');
+}
+
 /** Practice has no chequered flag: ending the session banks the drift score. */
 function endSession() {
   if (state !== 'paused' || !race || race.mode !== 'practice') return;
@@ -1365,6 +1391,13 @@ function frame(now) {
   if (state === 'profile' || state === 'boot') return;
 
   if (!race) return;
+
+  if (state === 'photo') {
+    photo.update();
+    composer.render();
+    if (photo.captureIfRequested(renderer.domElement)) ui.notice('PHOTO SAVED', 'ok');
+    return;
+  }
 
   if (state === 'paused') {
     // Online races do not stop for one player: rivals keep moving and this
@@ -1860,7 +1893,8 @@ window.addEventListener('keydown', unlockAudio, true);
 
 input.onAction = (action) => {
   if (action === 'pause') {
-    if (state === 'paused') resumeGame();
+    if (state === 'photo') exitPhoto();
+    else if (state === 'paused') resumeGame();
     else pauseGame();
   } else if (action === 'camera') {
     if (state === 'racing' || state === 'countdown') toggleCamera();
