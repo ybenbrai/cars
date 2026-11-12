@@ -1989,3 +1989,41 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
 .report-btn:hover { color: var(--hot); }
 #lbRows small { color: var(--faint); font-size: 11px; margin-left: 6px; }
 @media (orientation: landscape) and (max-height: 520px) { .event-badge { display: none; } }
+
+/* Daily reward */
+.reward-modal { width: min(560px, 100%); }
+.reward-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin: 14px 0 18px; }
+.reward-day {
+  display: grid; gap: 2px; justify-items: center; padding: 10px 2px;
+  border: 1px solid var(--line); background: rgba(255, 255, 255, 0.03);
+  font-family: var(--font-display);
+}
+.reward-day small { font-size: 9.5px; letter-spacing: 0.12em; color: var(--faint); }
+.reward-day strong { font-size: 13px; }
+.reward-day em { font-style: normal; font-size: 9.5px; color: var(--faint); }
+.reward-day.done { opacity: 0.45; }
+.reward-day.today { border-color: var(--gold); background: rgba(255, 196, 107, 0.12); box-shadow: 0 0 18px rgba(255, 196, 107, 0.25); }
+.reward-day.today strong { color: var(--gold); }
+.reward-day:last-child strong { color: var(--orange); }
+@media (max-width: 560px) { .reward-strip { grid-template-columns: repeat(4, 1fr); } }
+
+/* Ranked */
+.ranked-card {
+  display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 8px; padding: 12px 14px; margin-top: 12px;
+  border: 1px solid var(--div, var(--line-strong)); background: linear-gradient(120deg, rgba(255, 255, 255, 0.05), transparent);
+}
+.ranked-card small { display: block; font-family: var(--font-display); font-size: 10px; letter-spacing: 0.14em; color: var(--faint); }
+.ranked-card strong { font-family: var(--font-display); font-size: 18px; letter-spacing: 0.06em; color: var(--div, var(--ink)); }
+.div-bronze { --div: #d08a5a; } .div-silver { --div: #cfd8e3; } .div-gold { --div: #ffd34d; }
+.div-platinum { --div: #7fe7e0; } .div-diamond { --div: #8fb8ff; } .div-champion { --div: #ff5fa2; }
+@media (max-width: 560px) { .ranked-card { grid-template-columns: 1fr 1fr; } }
+
+/* Community challenge */
+.community-bar { height: 10px; background: rgba(255, 255, 255, 0.08); margin: 10px 0 6px; overflow: hidden; }
+.community-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--green)); box-shadow: 0 0 12px rgba(92, 225, 230, 0.5); }
+
+/* Friends */
+.friends .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--faint); margin-right: 7px; vertical-align: 1px; }
+.friends .dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.friend-actions { display: flex !important; align-items: center; gap: 8px; }
+.friends .online-join-row { margin-top: 6px; }

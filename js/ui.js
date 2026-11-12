@@ -16,6 +16,7 @@ import { ACHIEVEMENTS } from './achievements.js';
 import { DRIVE_ACTIONS, keyLabel, resolveBindings } from './input.js';
 import { LANGUAGES, currentLanguage } from './i18n.js';
 import { QUALITY_LEVELS } from './quality.js';
+import { REWARD_LADDER } from './dailyReward.js';
 import {
   UPGRADE_PARTS, MAX_UPGRADE_LEVEL, upgradeCost, upgradedStats, performanceRating,
 } from './data/upgrades.js';
@@ -298,6 +299,10 @@ export class UI {
     $('btnStartRace').addEventListener('click', () => this.requestRace({ ...this.raceConfig }));
 
     $('careerList').addEventListener('click', (e) => {
+      if (e.target.closest('[data-community]')) {
+        this.cb.onCommunityClaim?.();
+        return;
+      }
       if (e.target.closest('[data-daily]')) {
         this.cb.onRace?.({ mode: 'time-trial', daily: true });
         return;
@@ -367,6 +372,10 @@ export class UI {
       });
     }
     $('btnSettings').addEventListener('click', () => this.openSettings());
+    $('btnClaimReward').addEventListener('click', () => {
+      $('screen-reward').classList.add('hidden');
+      this.cb.onClaimReward?.();
+    });
     $('btnSettingsClose').addEventListener('click', () => this.closeSettings());
     $('settingsExtra').addEventListener('click', (event) => {
       const btn = event.target.closest('[data-action]');
@@ -445,6 +454,13 @@ export class UI {
       } else if (action === 'report') {
         const reason = window.prompt(`Report ${button.dataset.value} to the moderators. What happened? (offensive name, cheating, abuse…)`);
         if (reason !== null) this.cb.onReport?.(button.dataset.value, reason);
+      } else if (action === 'addfriend') {
+        const name = $('friendName')?.value.trim();
+        if (name) this.cb.onFriend?.('add', name);
+      } else if (action === 'removefriend') {
+        if (window.confirm(`Remove ${button.dataset.value} from your friends?`)) this.cb.onFriend?.('remove', button.dataset.value);
+      } else if (action === 'invite') {
+        this.cb.onInvite?.(button.dataset.value);
       } else if (action === 'joinlisted') {
         this.cb.onOnline?.('join', { code: button.dataset.value });
       } else if (action === 'refresh') {
@@ -523,7 +539,7 @@ export class UI {
     });
     $('btnRace').innerHTML = name === 'race' ? 'START <span>→</span>' : 'RACE <span>→</span>';
     if (name === 'race') this.renderRaceSetup();
-    if (name === 'career') this.renderCareer();
+    if (name === 'career') { this.renderCareer(); this.cb.onCareerOpen?.(); }
     if (name === 'cars') this.renderCarList();
     if (name === 'profile') this.renderProfile();
     if (name === 'online') this.cb.onOnline?.('connect');
@@ -972,7 +988,23 @@ export class UI {
         <button class="btn ${progress.tier === 2 ? 'ghost' : 'primary'}" data-daily="1">${progress.bestLap ? 'RETRY' : 'START'}</button>
       </article>
     </section>`;
-    $('careerList').innerHTML = dailyCard + CAREER_SERIES.map((series) => {
+    const cc = this.community?.challenge;
+    const mine = this.community?.me;
+    const communityCard = cc ? `<section class="series-block community-block">
+      <div class="series-head"><strong>COMMUNITY CHALLENGE</strong><span>${cc.endsAt ? `ends ${new Date(cc.endsAt).toLocaleDateString()}` : 'every driver counts'}</span></div>
+      <article class="event-card">
+        <div class="event-copy">
+          <strong>${esc(cc.name)}</strong>
+          <p>Every lap any signed-in driver completes counts. Reach the goal together and everyone who helped earns ${formatCredits(cc.reward)} CR.</p>
+          <div class="community-bar"><i style="width:${Math.min(100, (cc.progress / cc.target) * 100).toFixed(1)}%"></i></div>
+          <div class="event-meta"><span>${formatCredits(cc.progress)} / ${formatCredits(cc.target)} LAPS</span>
+            ${mine ? `<span>YOU: ${formatCredits(mine.contributed)} LAPS</span>` : '<span>SIGN IN TO TAKE PART</span>'}
+            ${cc.done ? '<span class="done">GOAL REACHED</span>' : ''}</div>
+        </div>
+        ${mine?.canClaim ? '<button class="btn primary" data-community="claim">CLAIM</button>' : mine?.claimed ? '<span class="event-lock">CLAIMED</span>' : ''}
+      </article>
+    </section>` : '';
+    $('careerList').innerHTML = communityCard + dailyCard + CAREER_SERIES.map((series) => {
       const events = eventsForSeries(series.id);
       const table = seriesStandings(series.id, store.data.career.bestPositions, store.name.toUpperCase());
       const trophy = table.trophy
@@ -1240,6 +1272,20 @@ export class UI {
     }
   }
 
+  /** Daily login reward popup with the seven-day ladder. */
+  showReward(status) {
+    $('rewardTitle').textContent = `DAY ${status.streak}`;
+    $('rewardCopy').textContent = status.streak > 1
+      ? `${status.streak} days in a row. Miss a day and the ladder restarts.`
+      : 'Come back tomorrow for a bigger reward. Miss a day and the ladder restarts.';
+    $('rewardStrip').innerHTML = REWARD_LADDER.map((amount, i) => `
+      <div class="reward-day ${i < status.day ? 'done' : ''} ${i === status.day ? 'today' : ''}">
+        <small>DAY ${i + 1}</small><strong>${formatCredits(amount)}</strong><em>CR</em>
+      </div>`).join('');
+    $('btnClaimReward').textContent = `CLAIM ${formatCredits(status.amount)} CR`;
+    $('screen-reward').classList.remove('hidden');
+  }
+
   openSettings() {
     this.renderSettings();
     $('screen-settings').classList.remove('hidden');
@@ -1345,6 +1391,17 @@ export class UI {
             <strong>PRIVATE ROOM</strong><span>Get a code to share with friends.</span>
           </button>
         </div>
+        ${this.ranked?.me ? `<section class="ranked-card div-${this.ranked.me.division.toLowerCase()}">
+          <div><small>RANKED · YOUR DIVISION</small><strong>${esc(this.ranked.me.division)}</strong></div>
+          <div><small>RATING</small><strong>${this.ranked.me.rating}</strong></div>
+          <div><small>RANKED RACES</small><strong>${this.ranked.me.races}</strong></div>
+          <div><small>WORLD</small><strong>${this.ranked.me.position ? `#${this.ranked.me.position}` : '—'}</strong></div>
+        </section>
+        <p class="custom-note">Every online race with two or more finishers is ranked. Beat higher-rated drivers to climb faster.</p>` : ''}
+        ${this.ranked?.top?.length ? `<section class="online-open">
+          <div class="section-head"><span>TOP RANKED DRIVERS</span></div>
+          <ol class="standings">${this.ranked.top.slice(0, 5).map((r, i) => `<li class="${r.username === auth.displayName ? 'me' : ''}"><b>#${i + 1}</b><span>${esc(r.username)} <small>${esc(r.division)}</small></span><em>${r.rating}</em></li>`).join('')}</ol>
+        </section>` : ''}
         <section class="online-open">
           <div class="section-head"><span>OPEN PUBLIC ROOMS</span><button class="link-btn" data-online="refresh">REFRESH</button></div>
           ${(client.publicRooms || []).length ? client.publicRooms.map((r) => `
@@ -1360,6 +1417,7 @@ export class UI {
             <button class="btn ghost" data-online="join">JOIN</button>
           </div>
         </div>
+        ${this.friendsSection(false)}
         <div class="online-foot">Signed in as <b>${esc(auth.displayName)}</b> · racing the <b>${esc(store?.selectedCar.name || '')}</b></div>`;
       return;
     }
@@ -1430,7 +1488,23 @@ export class UI {
       <div class="online-players">${players}${empty}</div>
       ${hostControls}
       ${primary}
+      ${!racing ? this.friendsSection(true) : ''}
       <div class="online-foot">Change your car in the CARS tab before the race starts.</div>`;
+  }
+
+  /** Friends list; in a room each online friend gets an INVITE button. */
+  friendsSection(inRoom) {
+    const list = this.friends || [];
+    return `<section class="online-open friends">
+      <div class="section-head"><span>FRIENDS</span><span>${list.filter((f) => f.online).length} ONLINE</span></div>
+      ${list.map((f) => `<div class="open-room">
+        <span><b><i class="dot ${f.online ? 'on' : ''}"></i>${esc(f.username)}</b><small>${f.racing ? 'Racing now' : f.online ? 'Online' : 'Offline'} · ${esc(f.division)} ${f.rating}</small></span>
+        <span class="friend-actions">${inRoom && f.online && !f.racing ? `<button class="btn primary" data-online="invite" data-value="${esc(f.username)}">INVITE</button>` : ''}
+          <button class="link-btn" data-online="removefriend" data-value="${esc(f.username)}" title="Remove">✕</button></span>
+      </div>`).join('') || '<p class="custom-note">Add friends by username to see when they are online and invite them to your room.</p>'}
+      <div class="online-join-row"><input id="friendName" class="text-input" maxlength="16" placeholder="Friend's username" autocomplete="off" />
+        <button class="btn ghost" data-online="addfriend">ADD</button></div>
+    </section>`;
   }
 
   /* ───────────────────────── profile / stats ───────────────────────── */

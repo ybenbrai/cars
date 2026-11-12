@@ -368,6 +368,8 @@ export class Lobby {
       this.resetRaceFields(m);
     }
     this.broadcast(room, { type: 'results', results: room.results, total: order.length });
+    // Ranked hook (Cloudflare backend): only drivers who finished are rated.
+    if (finishers.length >= 2) this.onRaceResults?.(room, finishers);
     this.broadcastRoom(room);
   }
 

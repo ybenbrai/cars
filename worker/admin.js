@@ -14,6 +14,8 @@ export const DEFAULT_SETTINGS = {
   announcement: '', signupsOpen: true, onlineOpen: true,
   // Live event, e.g. a double-credits weekend: { name, multiplier, endsAt }.
   event: null,
+  // Community challenge: { id, name, target, reward, endsAt } (laps driven).
+  community: null,
 };
 
 export const dayKey = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
@@ -54,7 +56,7 @@ export function summarize(save, updatedAt) {
     achievements: Array.isArray(save?.achievements) ? save.achievements.length : 0,
     rank: RANK_LABELS[rankForWins(stats.wins || 0, stats.races || 0)] || 'Rookie',
     // Best lap per circuit, for the global leaderboards.
-    laps: Object.fromEntries(Object.entries(save?.records || {})
+    bestLaps: Object.fromEntries(Object.entries(save?.records || {})
       .map(([id, r]) => [id, Number(r?.bestLap)])
       .filter(([, t]) => Number.isFinite(t) && t > 5 && t < 3600)),
     updatedAt,
@@ -265,6 +267,16 @@ export class Admin {
       if (typeof body.announcement === 'string') next.announcement = body.announcement.trim().slice(0, 240);
       if (typeof body.signupsOpen === 'boolean') next.signupsOpen = body.signupsOpen;
       if (typeof body.onlineOpen === 'boolean') next.onlineOpen = body.onlineOpen;
+      if (body.community === null) next.community = null;
+      else if (body.community && typeof body.community === 'object') {
+        const target = Math.min(10_000_000, Math.max(10, Math.round(Number(body.community.target) || 0)));
+        const reward = Math.min(100_000, Math.max(0, Math.round(Number(body.community.reward) || 0)));
+        const endsAt = body.community.endsAt && !Number.isNaN(Date.parse(body.community.endsAt)) ? new Date(body.community.endsAt).toISOString() : null;
+        next.community = {
+          id: next.community?.id && body.community.keepProgress ? next.community.id : `c${Date.now().toString(36)}`,
+          name: String(body.community.name || 'COMMUNITY LAPS').trim().slice(0, 40).toUpperCase(), target, reward, endsAt,
+        };
+      }
       if (body.event === null) next.event = null;
       else if (body.event && typeof body.event === 'object') {
         const multiplier = Math.min(3, Math.max(1, Number(body.event.multiplier) || 1));
@@ -451,7 +463,7 @@ export async function markActive(storage, userId) {
 export async function leaderboard(admin, circuitId, limit = 20) {
   const rows = [];
   for (const [key, summary] of await admin.list('summary:')) {
-    const t = summary?.laps?.[circuitId];
+    const t = summary?.bestLaps?.[circuitId];
     if (!Number.isFinite(t)) continue;
     const userId = key.slice('summary:'.length);
     const user = await admin.storage.get(`user:${userId}`);

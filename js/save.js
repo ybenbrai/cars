@@ -11,6 +11,7 @@ import { CIRCUITS, getCircuit } from './data/circuits.js';
 import { CAREER_EVENTS } from './data/career.js';
 import { practiceRentalFee } from './economy.js';
 import { ACHIEVEMENTS, earnedNow } from './achievements.js';
+import { rewardStatus } from './dailyReward.js';
 import {
   UPGRADE_PARTS, MAX_UPGRADE_LEVEL, normalizeUpgrades, upgradeCost, upgradeValue,
 } from './data/upgrades.js';
@@ -36,6 +37,7 @@ function blankSave(displayName = '') {
     },
     upgrades: {},          // carId -> { engine, tyres, brakes, nitro } levels 0–3
     achievements: [],      // earned achievement ids
+    login: null,           // { lastDay, streak, best } for daily rewards
     career: {
       completed: [],       // event ids cleared at least once
       bestPositions: {},   // eventId -> best finishing position
@@ -103,6 +105,9 @@ function mergeSave(raw) {
       };
     }
   }
+  save.login = raw.login && typeof raw.login.lastDay === 'string'
+    ? { lastDay: raw.login.lastDay, streak: Math.max(1, raw.login.streak | 0), best: Math.max(1, raw.login.best | 0) }
+    : null;
   save.daily = raw.daily && typeof raw.daily.date === 'string'
     ? {
       date: raw.daily.date,
@@ -295,6 +300,24 @@ export class SaveStore {
     }
     this.save();
     return earned;
+  }
+
+  /** Today's login reward (see dailyReward.js), without claiming it. */
+  loginReward(todayKey) {
+    return rewardStatus(this.data.login, todayKey);
+  }
+
+  /** Claim today's login reward once. Returns the status that was paid. */
+  claimLoginReward(todayKey) {
+    const status = rewardStatus(this.data.login, todayKey);
+    if (!status.available) return { ...status, paid: 0 };
+    this.data.login = {
+      lastDay: todayKey, streak: status.streak, best: Math.max(status.streak, this.data.login?.best || 0),
+    };
+    this.data.wallet += status.amount;
+    this.data.stats.creditsEarned += status.amount;
+    this.save();
+    return { ...status, paid: status.amount };
   }
 
   /** Today's daily-challenge progress (resets when the date changes). */

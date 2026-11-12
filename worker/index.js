@@ -10,6 +10,7 @@
 import { Lobby } from '../server/rooms.mjs';
 import { Admin, summarize, activeEvent, bump, markActive, leaderboard, dayKey } from './admin.js';
 import { CIRCUITS } from '../js/data/circuits.js';
+import { rateRace, divisionFor, START_RATING } from '../server/ranked.mjs';
 
 const SESSION_COOKIE = 'sd_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -123,6 +124,7 @@ export class GameServer {
     this.lobby = new Lobby();
     this.admin = new Admin(this);
     this.lobby.onRaceStart = () => { bump(this.storage, 'onlineRaces').catch(() => {}); };
+    this.lobby.onRaceResults = (room, finishers) => { this.rateRace(finishers).catch(() => {}); };
   }
 
   async fetch(request) {
@@ -297,6 +299,7 @@ export class GameServer {
       if (!body.save || typeof body.save !== 'object' || Array.isArray(body.save)) {
         return json(400, { error: 'A save object is required.' });
       }
+      const previousSummary = await this.storage.get(`summary:${user.id}`);
       if (JSON.stringify(body.save).length > SAVE_LIMIT) return json(413, { error: 'Save data is too large.' });
       if (Object.prototype.hasOwnProperty.call(body, 'baseUpdatedAt')
         && (stored.updatedAt ?? null) !== (body.baseUpdatedAt ?? null)) {
@@ -308,6 +311,7 @@ export class GameServer {
         [`summary:${user.id}`]: summarize(body.save, updatedAt),
       });
       await bump(this.storage, 'saves');
+      await this.countCommunityLaps(user.id, previousSummary, body.save);
       return json(200, { ok: true, updatedAt });
     }
 
@@ -318,6 +322,84 @@ export class GameServer {
       if (!CIRCUITS.some((c) => c.id === circuit)) return json(400, { error: 'Unknown circuit.' });
       const rows = (await leaderboard(this.admin, circuit, 20)).map(({ username, time, car }) => ({ username, time, car }));
       return json(200, { circuit, rows });
+    }
+
+    if (path === '/api/ranked') {
+      const me = await this.currentUser(request);
+      const users = (await this.admin.list('user:')).map(([, u]) => u)
+        .filter((u) => !u.banned && (u.rankedRaces || 0) > 0)
+        .sort((a, b) => (b.rating ?? START_RATING) - (a.rating ?? START_RATING));
+      const top = users.slice(0, 20).map((u) => ({ username: u.username, rating: u.rating, division: divisionFor(u.rating).name, races: u.rankedRaces }));
+      let mine = null;
+      if (me) {
+        const u = await this.storage.get(`user:${me.id}`);
+        const rating = u.rating ?? START_RATING;
+        mine = { rating, division: divisionFor(rating).name, races: u.rankedRaces || 0, best: u.bestRating || rating,
+          position: users.findIndex((x) => x.id === me.id) + 1 || null };
+      }
+      return json(200, { top, me: mine });
+    }
+
+    if (path === '/api/community') {
+      const c = await this.community();
+      if (!c) return json(200, { challenge: null });
+      const me = await this.currentUser(request);
+      let mine = null;
+      if (me) {
+        const contributed = (await this.storage.get(`contrib:${c.id}:${me.id}`)) || 0;
+        const claimed = !!(await this.storage.get(`claimed:${c.id}:${me.id}`));
+        mine = { contributed, claimed, canClaim: c.done && contributed > 0 && !claimed };
+        if (method === 'POST') {
+          if (!mine.canClaim) return json(409, { error: c.done ? 'Nothing to claim.' : 'The goal is not reached yet.' });
+          await this.storage.put(`claimed:${c.id}:${me.id}`, 1);
+          return json(200, { ok: true, reward: c.reward });
+        }
+      }
+      return json(200, { challenge: { id: c.id, name: c.name, target: c.target, progress: c.progress, reward: c.reward, endsAt: c.endsAt, done: c.done, open: c.open }, me: mine });
+    }
+
+    if (path === '/api/friends' || path === '/api/friends/invite') {
+      const me = await this.currentUser(request);
+      if (!me) return json(401, { error: 'Sign in first.' });
+      const user = await this.storage.get(`user:${me.id}`);
+      const connOf = (userId) => [...this.lobby.players.values()].find((p) => p.conn.userId === userId);
+      if (path === '/api/friends/invite') {
+        if (method !== 'POST') return json(405, { error: 'Method not allowed.' });
+        const body = await readBody(request);
+        const friendId = await this.storage.get(`name:${String(body.username || '').toLowerCase()}`);
+        if (!friendId || !(user.friends || []).includes(friendId)) return json(404, { error: 'Add them as a friend first.' });
+        const mine = connOf(me.id);
+        if (!mine?.room) return json(409, { error: 'Open or join a room first, then invite.' });
+        const theirs = connOf(friendId);
+        if (!theirs) return json(409, { error: 'Your friend is not online right now. Share your invite link instead.' });
+        theirs.conn.send({ type: 'invite', from: me.username, code: mine.room.code });
+        return json(200, { ok: true });
+      }
+      if (method === 'POST') {
+        const body = await readBody(request);
+        const name = String(body.username || '').trim().toLowerCase();
+        const friendId = await this.storage.get(`name:${name}`);
+        if (body.action === 'remove') {
+          user.friends = (user.friends || []).filter((id) => id !== friendId);
+        } else {
+          if (!friendId) return json(404, { error: 'No driver with that username.' });
+          if (friendId === me.id) return json(400, { error: "That's you!" });
+          user.friends = [...new Set([...(user.friends || []), friendId])].slice(0, 100);
+        }
+        await this.storage.put(`user:${me.id}`, user);
+      }
+      const friends = [];
+      for (const id of user.friends || []) {
+        const f = await this.storage.get(`user:${id}`);
+        if (!f || f.banned) continue;
+        const live = connOf(id);
+        friends.push({
+          username: f.username, online: !!live, racing: !!live?.room && live.room.state !== 'lobby',
+          rating: f.rating ?? START_RATING, division: divisionFor(f.rating ?? START_RATING).name,
+        });
+      }
+      friends.sort((a, b) => Number(b.online) - Number(a.online) || a.username.localeCompare(b.username));
+      return json(200, { friends });
     }
 
     if (path === '/api/inbox') {
@@ -350,6 +432,45 @@ export class GameServer {
     }
 
     return json(404, { error: 'Unknown API endpoint.' });
+  }
+
+  /* ── community challenge ── */
+  async community() {
+    const c = (await this.admin.settings()).community;
+    if (!c) return null;
+    const progress = (await this.storage.get(`community:${c.id}`)) || 0;
+    return { ...c, progress, done: progress >= c.target, open: !c.endsAt || Date.parse(c.endsAt) > Date.now() };
+  }
+
+  /** Laps added since the last cloud save count toward the challenge. */
+  async countCommunityLaps(userId, previous, save) {
+    const c = await this.community();
+    if (!c || !c.open || !previous) return;
+    const added = (Number(save?.stats?.laps) || 0) - (previous.laps || 0);
+    // A single save can't plausibly add more than a long session of laps.
+    if (!(added > 0) || added > 300) return;
+    await this.storage.put(`community:${c.id}`, Math.min(c.target * 10, c.progress + added));
+    const key = `contrib:${c.id}:${userId}`;
+    await this.storage.put(key, ((await this.storage.get(key)) || 0) + added);
+  }
+
+  /* ── ranked ratings ── */
+  async rateRace(finishers) {
+    const users = [];
+    for (const m of finishers) users.push(await this.storage.get(`user:${m.conn.userId}`));
+    if (users.some((u) => !u)) return;
+    const before = users.map((u) => u.rating ?? START_RATING);
+    const after = rateRace(before);
+    const put = {};
+    users.forEach((u, i) => {
+      u.rating = after[i];
+      u.rankedRaces = (u.rankedRaces || 0) + 1;
+      u.bestRating = Math.max(u.bestRating || START_RATING, after[i]);
+      put[`user:${u.id}`] = u;
+      const div = divisionFor(after[i]);
+      finishers[i].conn.send({ type: 'rating', rating: after[i], delta: after[i] - before[i], division: div.name, position: i + 1 });
+    });
+    await this.storage.put(put);
   }
 
   /* ── online lobby over WebSockets ── */

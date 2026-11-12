@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Daily login rewards: a seven-day ladder (500 → 5,000 CR) shown as a
+  popup in the garage; consecutive days climb, a missed day restarts.
+- Ranked online racing: every online race with two or more finishers
+  updates a multiplayer Elo rating with divisions from Bronze to Champion;
+  rating changes pop up after the race and the ONLINE lobby shows your
+  division, world position and the top ranked drivers.
+- Community challenge: admins set a shared lap goal, reward and end date;
+  every signed-in driver's laps count, progress shows in the Career tab
+  and contributors claim the reward once the goal is reached.
+- Friends: add drivers by username, see who is online or racing with their
+  division, and invite online friends straight into your room.
 - Live ops: admin-run live events multiply race payouts (e.g. DOUBLE
   CREDITS WEEKEND ×2 with an end time and presets); players see a garage
   badge and an event line on results. Live broadcast to online players.

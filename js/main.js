@@ -29,6 +29,7 @@ import { Rain } from './rain.js';
 import { PhotoMode } from './photoMode.js';
 import { ReplayRecorder, ReplayPlayer } from './replay.js';
 import { Tutorial } from './tutorial.js';
+import { todayKey } from './daily.js';
 import { setLanguage, detectLanguage } from './i18n.js';
 import {
   GhostRecorder, GhostCar, loadGhost, saveGhostIfFaster,
@@ -157,6 +158,18 @@ const ui = new UI({
   onLogin: handleLogin,
   onRegister: handleRegister,
   onLogout: handleLogout,
+  onCommunityClaim: claimCommunity,
+  onFriend: (action, username) => loadFriends({ action, username }),
+  onInvite: inviteFriend,
+  onCareerOpen: loadCommunity,
+  onClaimReward: () => {
+    const r = store?.claimLoginReward(todayKey());
+    if (!r?.paid) return;
+    audio.pickup?.();
+    ui.renderGarage(store, auth);
+    ui.notice(`DAILY REWARD · +${formatCredits(r.paid)} CR · ${r.streak}-DAY STREAK`, 'ok');
+    announceAchievements();
+  },
   onLeaderboard: fetchLeaderboard,
   onReport: reportPlayer,
   onDeleteAccount: handleDeleteAccount,
@@ -391,6 +404,9 @@ function enterGarage() {
   ui.renderGarage(store, auth);
   ui.setGarageBest(store.bestLapFor(store.data.circuits[0]) || store.bestLapFor(world?.circuit.id));
   setTimeout(tryPendingRoom, 0);
+  // Daily login reward, once per day (not for brand-new drivers mid-tutorial).
+  const reward = store.loginReward(todayKey());
+  if (reward.available && !pendingRoom) setTimeout(() => state === 'garage' && ui.showReward(reward), 600);
 }
 
 function selectCar(carId) {
@@ -2101,6 +2117,8 @@ async function handleOnline(action, payload = {}) {
       return;
     }
     syncOnlineCar(true);
+    loadRanked();
+    loadFriends();
     await online.connect();
     ui.renderOnline(online, auth, store);
     return;
@@ -2147,12 +2165,89 @@ function tryPendingRoom() {
 setInterval(() => {
   if (ui.tab === 'online' && online.connected && !online.room && state === 'garage') online.listRooms();
 }, 6000);
+// Friends' online status while the ONLINE tab is open.
+setInterval(() => {
+  if (ui.tab === 'online' && auth.isAccount && state === 'garage' && online.room?.state !== 'racing') loadFriends();
+}, 12000);
 
 online.on('status', () => {
   if (online.connected && !online.room) online.listRooms();
   ui.renderOnline(online, auth, store);
   tryPendingRoom();
 });
+online.on('rating', (msg) => {
+  const sign = msg.delta >= 0 ? '+' : '';
+  ui.notice(`RANKED · ${msg.division} · ${msg.rating} (${sign}${msg.delta})`, msg.delta >= 0 ? 'ok' : 'error', 8000);
+  loadRanked();
+});
+
+/** Community challenge progress for the CAREER tab. */
+async function loadCommunity() {
+  try {
+    const res = await fetch('/api/community');
+    if (!res.ok) return;
+    ui.community = await res.json();
+    if (ui.tab === 'career') ui.renderCareer();
+  } catch { /* static host */ }
+}
+
+async function claimCommunity() {
+  try {
+    const res = await fetch('/api/community', { method: 'POST' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { ui.notice(data.error || 'Could not claim.', 'error'); return; }
+    store.data.wallet += data.reward;
+    store.data.stats.creditsEarned += data.reward;
+    store.save();
+    ui.renderGarage(store, auth);
+    ui.notice(`COMMUNITY REWARD · +${formatCredits(data.reward)} CR`, 'ok');
+    loadCommunity();
+  } catch { ui.notice('Could not claim.', 'error'); }
+}
+
+/** Friends list (online status) and invites. */
+async function friendsApi(path, body) {
+  const res = await fetch(path, body ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } : {});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || 'Something went wrong.');
+  return data;
+}
+
+async function loadFriends(body) {
+  try {
+    ui.friends = (await friendsApi('/api/friends', body)).friends;
+    if (ui.tab === 'online') ui.renderOnline(online, auth, store);
+  } catch (err) { if (body) ui.notice(err.message, 'error'); }
+}
+
+async function inviteFriend(username) {
+  try {
+    await friendsApi('/api/friends/invite', { username });
+    ui.notice(`Invite sent to ${username}`, 'ok');
+  } catch (err) { ui.notice(err.message, 'error'); }
+}
+
+online.on('invite', (msg) => {
+  if (online.room?.code === msg.code) return;
+  // Racing right now: keep it simple and offer the room code instead.
+  if (state !== 'garage') { ui.notice(`${msg.from} invited you to room ${msg.code}`, 'ok', 9000); return; }
+  if (window.confirm(`${msg.from} invites you to race in room ${msg.code}. Join now?`)) {
+    if (online.room) online.leaveRoom();
+    setTimeout(() => online.joinRoom(msg.code), online.room ? 300 : 0);
+    ui.setTab('online');
+  }
+});
+
+/** Ranked rating and top drivers for the ONLINE tab. */
+async function loadRanked() {
+  try {
+    const res = await fetch('/api/ranked');
+    if (!res.ok) return;
+    ui.ranked = await res.json();
+    if (ui.tab === 'online' && !online.room) ui.renderOnline(online, auth, store);
+  } catch { /* offline */ }
+}
+
 online.on('broadcast', (msg) => ui.notice(`📢 ${msg.message}`, 'ok', 9000));
 online.on('rooms', () => {
   if (!online.room) ui.renderOnline(online, auth, store);
