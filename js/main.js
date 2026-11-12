@@ -418,7 +418,9 @@ function enterGarage() {
   setTimeout(tryPendingRoom, 0);
   // Daily login reward, once per day (not for brand-new drivers mid-tutorial).
   const reward = store.loginReward(todayKey());
-  if (reward.available && !pendingRoom) setTimeout(() => state === 'garage' && ui.showReward(reward), 600);
+  if (reward.available && !pendingRoom) {
+    setTimeout(() => { if (state === 'garage' && store.loginReward(todayKey()).available) ui.showReward(reward); }, 600);
+  }
 }
 
 function selectCar(carId) {
@@ -765,6 +767,8 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   audio.setProfile(playerEntrant.def.category);
 
   disposeRace();
+  // An unclaimed daily reward stays claimable back in the garage.
+  document.getElementById('screen-reward')?.classList.add('hidden');
   const raceWorld = ensureWorld(setup.circuit, setup.conditions);
   const track = raceWorld.track;
   hud.setTrack(track);

@@ -496,7 +496,8 @@ export class CarModel {
     this.mergeStaticParts();
     this.collectDetail();
     // Real 3D model (glTF), swapped in once it has loaded.
-    if (carDef.modern && !carDef.model?.url) attachModernBody(this, carDef);
+    // Modern body for every car without a real model (opt out: modern: false).
+    if (!carDef.model?.url && carDef.modern !== false) attachModernBody(this, carDef);
     if (carDef.model?.url) {
       attachRealModel(this, carDef).catch((err) => console.warn('Car model failed to load', err));
     }

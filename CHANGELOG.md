@@ -9,12 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Prototype modern body for the AURELIO TEMPESTA SV (js/modernCar.js):
-  original wedge hypercar design with creased panels, raised wings, inset
-  side skirts, flank intakes, teardrop canopy, Y-shaped LED lamps, a
-  full-width rear light bar, diffuser, hexagonal exhaust, wing and
-  low-profile 10-spoke wheels with calipers. Opt-in per car with
-  `modern: '<design>'`; customisation, steering, spin and lean still work.
+- Modern bodies for every car (js/modernCar.js): original designs with
+  creased panels, inset skirts, character and shoulder lines, wings over
+  the axles and a design language per family: rounded hatches, notchback
+  saloons with chrome grilles and light bars, fastback sports cars and GTs,
+  muscle cars with wide grilles and triple tail lights, wedge supercars and
+  hypercars with canopies and diffusers, tall SUVs with cladding and roof
+  rails, off-roaders with round lamps and a light bar, an open roadster.
+  Low-profile multi-spoke wheels with calipers. Parts are merged per
+  material: an 8-car grid draws ~406 calls and 211k triangles (was 560 and
+  870k). Cars with a real 3D model keep it; `modern: false` opts out.
 - Realistic 3D car models: cars can now use a real glTF model with the
   game's paint, tint, rim colour, brake lights, spinning and steering wheels
   and body lean still working. First car: VALENZA AETHER GT, built on the
@@ -258,6 +262,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The daily reward popup could stay over a race that started right after
+  entering the garage; it now closes and stays claimable in the garage.
 - Online races: the 3-2-1 countdown and race clock follow a shared
   wall-clock start time. A player who switched away (or paused) during the
   countdown rejoins the race already under way instead of replaying 3-2-1.
