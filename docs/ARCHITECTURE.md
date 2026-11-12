@@ -220,7 +220,7 @@ capture, so they work with touch, pen and mouse. Input is normalized in
 
 ```json
 {
-  "name": "NOVA",
+  "name": "ALEX",
   "carId": "viper",
   "looks": {
     "viper": {
@@ -233,7 +233,7 @@ capture, so they work with touch, pen and mouse. Input is normalized in
       "stripeColor": "#fff3e2",
       "tint": "dark",
       "underglow": "pink",
-      "plate": "NOVA"
+      "plate": "ALEX"
     }
   }
 }

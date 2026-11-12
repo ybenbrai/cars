@@ -27,9 +27,10 @@ feel good immediately, but leave enough depth to chase a clean lap.
 
 - **Five languages.** English, Español, Français, Português and Deutsch, picked
   from the browser and switchable in the pause menu.
-- **Twenty cars across eight classes.** Hatchbacks to hypercars, each with its
-  own body, stats, price and rank requirement. Start with 30,000 CR and earn
-  your way up.
+- **Twenty real cars across eight classes.** Hatchbacks to hypercars, each
+  named after a real production model and given procedural bodywork, a grille,
+  head-lamp cluster, daytime-running signature and tail-lamp motif modelled on
+  the real thing. Start with 30,000 CR and earn your way up.
 - **A real garage.** Change paint, finish, rims, spoiler, stripes, tint,
   underglow and the license plate with a live 3D preview.
 - **Ten circuits, five modes.** Career (ten events), Quick Race against up to
@@ -108,12 +109,21 @@ pauses itself when the tab loses visibility.
 
 ## Cars
 
+The roster is made up of twenty real production cars, from the Toyota Yaris to
+the Bugatti Chiron. Each body is still generated at runtime, with a grille,
+head-lamp cluster, daytime-running signature and tail-lamp motif modelled on
+the real car.
+
 | Car | Class | Strength | Trade-off |
 | --- | --- | --- | --- |
-| **FALCON GT** | Balanced | Confidence-inspiring grip and predictable brakes | No single standout stat |
-| **VIPER X** | Top speed | Highest top end and the hardest-hitting nitro | Heavy nose, wide turning circle |
-| **KAZE S** | Drift | Biggest, most controllable drift angle | Low top speed, twitchy over bumps |
-| **COMET RS** | Launch | Fastest launch and nimble in tight complexes | Lacks top-end legs, light rear |
+| **TOYOTA YARIS** | City hatch | Light, cheap and endlessly willing | Out of breath on long straights |
+| **VW GOLF GTI** | Hot hatch | Huge grip for the money | Top end fades on long straights |
+| **HONDA CIVIC TYPE R** | Track hatch | Front-end grip that defies the layout | Firm ride on broken roads |
+| **BMW M3 COMPETITION** | Performance sedan | Enormous corner-exit traction | Feels heavy on the nose |
+| **TOYOTA GR SUPRA** | Sports coupe | Punchy turbo straight-six and neat balance | Tight cabin, muted steering feel |
+| **DODGE VIPER ACR** | Track supercar | Highest top end and the hardest-hitting nitro | Heavy nose, wide turning circle |
+| **SUBARU WRX STI** | Rally sedan | Biggest, most controllable drift angle | Low top speed, twitchy over bumps |
+| **BUGATTI CHIRON** | Hypercar | Devastating acceleration and top speed | Long, heavy and thirsty for braking room |
 
 Full stats, physics modifiers, scoring formulas and driving tips are in the
 [gameplay guide](docs/GAMEPLAY.md).

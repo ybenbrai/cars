@@ -57,7 +57,8 @@ whether credits are per-car, and how to avoid turning the game into a grind.
 ## Non-goals for now
 
 - Full racing simulation (tire temperatures, fuel, mechanical wear)
-- Real-world licensed cars or brands
+- Officially licensed manufacturers and scanned car assets (the roster uses
+  real production-car names, with original procedural bodies and lights)
 - Free-roam open world: the city circuits are closed street loops, not an
   explorable sandbox
 - Server-authoritative physics or anti-cheat beyond sanity checks (online

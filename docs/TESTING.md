@@ -68,7 +68,7 @@ Run through the relevant rows before a release or a large pull request.
 ## Core flow checklist
 
 1. Clear site data, reload, and confirm the profile screen appears.
-2. Submit a name. Confirm the garage opens with FALCON GT.
+2. Submit a name. Confirm the garage opens with the Toyota Yaris.
 3. Select every car. Confirm the turntable, stats, name and pros/cons change.
 4. Change every cosmetic control. Confirm the preview updates immediately.
 5. Reload. Confirm the name, car and look survived.
@@ -92,8 +92,9 @@ Run through the relevant rows before a release or a large pull request.
 
 These are quick checks worth repeating after physics or track changes:
 
-- Top speed should be reachable on the bottom straight (roughly 200 km/h for
-  FALCON GT, 225 km/h for VIPER X and lower for KAZE S; nitro raises the cap).
+- Top speed should be reachable on the bottom straight (roughly 161 km/h for
+  the Toyota Yaris, 234 km/h for the Dodge Viper ACR and 209 km/h for the
+  Subaru WRX STI; nitro raises the cap).
 - Handbrake + steering at speed should produce a visible slip angle and a drift
   state, but the car should recover when the handbrake is released.
 - Nitro should not activate while off-road.

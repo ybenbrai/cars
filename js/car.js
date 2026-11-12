@@ -162,8 +162,8 @@ export class Car {
     this.prevHeading = this.heading;
   }
 
-  enableHeadlights() {
-    this.model.enableHeadlights();
+  enableHeadlights(night = true) {
+    this.model.enableHeadlights(night);
   }
 
   syncTransform() {

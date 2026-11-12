@@ -17,6 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   lamps and red traffic lights at every junction.
 - Neon Skidpad: a wide, walled 1.7 km drift park with long sweepers and one
   big hairpin.
+- The twenty-car roster now uses real production models, from the Toyota Yaris
+  and VW Golf GTI to the Bugatti Chiron. Each keeps its stable internal id, so
+  saves and career progress carry over, while names, classes, specs, pros and
+  cons, factory-style paints and handling character come from the real car.
+- Realistic light hardware on every car: halogen-reflector, projector, slim
+  LED, quad and laser head-lamp clusters; marque-inspired DRL signatures; mesh,
+  slat, honeycomb, kidney, round, split and horseshoe grilles; and LED tail
+  signatures including C-hooks, rings, tri-bars, Y-shapes and full-width bars.
+  A high-mounted stop lamp sits above every tail.
+- Night lighting: all cars switch to bright lamps and DRLs after dark, the
+  player's car projects twin headlight beams down the road, and brake lights
+  brighten both the lens and the LED signature.
 - Cars are rebuilt from lofted superellipse sections instead of stacked rounded
   boxes: circular wheel arches cut into the shell, lathed tyres with tread,
   brake discs and calipers, painted roof skins framed by A/B/C pillars, and
@@ -185,6 +197,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- FPS counter: it now samples raw animation-frame intervals with a 480 ms
+  window and shows the average frame time next to the frame rate. A monitor
+  locked to 100 Hz will still read 100 FPS when the game is keeping up, so the
+  millisecond figure (e.g. `100 FPS · 10.0 ms`) is the live load indicator.
 - Picking up a nitro bottle no longer changes the engine sound: it used to
   shove the car forward ~11 km/h, jumping revs and gears. Bottles now only
   refill the nitro bar.

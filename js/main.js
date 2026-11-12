@@ -47,8 +47,15 @@ const BUILD = new URL(import.meta.url).searchParams.get('v') || 'dev';
 const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 // Rivals farther than this from the camera hide their small parts.
 const LOD_DISTANCE_SQ = 50 * 50;
-// Optional FPS counter (settings): averaged over half a second.
-const fpsMeter = { el: document.getElementById('fpsCounter'), acc: 0, frames: 0 };
+// Optional FPS counter (settings). It samples the *raw* animation-frame
+// interval (not the simulation dt, which is clamped) so a long stall cannot
+// be hidden, and it also shows the average frame time and the work done
+// inside the frame. On a 100 Hz display a healthy game legitimately sits at
+// 100 FPS; the millisecond readout is what changes when the frame budget does.
+const fpsMeter = {
+  el: document.getElementById('fpsCounter'),
+  acc: 0, frames: 0, work: 0, worst: 0,
+};
 const damp = (a, b, l, dt) => a + (b - a) * (1 - Math.exp(-l * dt));
 const dpr = Math.min(window.devicePixelRatio || 1, 2);
 
@@ -688,6 +695,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   const totalRacers = entrants.length;
   const racers = [];
   let player = null;
+  const night = setup.conditions?.time === 'night';
 
   for (const entrant of entrants) {
     // Online entrants have no `upgrades`: every online race is stock vs stock.
@@ -695,6 +703,8 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     const slot = track.gridSlot(entrant.slot);
     car.reset(slot.point, slot.tangent);
     car.isPlayer = !!entrant.isPlayer;
+    // Every car lights up at night; the player also gets real beam spots.
+    car.model.setNight(night);
     const racer = {
       car,
       isPlayer: !!entrant.isPlayer,
@@ -717,7 +727,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
       car.launch *= RAIN_GRIP;
     }
     if (entrant.isPlayer) {
-      car.enableHeadlights();
+      car.enableHeadlights(night);
       car.driftAssist = true;
       car.canLock = true;
       player = racer;
@@ -1553,19 +1563,42 @@ function updateHud(dt) {
 
 let last = performance.now();
 
+function updateFpsMeter(ms, workMs) {
+  if (fpsMeter.el.classList.contains('hidden')) return;
+  fpsMeter.acc += ms;
+  fpsMeter.frames += 1;
+  fpsMeter.work += workMs;
+  fpsMeter.worst = Math.max(fpsMeter.worst, ms);
+  if (fpsMeter.acc < 480) return;
+
+  const span = fpsMeter.acc;
+  const fps = (fpsMeter.frames * 1000) / span;
+  const frameMs = span / fpsMeter.frames;
+  const workAvg = fpsMeter.work / fpsMeter.frames;
+  const level = fps >= 55 ? 'good' : fps >= 30 ? 'warn' : 'bad';
+  fpsMeter.el.classList.remove('good', 'warn', 'bad');
+  fpsMeter.el.classList.add(level);
+  fpsMeter.el.innerHTML = `<b>${Math.round(fps)}</b><span>FPS</span><i>${frameMs.toFixed(1)} ms</i>`;
+  fpsMeter.el.title = `Avg frame ${frameMs.toFixed(1)} ms, worst ${fpsMeter.worst.toFixed(1)} ms, `
+    + `frame work ${workAvg.toFixed(1)} ms`;
+
+  fpsMeter.acc = 0;
+  fpsMeter.frames = 0;
+  fpsMeter.work = 0;
+  fpsMeter.worst = 0;
+}
+
 function frame(now) {
   requestAnimationFrame(frame);
-  const dt = Math.min((now - last) / 1000, 0.25);
-  if (!fpsMeter.el.classList.contains('hidden')) {
-    fpsMeter.acc += dt;
-    fpsMeter.frames += 1;
-    if (fpsMeter.acc >= 0.5) {
-      fpsMeter.el.textContent = `${Math.round(fpsMeter.frames / fpsMeter.acc)} FPS`;
-      fpsMeter.acc = 0;
-      fpsMeter.frames = 0;
-    }
-  }
+  const start = performance.now();
+  const ms = Math.max(0, now - last);
   last = now;
+  tick(now, ms);
+  updateFpsMeter(ms, performance.now() - start);
+}
+
+function tick(now, ms) {
+  const dt = Math.min(ms / 1000, 0.25);
   input.update();
 
   if (state === 'garage') {

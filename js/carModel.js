@@ -324,29 +324,71 @@ function treadTexture() {
   return tex;
 }
 
-function grilleTexture() {
+function grilleTexture(kind = 'mesh') {
   const canvas = document.createElement('canvas');
   canvas.width = 256;
   canvas.height = 128;
   const ctx = canvas.getContext('2d');
   ctx.fillStyle = '#08080b';
   ctx.fillRect(0, 0, 256, 128);
-  ctx.strokeStyle = 'rgba(150,160,180,0.32)';
-  ctx.lineWidth = 2;
-  for (let y = 10; y < 128; y += 14) {
-    ctx.beginPath();
-    ctx.moveTo(0, y);
-    ctx.lineTo(256, y);
-    ctx.stroke();
+
+  if (kind === 'slat') {
+    // Horizontal chrome slats, as used by Mercedes-AMG and the Golf GTI.
+    for (let y = 8; y < 128; y += 13) {
+      ctx.fillStyle = 'rgba(190,198,214,0.42)';
+      ctx.fillRect(0, y, 256, 3);
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(0, y + 3, 256, 8);
+    }
+  } else if (kind === 'hex' || kind === 'horseshoe') {
+    // Honeycomb / diamond mesh.
+    ctx.strokeStyle = 'rgba(150,160,180,0.36)';
+    ctx.lineWidth = 2;
+    const s = 18;
+    for (let y = -s; y < 128 + s; y += s) {
+      for (let x = -s; x < 256 + s; x += s) {
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + s * 0.5, y + s * 0.5);
+        ctx.lineTo(x, y + s);
+        ctx.lineTo(x - s * 0.5, y + s * 0.5);
+        ctx.closePath();
+        ctx.stroke();
+      }
+    }
+  } else {
+    // Diamond mesh with strong vertical bars: the default for hot hatches,
+    // rally cars and supercars.
+    ctx.strokeStyle = 'rgba(150,160,180,0.32)';
+    ctx.lineWidth = 2;
+    for (let y = 10; y < 128; y += 14) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(256, y);
+      ctx.stroke();
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+    ctx.lineWidth = 3;
+    for (let x = 0; x < 256; x += 18) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, 128);
+      ctx.stroke();
+    }
   }
-  ctx.strokeStyle = 'rgba(0,0,0,0.8)';
-  ctx.lineWidth = 3;
-  for (let x = 0; x < 256; x += 18) {
-    ctx.beginPath();
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, 128);
-    ctx.stroke();
+
+  if (kind === 'kidney' || kind === 'slat' || kind === 'horseshoe') {
+    // Vertical chrome dividers on the upright grilles.
+    ctx.strokeStyle = 'rgba(210,216,228,0.3)';
+    ctx.lineWidth = 2;
+    for (let x = 24; x < 256; x += 34) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, 128);
+      ctx.stroke();
+    }
   }
+
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 4;
@@ -420,6 +462,16 @@ export class CarModel {
     this.def = carDef;
     this.bodyDef = carDef.body;
     this.look = look;
+    // Per-car lighting language: headlight architecture, DRL signature,
+    // grille pattern and tail-lamp signature. The body styles still shape the
+    // openings, while these keep a Yaris looking like a Yaris and an
+    // Aventador looking like an Aventador.
+    this.design = {
+      headlight: 'projector', drl: 'l-shape', grille: 'mesh', tail: 'clusters',
+      ...(carDef.design || {}),
+    };
+    this.night = false;
+    this.braking = false;
     this.root = new THREE.Group();
     this.root.name = `car-${carDef.id}`;
     this.body = new THREE.Group();
@@ -456,8 +508,41 @@ export class CarModel {
       clearcoat: 1, clearcoatRoughness: 0.04,
       transparent: true, opacity: 0.74, envMapIntensity: 1.9,
     });
-    this.headMat = new THREE.MeshStandardMaterial({ color: 0xfff6dc, emissive: 0xffe4ab, emissiveIntensity: 2.6, roughness: 0.2 });
-    this.tailMat = new THREE.MeshStandardMaterial({ color: 0x3a0307, emissive: 0xff1735, emissiveIntensity: 1.4, roughness: 0.3 });
+    this.headMat = new THREE.MeshPhysicalMaterial({
+      color: 0xfff8e8, emissive: 0xffe9bd, emissiveIntensity: 2.0,
+      roughness: 0.08, metalness: 0.2, clearcoat: 1, clearcoatRoughness: 0.02,
+    });
+    this.tailMat = new THREE.MeshPhysicalMaterial({
+      color: 0x350208, emissive: 0xff1028, emissiveIntensity: 1.35,
+      roughness: 0.18, metalness: 0.15, clearcoat: 1, clearcoatRoughness: 0.04,
+    });
+    this.tailLedMat = new THREE.MeshStandardMaterial({
+      color: 0x2a0206, emissive: 0xff1630, emissiveIntensity: 1.8,
+      roughness: 0.22, toneMapped: false,
+    });
+    this.drlMat = new THREE.MeshStandardMaterial({
+      color: 0xffffff, emissive: 0xf4f9ff, emissiveIntensity: 2.2,
+      roughness: 0.15, toneMapped: false,
+    });
+    this.laserMat = new THREE.MeshStandardMaterial({
+      color: 0x2255ff, emissive: 0x2f7bff, emissiveIntensity: 2.2,
+      roughness: 0.2, toneMapped: false,
+    });
+    this.reflectorMat = new THREE.MeshStandardMaterial({
+      color: 0xe7ecf4, metalness: 1, roughness: 0.1, envMapIntensity: 1.7,
+    });
+    this.projectorMat = new THREE.MeshPhysicalMaterial({
+      color: 0x070b12, metalness: 0.7, roughness: 0.07,
+      clearcoat: 1, clearcoatRoughness: 0.03, envMapIntensity: 1.8,
+    });
+    this.lensGlassMat = new THREE.MeshPhysicalMaterial({
+      color: 0xdfeaff, metalness: 0.15, roughness: 0.02,
+      transparent: true, opacity: 0.2, clearcoat: 1, clearcoatRoughness: 0.02,
+      envMapIntensity: 2.2, depthWrite: false,
+    });
+    this.headBase = 2.0;
+    this.tailBase = 1.35;
+    this.tailLedBase = 1.8;
     this.rubberMat = new THREE.MeshStandardMaterial({ color: 0x0b0b0e, metalness: 0.04, roughness: 0.92 });
     this.treadMat = new THREE.MeshStandardMaterial({
       map: treadTexture(), color: 0xffffff, metalness: 0.04, roughness: 0.88,
@@ -466,7 +551,15 @@ export class CarModel {
     this.discMat = new THREE.MeshStandardMaterial({ color: 0x4a4d55, metalness: 0.9, roughness: 0.45 });
     this.archMat = new THREE.MeshStandardMaterial({ color: 0x07060a, metalness: 0.1, roughness: 0.95, side: THREE.DoubleSide });
     this.caliperMat = new THREE.MeshStandardMaterial({ color: 0xff5a1f, metalness: 0.45, roughness: 0.34 });
-    this.grilleMat = new THREE.MeshStandardMaterial({ map: grilleTexture(), color: 0xffffff, metalness: 0.6, roughness: 0.42 });
+    this.grilleMat = new THREE.MeshStandardMaterial({
+      map: grilleTexture(this.design.grille), color: 0xffffff, metalness: 0.6, roughness: 0.42,
+    });
+    // Amber indicator material per side, shared by the corner lamps and the
+    // small amber segment inside each headlight cluster.
+    const makeSignal = () => new THREE.MeshStandardMaterial({
+      color: 0x5a3200, emissive: 0xff7a00, emissiveIntensity: 0.12, roughness: 0.3, toneMapped: false,
+    });
+    this.signalMats = { left: makeSignal(), right: makeSignal() };
     this.seamMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0e, side: THREE.DoubleSide });
     this.plateTex = plateTexture(look.plate);
     this.plateMat = new THREE.MeshStandardMaterial({
@@ -947,6 +1040,154 @@ export class CarModel {
     }
   }
 
+  /** One realistic headlight cluster: dark bucket, chrome reflector, projector
+   * lens, LED signature, amber indicator and a glass cover. The body style
+   * decides where the cluster sits; the car's `design.headlight` decides what
+   * is inside it (halogen reflector, projector, slim LED, quad lamps, laser). */
+  headlamp(cx, cy, w, h, sx) {
+    const z = this.bodyDef.length / 2;
+    const style = this.design.headlight;
+    const sideName = sx > 0 ? 'left' : 'right';
+    const r = Math.min(h * 0.33, w * 0.24);
+
+    const housing = this.add(new THREE.Mesh(
+      rbox(w, h, 0.03, Math.min(0.03, h * 0.35)), this.projectorMat,
+    ));
+    housing.position.set(cx, cy, z + 0.006);
+    housing.castShadow = false;
+
+    const inner = this.add(new THREE.Mesh(
+      rbox(w * 0.92, h * 0.84, 0.012, Math.min(0.02, h * 0.3)), this.reflectorMat,
+    ));
+    inner.position.set(cx, cy, z + 0.018);
+    inner.castShadow = false;
+
+    const projector = (x, y, radius) => {
+      const ring = this.add(new THREE.Mesh(
+        new THREE.TorusGeometry(radius * 1.16, 0.009, 5, 18), this.chromeMat,
+      ));
+      ring.position.set(x, y, z + 0.032);
+      ring.castShadow = false;
+      const glass = this.add(new THREE.Mesh(
+        new THREE.CylinderGeometry(radius, radius, 0.016, 18), this.projectorMat,
+      ));
+      glass.rotation.x = Math.PI / 2;
+      glass.position.set(x, y, z + 0.034);
+      glass.castShadow = false;
+      const core = this.add(new THREE.Mesh(
+        new THREE.CylinderGeometry(radius * 0.46, radius * 0.46, 0.012, 14), this.headMat,
+      ));
+      core.rotation.x = Math.PI / 2;
+      core.position.set(x, y, z + 0.043);
+      core.castShadow = false;
+    };
+
+    if (style === 'quad') {
+      for (const dx of [-w * 0.22, w * 0.22]) {
+        projector(cx + dx, cy, Math.min(h * 0.21, w * 0.15));
+      }
+    } else if (style === 'reflector') {
+      // Faceted chrome bowl and a single halogen bulb behind a clear lens.
+      const bowl = this.add(new THREE.Mesh(
+        new THREE.CylinderGeometry(r * 1.05, r * 0.86, 0.02, 16, 1, true), this.reflectorMat,
+      ));
+      bowl.rotation.x = Math.PI / 2;
+      bowl.position.set(cx, cy, z + 0.03);
+      bowl.castShadow = false;
+      projector(cx, cy, r * 0.62);
+    } else if (style === 'slim') {
+      // Slim LED housing: a small projector at the outer edge, with the LED
+      // blade doing most of the visual work.
+      projector(cx - sx * w * 0.26, cy, Math.min(h * 0.24, w * 0.15));
+    } else {
+      projector(cx, cy, r);
+      if (style === 'laser') {
+        const laser = this.add(new THREE.Mesh(
+          rbox(w * 0.18, h * 0.13, 0.008, 0.004), this.laserMat,
+        ));
+        laser.position.set(cx + sx * w * 0.29, cy + h * 0.3, z + 0.04);
+        laser.castShadow = false;
+      }
+    }
+
+    this.addDrl(cx, cy, w, h, sx);
+
+    const indicator = this.add(new THREE.Mesh(
+      rbox(w * 0.13, h * 0.4, 0.008, 0.005), this.signalMats[sideName],
+    ));
+    indicator.position.set(cx + sx * w * 0.39, cy - h * 0.08, z + 0.04);
+    indicator.castShadow = false;
+
+    const cover = this.add(new THREE.Mesh(
+      rbox(w * 0.99, h * 0.94, 0.01, Math.min(0.02, h * 0.34)), this.lensGlassMat,
+    ));
+    cover.position.set(cx, cy, z + 0.049);
+    cover.castShadow = false;
+    // Keep the transparent cover out of the static merge so it sorts cleanly
+    // against the glass and the rest of the front end.
+    cover.userData.noMerge = true;
+  }
+
+  /** LED daytime-running signature inside a headlight cluster. */
+  addDrl(cx, cy, w, h, sx) {
+    const z = this.bodyDef.length / 2 + 0.039;
+    const sig = this.design.drl;
+    if (sig === 'none') return;
+    const bar = (x, y, bw, bh, rz = 0) => {
+      const mesh = this.add(new THREE.Mesh(
+        rbox(bw, bh, 0.008, Math.min(0.005, bh / 2)), this.drlMat,
+      ));
+      mesh.position.set(x, y, z);
+      mesh.rotation.z = rz;
+      mesh.castShadow = false;
+      return mesh;
+    };
+    const outer = cx + sx * w * 0.3;
+
+    if (sig === 'u-shape') {
+      bar(cx, cy - h * 0.3, w * 0.64, 0.011);
+      bar(cx - w * 0.3, cy, 0.011, h * 0.52);
+      bar(cx + w * 0.3, cy, 0.011, h * 0.52);
+    } else if (sig === 'c-hook') {
+      bar(outer, cy + h * 0.16, 0.012, h * 0.42);
+      bar(outer - sx * w * 0.16, cy + h * 0.34, w * 0.34, 0.011);
+      bar(outer - sx * w * 0.16, cy - h * 0.06, w * 0.34, 0.011);
+    } else if (sig === 'l-shape') {
+      bar(outer, cy, 0.012, h * 0.62);
+      bar(outer - sx * w * 0.2, cy - h * 0.28, w * 0.42, 0.011);
+    } else if (sig === 'halo') {
+      const radius = Math.min(h * 0.24, w * 0.17);
+      for (const dx of [-w * 0.2, w * 0.2]) {
+        const ring = this.add(new THREE.Mesh(
+          new THREE.TorusGeometry(radius, 0.008, 5, 18), this.drlMat,
+        ));
+        ring.position.set(cx + dx, cy, z);
+        ring.castShadow = false;
+      }
+    } else if (sig === 'three-strip') {
+      for (let i = -1; i <= 1; i++) bar(outer, cy + i * h * 0.24, w * 0.36, 0.01);
+    } else if (sig === 'four-dot') {
+      for (let iy = -1; iy <= 1; iy += 2) {
+        for (let ix = -1; ix <= 1; ix += 2) {
+          bar(cx + ix * w * 0.17, cy + iy * h * 0.2, 0.03, 0.03);
+        }
+      }
+    } else if (sig === 'tri-bar') {
+      for (let i = -1; i <= 1; i++) bar(cx + i * w * 0.16, cy, 0.012, h * 0.6);
+    } else if (sig === 'c-clamp') {
+      bar(outer, cy + h * 0.14, 0.014, h * 0.44);
+      bar(outer - sx * w * 0.12, cy + h * 0.32, w * 0.24, 0.012);
+      bar(outer - sx * w * 0.12, cy - h * 0.04, w * 0.24, 0.012);
+    } else if (sig === 'y-shape') {
+      bar(cx - w * 0.18, cy + h * 0.2, 0.012, h * 0.36, 0.42);
+      bar(cx + w * 0.18, cy + h * 0.2, 0.012, h * 0.36, -0.42);
+      bar(cx, cy - h * 0.18, 0.012, h * 0.28);
+    } else {
+      // straight: a clean horizontal LED blade across the housing.
+      bar(cx, cy + h * 0.2, w * 0.74, 0.012);
+    }
+  }
+
   /** Front fascia: headlights, grille and intakes shaped for each style. */
   buildFrontEnd() {
     const b = this.bodyDef;
@@ -957,33 +1198,42 @@ export class CarModel {
     const top = this.topYAt(0, z);
     const fh = Math.max(0.09, top - bottom);
     const at = (f) => bottom + fh * f;
-    const s = W / 1.95;
 
-    const housing = (x, y, w, h, r = 0.02) => {
-      this.add(new THREE.Mesh(rbox(w, h, 0.04, Math.min(r, h / 2.2)), this.trimMat))
-        .position.set(x, y, z + 0.004);
-    };
-    const lens = (x, y, w, h, mat = this.headMat, depth = 0.016) => {
-      const m = this.add(new THREE.Mesh(rbox(w, h, depth, Math.min(0.012, h / 2.2)), mat));
-      m.position.set(x, y, z + 0.028);
-      m.castShadow = false;
-      return m;
-    };
-    const lamp = (x, y, r, mat = this.headMat) => {
-      const m = this.add(new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.018, 18), mat));
-      m.rotation.x = Math.PI / 2;
-      m.position.set(x, y, z + 0.03);
-      m.castShadow = false;
-      return m;
-    };
-    const bezel = (x, y, r) => {
-      const m = this.add(new THREE.Mesh(new THREE.TorusGeometry(r * 1.12, 0.014, 6, 18), this.chromeMat));
-      m.position.set(x, y, z + 0.03);
-      m.castShadow = false;
-    };
     const grille = (x, y, w, h, chrome = false) => {
-      this.add(new THREE.Mesh(rbox(w + 0.035, h + 0.035, 0.03, 0.012), chrome ? this.chromeMat : this.trimMat))
-        .position.set(x, y, z + 0.008);
+      const kind = this.design.grille;
+      if (kind === 'kidney' && Math.abs(x) < 0.001) {
+        // BMW twin-kidney: two tall upright panels with chrome surrounds.
+        const gw = w * 0.44;
+        for (const sx of [-1, 1]) {
+          this.add(new THREE.Mesh(
+            rbox(gw + 0.03, h + 0.03, 0.03, Math.min(0.03, gw * 0.18)),
+            chrome ? this.chromeMat : this.trimMat,
+          )).position.set(sx * w * 0.27, y, z + 0.008);
+          const g = new THREE.Mesh(new THREE.PlaneGeometry(gw, h), this.grilleMat);
+          g.position.set(sx * w * 0.27, y, z + 0.026);
+          g.castShadow = false;
+          this.body.add(g);
+        }
+        return;
+      }
+      if (kind === 'horseshoe') {
+        // Bugatti-style arched centre grille with a chrome spine.
+        const gw = w * 0.56;
+        this.add(new THREE.Mesh(rbox(gw + 0.04, h + 0.04, 0.035, h * 0.5), this.chromeMat))
+          .position.set(x, y, z + 0.008);
+        const g = new THREE.Mesh(new THREE.PlaneGeometry(gw, h), this.grilleMat);
+        g.position.set(x, y, z + 0.028);
+        g.castShadow = false;
+        this.body.add(g);
+        this.add(new THREE.Mesh(rbox(0.018, h * 0.9, 0.02, 0.006), this.chromeMat))
+          .position.set(x, y, z + 0.034);
+        return;
+      }
+      const round = kind === 'round' ? h * 0.5 : Math.min(0.024, h * 0.3);
+      this.add(new THREE.Mesh(
+        rbox(w + 0.035, h + 0.035, 0.03, round),
+        chrome ? this.chromeMat : this.trimMat,
+      )).position.set(x, y, z + 0.008);
       const g = new THREE.Mesh(new THREE.PlaneGeometry(w, h), this.grilleMat);
       g.position.set(x, y, z + 0.026);
       g.castShadow = false;
@@ -997,9 +1247,7 @@ export class CarModel {
 
     if (style === 'hatch') {
       for (const sx of [-1, 1]) {
-        housing(sx * W * 0.3, lightY, lightW, lightH);
-        lens(sx * W * 0.3, lightY, lightW * 0.9, lightH * 0.82);
-        lens(sx * W * 0.3 - sx * lightW * 0.42, lightY, lightW * 0.16, lightH * 0.7, this.tailMat);
+        this.headlamp(sx * W * 0.3, lightY, lightW, lightH, sx);
       }
       grille(0, grilleY, W * 0.46, grilleH);
       this.add(new THREE.Mesh(rbox(W * 0.66, 0.045, 0.03, 0.015), this.trimMat))
@@ -1008,9 +1256,7 @@ export class CarModel {
       // Flagship saloon: slim swept lamps with a light strip, and a tall,
       // upright chrome-framed grille with horizontal slats.
       for (const sx of [-1, 1]) {
-        housing(sx * W * 0.31, lightY, lightW * 1.25, lightH * 0.85, 0.03);
-        lens(sx * W * 0.31, lightY + lightH * 0.12, lightW * 1.15, lightH * 0.32);
-        lens(sx * W * 0.31, lightY - lightH * 0.2, lightW * 1.05, 0.016, this.headMat);
+        this.headlamp(sx * W * 0.31, lightY, lightW * 1.25, lightH * 0.95, sx);
       }
       const gw = W * 0.34;
       const gh = Math.min(fh * 0.5, grilleH * 1.6);
@@ -1024,10 +1270,7 @@ export class CarModel {
         .position.set(0, at(0.07), z + 0.008);
     } else if (style === 'sedan') {
       for (const sx of [-1, 1]) {
-        housing(sx * W * 0.29, lightY, lightW * 1.12, lightH * 1.25, 0.025);
-        for (const dx of [-0.075, 0.075]) {
-          lamp(sx * W * 0.29 + dx * s, lightY, Math.min(0.048, lightH * 0.5));
-        }
+        this.headlamp(sx * W * 0.29, lightY, lightW * 1.12, lightH * 1.25, sx);
       }
       grille(0, grilleY, W * 0.5, grilleH * 1.15, true);
       for (let i = -2; i <= 2; i++) {
@@ -1038,18 +1281,14 @@ export class CarModel {
         .position.set(0, at(0.07), z + 0.008);
     } else if (style === 'sports') {
       for (const sx of [-1, 1]) {
-        housing(sx * W * 0.3, lightY, lightW * 1.04, lightH * 0.9);
-        lens(sx * W * 0.3, lightY, lightW * 0.92, lightH * 0.45);
-        lens(sx * W * 0.3, lightY - lightH * 0.32, lightW * 0.7, 0.018);
+        this.headlamp(sx * W * 0.3, lightY, lightW * 1.04, lightH * 0.95, sx);
       }
       grille(0, grilleY, W * 0.48, grilleH * 1.1);
       this.add(new THREE.Mesh(rbox(W * 0.82, 0.035, 0.03, 0.012), this.trimMat))
         .position.set(0, at(0.09), z + 0.008);
     } else if (style === 'muscle') {
       for (const sx of [-1, 1]) {
-        housing(sx * W * 0.31, lightY, lightW * 0.72, lightH * 1.15);
-        lamp(sx * W * 0.31, lightY, Math.min(0.072, lightH * 0.62));
-        bezel(sx * W * 0.31, lightY, Math.min(0.072, lightH * 0.62));
+        this.headlamp(sx * W * 0.31, lightY, lightW * 0.82, lightH * 1.15, sx);
       }
       for (const sx of [-1, 1]) {
         grille(sx * W * 0.15, grilleY, W * 0.24, grilleH, true);
@@ -1057,18 +1296,13 @@ export class CarModel {
       this.add(new THREE.Mesh(rbox(W * 0.1, grilleH * 1.05, 0.035, 0.012), this.paintMat))
         .position.set(0, grilleY, z + 0.01);
     } else if (style === 'super' || style === 'hyper') {
+      for (const sx of [-1, 1]) {
+        this.headlamp(sx * W * 0.3, lightY, lightW * 1.02, lightH * 0.72, sx);
+      }
       if (style === 'hyper') {
-        housing(0, lightY, W * 0.72, lightH * 0.55, 0.012);
-        lens(0, lightY, W * 0.68, lightH * 0.22, this.headMat, 0.02);
         for (const sx of [-1, 1]) {
           this.add(new THREE.Mesh(rbox(0.05, Math.max(0.05, fh * 0.35), 0.03, 0.012), this.trimMat))
             .position.set(sx * W * 0.36, lightY - fh * 0.16, z + 0.008);
-        }
-      } else {
-        for (const sx of [-1, 1]) {
-          const m = lens(sx * W * 0.3, lightY, lightW * 0.95, lightH * 0.5);
-          m.rotation.z = sx * 0.06;
-          housing(sx * W * 0.3, lightY, lightW, lightH * 0.72, 0.012);
         }
       }
       for (const sx of [-1, 1]) {
@@ -1076,10 +1310,7 @@ export class CarModel {
       }
     } else if (style === 'suv') {
       for (const sx of [-1, 1]) {
-        housing(sx * W * 0.3, lightY, lightW * 0.9, lightH * 1.5, 0.02);
-        for (const dx of [-0.06, 0.06]) {
-          lamp(sx * W * 0.3 + dx * s, lightY, Math.min(0.046, lightH * 0.55));
-        }
+        this.headlamp(sx * W * 0.3, lightY, lightW * 0.95, lightH * 1.45, sx);
       }
       grille(0, grilleY, W * 0.56, grilleH * 1.4, true);
       for (let i = -2; i <= 2; i++) {
@@ -1090,9 +1321,7 @@ export class CarModel {
         .position.set(0, at(0.06), z + 0.008);
     } else if (style === 'offroad') {
       for (const sx of [-1, 1]) {
-        housing(sx * W * 0.31, lightY, lightW * 0.9, lightH * 1.4, 0.02);
-        lamp(sx * W * 0.31 - 0.07 * s, lightY, Math.min(0.06, lightH * 0.62));
-        lamp(sx * W * 0.31 + 0.07 * s, lightY, Math.min(0.06, lightH * 0.62));
+        this.headlamp(sx * W * 0.31, lightY, lightW * 0.95, lightH * 1.35, sx);
       }
       grille(0, grilleY, W * 0.5, grilleH * 1.5);
       this.add(new THREE.Mesh(rbox(W * 0.78, 0.06, 0.05, 0.02), this.trimMat))
@@ -1103,21 +1332,15 @@ export class CarModel {
       }
     } else if (style === 'roadster') {
       for (const sx of [-1, 1]) {
-        lamp(sx * W * 0.31, lightY, Math.min(0.07, lightH * 0.7));
-        bezel(sx * W * 0.31, lightY, Math.min(0.07, lightH * 0.7));
-        housing(sx * W * 0.31, lightY, lightW * 0.72, lightH * 1.1, 0.02);
+        this.headlamp(sx * W * 0.31, lightY, lightW * 0.86, lightH * 1.08, sx);
       }
       grille(0, grilleY, W * 0.42, grilleH * 0.9, true);
       this.add(new THREE.Mesh(rbox(W * 0.74, 0.03, 0.03, 0.01), this.chromeMat))
         .position.set(0, at(0.07), z + 0.008);
     } else {
-      // GT: quad round lamps and a wide chrome grille.
+      // GT: a long nose with slim projector lamps and a wide chrome grille.
       for (const sx of [-1, 1]) {
-        housing(sx * W * 0.3, lightY, lightW * 1.1, lightH * 1.2, 0.02);
-        for (const dx of [-0.08, 0.08]) {
-          lamp(sx * W * 0.3 + dx * s, lightY, Math.min(0.045, lightH * 0.52));
-          bezel(sx * W * 0.3 + dx * s, lightY, Math.min(0.045, lightH * 0.52));
-        }
+        this.headlamp(sx * W * 0.3, lightY, lightW * 1.1, lightH * 1.15, sx);
       }
       grille(0, grilleY, W * 0.52, grilleH * 1.15, true);
       for (let i = -2; i <= 2; i++) {
@@ -1126,6 +1349,66 @@ export class CarModel {
       }
       this.add(new THREE.Mesh(rbox(W * 0.76, 0.03, 0.03, 0.01), this.chromeMat))
         .position.set(0, at(0.07), z + 0.008);
+    }
+  }
+
+  /** Red LED signature on one tail-lamp cluster. */
+  tailSignature(cx, cy, w, h, sx) {
+    const z = -this.bodyDef.length / 2 - 0.038;
+    const sig = this.design.tail;
+    const bar = (x, y, bw, bh, rz = 0) => {
+      const mesh = this.add(new THREE.Mesh(
+        rbox(bw, bh, 0.006, Math.min(0.004, bh / 2)), this.tailLedMat,
+      ));
+      mesh.position.set(x, y, z);
+      mesh.rotation.z = rz;
+      mesh.castShadow = false;
+      return mesh;
+    };
+
+    if (sig === 'clusters') {
+      bar(cx, cy, w * 0.82, Math.max(0.014, h * 0.2));
+      bar(cx + sx * w * 0.3, cy, Math.max(0.01, w * 0.1), h * 0.55);
+    } else if (sig === 'c-shape') {
+      bar(cx + sx * w * 0.3, cy + h * 0.12, 0.012, h * 0.5);
+      bar(cx + sx * w * 0.08, cy + h * 0.32, w * 0.36, 0.011);
+      bar(cx + sx * w * 0.08, cy - h * 0.08, w * 0.36, 0.011);
+    } else if (sig === 'l-shape') {
+      bar(cx + sx * w * 0.3, cy, 0.012, h * 0.6);
+      bar(cx + sx * w * 0.08, cy - h * 0.26, w * 0.44, 0.011);
+    } else if (sig === 'rings') {
+      const radius = Math.min(h * 0.26, w * 0.18);
+      for (const dx of [-w * 0.2, w * 0.2]) {
+        const ring = this.add(new THREE.Mesh(
+          new THREE.TorusGeometry(radius, 0.008, 5, 18), this.tailLedMat,
+        ));
+        ring.position.set(cx + dx, cy, z);
+        ring.castShadow = false;
+      }
+    } else if (sig === 'quad') {
+      for (const dx of [-w * 0.2, w * 0.2]) {
+        const radius = Math.min(h * 0.22, w * 0.15);
+        const disc = this.add(new THREE.Mesh(
+          new THREE.CylinderGeometry(radius, radius, 0.008, 16), this.tailLedMat,
+        ));
+        disc.rotation.x = Math.PI / 2;
+        disc.position.set(cx + dx, cy, z);
+        disc.castShadow = false;
+        const ring = this.add(new THREE.Mesh(
+          new THREE.TorusGeometry(radius * 1.12, 0.007, 5, 16), this.chromeMat,
+        ));
+        ring.position.set(cx + dx, cy, z - 0.002);
+        ring.castShadow = false;
+      }
+    } else if (sig === 'tri-bar') {
+      for (let i = -1; i <= 1; i++) bar(cx + i * w * 0.2, cy, 0.012, h * 0.62);
+    } else if (sig === 'y-shape') {
+      bar(cx - w * 0.18, cy - h * 0.18, 0.012, h * 0.34, -0.4);
+      bar(cx + w * 0.18, cy - h * 0.18, 0.012, h * 0.34, 0.4);
+      bar(cx, cy + h * 0.18, 0.012, h * 0.26);
+    } else {
+      // strip / bar: a thin horizontal LED blade.
+      bar(cx, cy, w * 0.84, Math.max(0.012, h * 0.14));
     }
   }
 
@@ -1171,6 +1454,7 @@ export class CarModel {
         housing(sx * W * 0.34, lightY, lightW * 0.5, lightH * 1.8, 0.02);
         lens(sx * W * 0.34, lightY + lightH * 0.52, lightW * 0.42, lightH * 0.7);
         lens(sx * W * 0.34, lightY - lightH * 0.52, lightW * 0.42, lightH * 0.5);
+        this.tailSignature(sx * W * 0.34, lightY, lightW * 0.5, lightH * 1.7, sx);
       }
       if (style === 'hatch') {
         lens(0, lightY, W * 0.4, 0.026);
@@ -1179,6 +1463,7 @@ export class CarModel {
       for (const sx of [-1, 1]) {
         housing(sx * W * 0.33, lightY, W * 0.26, lightH * 1.1, 0.03);
         lens(sx * W * 0.33, lightY, W * 0.24, lightH * 0.7, this.tailMat);
+        this.tailSignature(sx * W * 0.33, lightY, W * 0.24, lightH * 0.8, sx);
       }
       this.add(new THREE.Mesh(rbox(W * 0.42, 0.02, 0.02, 0.008), this.chromeMat))
         .position.set(0, lightY, z - 0.03);
@@ -1187,7 +1472,10 @@ export class CarModel {
     } else if (style === 'sedan') {
       housing(0, lightY, W * 0.74, lightH * 1.35, 0.02);
       lens(0, lightY, W * 0.7, lightH * 0.6);
-      for (const sx of [-1, 1]) lens(sx * W * 0.33, lightY, W * 0.06, lightH * 0.8);
+      for (const sx of [-1, 1]) {
+        lens(sx * W * 0.33, lightY, W * 0.06, lightH * 0.8);
+        this.tailSignature(sx * W * 0.3, lightY, W * 0.26, lightH * 0.85, sx);
+      }
       this.add(new THREE.Mesh(rbox(W * 0.7, 0.02, 0.02, 0.008), this.chromeMat))
         .position.set(0, lightY - lightH * 0.5, z - 0.03);
     } else if (style === 'muscle') {
@@ -1196,6 +1484,7 @@ export class CarModel {
         for (let i = 0; i < 3; i++) {
           lens(sx * W * 0.32 + (i - 1) * 0.07 * s, lightY, 0.035, lightH * 1.5);
         }
+        this.tailSignature(sx * W * 0.32, lightY, lightW * 0.62, lightH * 1.8, sx);
       }
       this.add(new THREE.Mesh(rbox(W * 0.76, 0.03, 0.02, 0.01), this.tailMat))
         .position.set(0, lightY, z - 0.028);
@@ -1204,6 +1493,7 @@ export class CarModel {
       lens(0, lightY, W * 0.7, lightH * 0.35);
       for (const sx of [-1, 1]) {
         lens(sx * W * 0.35, lightY, 0.035, lightH * 0.75);
+        this.tailSignature(sx * W * 0.3, lightY, W * 0.28, lightH * 0.9, sx);
         this.add(new THREE.Mesh(rbox(0.05, 0.04, 0.02, 0.01), this.archMat))
           .position.set(sx * W * 0.3, at(0.14), z - 0.026);
       }
@@ -1219,6 +1509,7 @@ export class CarModel {
           lamp(sx * W * 0.31, lightY, Math.min(0.062, lightH * 0.55));
           bezel(sx * W * 0.31, lightY, Math.min(0.062, lightH * 0.55));
         }
+        this.tailSignature(sx * W * 0.31, lightY, lightW * 0.9, lightH * 1.25, sx);
       }
       if (style === 'gt') {
         this.add(new THREE.Mesh(rbox(W * 0.8, 0.025, 0.02, 0.01), this.chromeMat))
@@ -1229,8 +1520,23 @@ export class CarModel {
         housing(sx * W * 0.31, lightY, lightW * 0.95, lightH * 1.1, 0.02);
         lens(sx * W * 0.31, lightY, lightW * 0.82, lightH * 0.55);
         lens(sx * W * 0.31, lightY - lightH * 0.36, lightW * 0.62, 0.02);
+        this.tailSignature(sx * W * 0.31, lightY, lightW * 0.95, lightH * 1.05, sx);
       }
     }
+    // Bodies with a full-width light bar get one continuous LED strip.
+    if (this.design.tail === 'bar') {
+      const bar = this.add(new THREE.Mesh(
+        rbox(W * 0.78, Math.max(0.016, lightH * 0.24), 0.01, 0.006), this.tailLedMat,
+      ));
+      bar.position.set(0, lightY, z - 0.042);
+      bar.castShadow = false;
+    }
+    // High-mounted stop lamp at the top centre of the tail.
+    const brake = this.add(new THREE.Mesh(
+      rbox(W * 0.22, 0.016, 0.01, 0.005), this.tailMat,
+    ));
+    brake.position.set(0, top - 0.018, z - 0.012);
+    brake.castShadow = false;
     // Body-colour bumper cap between the lamps.
     this.add(new THREE.Mesh(rbox(W * 0.56, 0.045, 0.03, 0.015), this.trimMat))
       .position.set(0, at(0.08), z - 0.012);
@@ -1862,8 +2168,33 @@ export class CarModel {
     }
   }
 
-  enableHeadlights() {
-    if (this.headlights) return;
+  /**
+   * Switch the light hardware between its day and night look. Every car gets
+   * this so AI traffic also shows lit tail lamps and bright DRLs at night;
+   * only the player's car adds the actual spot-light beams (see below).
+   */
+  setNight(night) {
+    this.night = !!night;
+    const n = this.night;
+    this.headBase = n ? 2.4 : 0.35;
+    this.tailBase = n ? 1.75 : 1.05;
+    this.tailLedBase = n ? 2.3 : 1.45;
+    this.headMat.emissiveIntensity = this.headBase;
+    this.drlMat.emissiveIntensity = n ? 2.9 : 1.6;
+    this.laserMat.emissiveIntensity = n ? 2.7 : 1.5;
+    if (!this.braking) {
+      this.tailMat.emissiveIntensity = this.tailBase;
+      this.tailLedMat.emissiveIntensity = this.tailLedBase;
+    }
+    const beam = n ? 22 : 0;
+    for (const light of this.headlights || []) light.intensity = beam;
+  }
+
+  enableHeadlights(night = true) {
+    if (this.headlights) {
+      for (const light of this.headlights) light.intensity = night ? 22 : 0;
+      return;
+    }
     const b = this.bodyDef;
     const W = b.width;
     const L = b.length;
@@ -1876,6 +2207,7 @@ export class CarModel {
       this.root.add(lamp.target);
       this.headlights.push(lamp);
     }
+    for (const light of this.headlights) light.intensity = night ? 22 : 0;
   }
 
   /**
@@ -1976,9 +2308,12 @@ export class CarModel {
     }
     for (const mat of [
       this.paintMat, this.trimMat, this.carbonMat, this.chromeMat, this.glassMat,
-      this.headMat, this.tailMat, this.rubberMat, this.treadMat, this.rimMat,
+      this.headMat, this.tailMat, this.tailLedMat, this.drlMat, this.laserMat,
+      this.reflectorMat, this.projectorMat, this.lensGlassMat,
+      this.rubberMat, this.treadMat, this.rimMat,
       this.discMat, this.archMat, this.caliperMat, this.grilleMat, this.seamMat,
       this.plateMat, this.stripeMat, this.glowMat,
+      this.signalMats?.left, this.signalMats?.right,
     ]) {
       mat?.dispose();
     }
@@ -2059,11 +2394,7 @@ export class CarModel {
   buildSignals() {
     const b = this.bodyDef;
     const L = b.length;
-    const make = () => new THREE.MeshStandardMaterial({
-      color: 0x5a3200, emissive: 0xff7a00, emissiveIntensity: 0.12, roughness: 0.3, toneMapped: false,
-    });
     // Driver's left is +x.
-    this.signalMats = { left: make(), right: make() };
     for (const [side, sx] of [['left', 1], ['right', -1]]) {
       for (const front of [true, false]) {
         const z = front ? L / 2 : -L / 2;
@@ -2094,7 +2425,9 @@ export class CarModel {
   }
 
   setBraking(on) {
-    this.tailMat.emissiveIntensity = on ? 4.5 : 1.4;
+    this.braking = !!on;
+    this.tailMat.emissiveIntensity = on ? this.tailBase * 3.4 : this.tailBase;
+    this.tailLedMat.emissiveIntensity = on ? this.tailLedBase * 2.2 : this.tailLedBase;
   }
 
   /**

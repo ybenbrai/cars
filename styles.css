@@ -1911,8 +1911,20 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
 @media (max-width: 560px) { .settings-body { grid-template-columns: 1fr; } }
 .fps-counter {
   position: fixed; left: 50%; bottom: 4px; transform: translateX(-50%); z-index: 50;
-  font-family: var(--font-display); font-size: 11px; letter-spacing: 0.12em; color: var(--green);
-  background: rgba(0, 0, 0, 0.45); padding: 2px 8px; pointer-events: none;
+  display: flex; align-items: baseline; gap: 5px; white-space: nowrap;
+  font-family: var(--font-display); font-size: 11px; letter-spacing: 0.12em;
+  color: var(--green); background: rgba(0, 0, 0, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 4px;
+  padding: 3px 9px; pointer-events: none;
+}
+.fps-counter b { font-size: 14px; line-height: 1; }
+.fps-counter i { font-style: normal; font-size: 10px; opacity: 0.72; color: var(--ink); }
+.fps-counter.warn { color: #ffc46b; }
+.fps-counter.bad { color: var(--hot); }
+@media (max-width: 560px) {
+  .fps-counter { font-size: 9px; padding: 2px 6px; gap: 4px; }
+  .fps-counter b { font-size: 12px; }
+  .fps-counter i { font-size: 9px; }
 }
 
 /* Replay */

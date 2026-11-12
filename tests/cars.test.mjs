@@ -71,6 +71,25 @@ test('rank ladder is monotonic', () => {
   assert.equal(rankForWins(40, 0), 4);
 });
 
+test('every car carries real-world design cues for its lights and grille', () => {
+  const headlights = new Set(['reflector', 'projector', 'slim', 'quad', 'laser']);
+  const grilles = new Set(['mesh', 'slat', 'hex', 'kidney', 'horseshoe', 'round', 'split']);
+  const tails = new Set(['clusters', 'c-shape', 'l-shape', 'strip', 'bar', 'tri-bar', 'rings', 'quad', 'y-shape']);
+  const names = new Set();
+  for (const car of CARS) {
+    assert.ok(car.design, `${car.id} needs a design block`);
+    assert.ok(headlights.has(car.design.headlight), `${car.id} headlight ${car.design.headlight}`);
+    assert.ok(grilles.has(car.design.grille), `${car.id} grille ${car.design.grille}`);
+    assert.ok(tails.has(car.design.tail), `${car.id} tail ${car.design.tail}`);
+    assert.ok(typeof car.design.drl === 'string' && car.design.drl.length > 0, `${car.id} needs a DRL`);
+    names.add(car.name);
+  }
+  // The roster is a set of real production cars, each named exactly once.
+  assert.equal(names.size, CARS.length);
+  assert.ok(CARS.some((car) => /toyota yaris/i.test(car.name)));
+  assert.ok(CARS.some((car) => /bugatti chiron/i.test(car.name)));
+});
+
 test('getCar falls back to the first car for unknown ids', () => {
   assert.equal(getCar('kaze').id, 'kaze');
   assert.equal(getCar('missing').id, CARS[0].id);

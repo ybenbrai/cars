@@ -50,22 +50,30 @@ or countdown.
 Each car's performance comes from its spec sheet:
 
 - **Top speed** is the listed top speed × 0.82 (the circuits are arcade
-  scale), from about 161 km/h for the PULSE H3 to 292 km/h for the PHANTOM.
-  The speedometer dial scales with it.
+  scale), from about 161 km/h for the Toyota Yaris to 292 km/h for the Bugatti
+  Chiron. The speedometer dial scales with it.
 - **Acceleration** is limited by grip off the line (tyres and drivetrain:
   AWD launches best, FWD worst) and by power-to-weight once moving, fading to
   nothing at top speed. Roughly 0–100 km/h in 4.6 s for the starter hatch
-  and 2.3 s for the PHANTOM; 0–200 km/h in about 5 s for a hypercar, 10 s for
+  and 2.3 s for the Chiron; 0–200 km/h in about 5 s for a hypercar, 10 s for
   a fast saloon, and never for the hatchbacks.
 - Engine upgrades raise both.
 
+Every car is a real production model, and its grille, head-lamp cluster,
+daytime-running signature, tail-lamp motif and factory paints are modelled on
+the real thing. The bodies are still built procedurally at runtime, so the game
+stays a single lightweight download.
 
 | Car | Class | Speed | Accel | Handling | Drift | Character |
 | --- | --- | ---: | ---: | ---: | ---: | --- |
-| FALCON GT | Balanced | 7 | 6 | 7 | 6 | Forgiving all-rounder |
-| VIPER X | Top speed | 10 | 8 | 5 | 4 | Highest top end, lazy corner entry |
-| KAZE S | Drift | 6 | 6 | 9 | 10 | Huge, controllable slides |
-| COMET RS | Launch | 7 | 10 | 8 | 5 | Explosive starts, nervous rear |
+| TOYOTA YARIS | City hatch | 4 | 5 | 5 | 4 | Light and endlessly willing |
+| VW GOLF GTI | Hot hatch | 5 | 7 | 7 | 5 | The everyday hot-hatch benchmark |
+| HONDA CIVIC TYPE R | Track hatch | 7 | 7 | 8 | 5 | Front-drive race car with plates |
+| BMW M3 COMPETITION | Performance sedan | 8 | 8 | 8 | 5 | Traction and a short fuse |
+| TOYOTA GR SUPRA | Sports coupe | 7 | 8 | 8 | 6 | Punchy straight-six balance |
+| DODGE VIPER ACR | Track supercar | 10 | 8 | 6 | 4 | Highest top end, lazy corner entry |
+| SUBARU WRX STI | Rally sedan | 6 | 7 | 9 | 9 | Huge, controllable slides |
+| BUGATTI CHIRON | Hypercar | 10 | 10 | 10 | 8 | The final boss |
 
 ### Physics modifiers
 
@@ -73,14 +81,19 @@ Each car scales the shared base setup:
 
 | Car | Speed | Accel | Grip | Turn | Boost | Slide |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| FALCON GT | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
-| VIPER X | 1.12 | 1.10 | 0.90 | 0.86 | 1.30 | 1.12 |
-| KAZE S | 0.94 | 0.98 | 0.93 | 1.14 | 0.95 | 0.72 |
-| COMET RS | 0.97 | 1.20 | 1.04 | 1.08 | 1.05 | 1.03 |
+| TOYOTA YARIS | 0.82 | 0.90 | 0.95 | 1.05 | 0.80 | 1.15 |
+| VW GOLF GTI | 0.90 | 1.05 | 1.02 | 1.10 | 1.00 | 1.02 |
+| HONDA CIVIC TYPE R | 0.93 | 1.00 | 1.03 | 1.06 | 0.98 | 1.04 |
+| BMW M3 COMPETITION | 1.02 | 1.06 | 1.04 | 0.99 | 1.04 | 1.08 |
+| TOYOTA GR SUPRA | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 |
+| DODGE VIPER ACR | 1.12 | 1.10 | 0.90 | 0.86 | 1.30 | 1.12 |
+| SUBARU WRX STI | 0.94 | 0.98 | 0.93 | 1.14 | 0.95 | 0.72 |
+| BUGATTI CHIRON | 1.24 | 1.26 | 1.06 | 1.06 | 1.45 | 0.85 |
 
 `slide` is the most misunderstood value: lower numbers mean a **lower** drift
-threshold, so the car starts sliding sooner. KAZE S at `0.72` is the drift car;
-VIPER X at `1.12` needs deliberate weight transfer to rotate.
+threshold, so the car starts sliding sooner. The Subaru WRX STI at `0.72` is the
+drift car; the Dodge Viper ACR at `1.12` needs deliberate weight transfer to
+rotate. Full stats for all twenty cars are in `js/data/cars.js`.
 
 ## Race rules
 
@@ -322,8 +335,8 @@ the active gate highlighted and the car shown as an arrow.
 | `sunset-drift-best-v1` | Best lap time in seconds |
 
 Clearing site data resets the profile. Invalid or older data is normalized on
-load; unknown cars fall back to FALCON GT and invalid cosmetic values fall back
-to that car's defaults.
+load; unknown cars fall back to the Toyota Yaris and invalid cosmetic values
+fall back to that car's defaults.
 
 ## Practical tips
 
@@ -335,8 +348,9 @@ to that car's defaults.
   long boost down a straight.
 - **Use the whole track.** The curbs and walls are generous; clipping an apex is
   faster than a clean but wide line.
-- **KAZE S for score, VIPER X for lap times, COMET RS for the start.** FALCON GT
-  is the best car to learn the circuit in.
+- **Subaru WRX STI for score, Dodge Viper ACR for lap times, Audi TT RS for
+  the start.** The Toyota GR Supra is the best all-round car to learn a
+  circuit in.
 
 ## Time Trial ghost
 
