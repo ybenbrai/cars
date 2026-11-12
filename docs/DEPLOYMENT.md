@@ -114,10 +114,61 @@ Output directory: dist
 
 ### Cloudflare Pages
 
-```text
-Build command: npm run build
-Build output directory: dist
+Cloudflare Pages can host the whole static game on its free plan, and it can
+redeploy automatically on every push. No code changes are needed: the build
+already outputs a self-contained `dist/` folder.
+
+Free-plan limits that matter here: **500 builds per month** (one at a time),
+up to 20,000 files per site, 25 MiB per file and 100 custom domains. This build
+is roughly 50 files and under 1 MB, so it fits comfortably.
+
+#### Connect the GitHub repository (recommended, deploys on every push)
+
+1. Open **Cloudflare Dashboard → Workers & Pages → Create → Pages →
+   Connect to Git**.
+2. Authorize GitHub and choose **`ybenbrai/cars`**.
+3. Project name: `sunset-drift` (this becomes
+   `https://sunset-drift.pages.dev`).
+4. Production branch: **`main`**.
+5. Framework preset: **None**.
+6. Build command: **`npm run check && npm test && npm run build`**
+   (or just `npm run build` if you do not want tests to block deploys).
+7. Build output directory: **`dist`**.
+8. Root directory: leave blank.
+9. Node version: the repo's `.nvmrc` (20) is detected automatically; add a
+   `NODE_VERSION = 20` environment variable only if the build image ignores it.
+10. Save and deploy.
+
+From then on, every push to `main` builds and publishes a new production
+deployment. Pushes to other branches create preview deployments with their own
+URLs. Nothing else is required — no Wrangler config, secrets or workflow file.
+
+To use a custom domain, open the Pages project → **Custom domains** → add the
+domain and follow the DNS instructions. HTTPS is issued automatically.
+
+#### Manual deploy (optional)
+
+For a one-off upload from your machine:
+
+```bash
+npm run build
+npx wrangler pages deploy dist --project-name sunset-drift
 ```
+
+The first run asks you to log in to Cloudflare. This is useful for testing, but
+the Git integration above is what makes every push deploy automatically.
+
+#### What does not work on static hosting
+
+Cloudflare Pages serves static files only. It does not run `server.mjs`, so the
+account system and online multiplayer are unavailable there, exactly as on
+GitHub Pages; the game stays fully playable as a local guest with saves in
+`localStorage`. To keep accounts and online races, host the Node server
+separately (Render, Railway, Fly.io, a VPS) or port its API and WebSocket rooms
+to Cloudflare Workers/Durable Objects. That port is a separate project.
+
+The canonical, Open Graph, sitemap and robots URLs still point at the GitHub
+Pages address. Update those if the Cloudflare domain becomes the main one.
 
 ### Plain object storage / CDN
 
