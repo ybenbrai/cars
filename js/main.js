@@ -765,6 +765,10 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     online: onlineState,
     time: 0,
     countdown,
+    // Online races start on a wall-clock time shared with the server, so a
+    // player whose tab was hidden or paused joins the race already under way
+    // instead of replaying 3-2-1 on their own.
+    goAt: onlineState ? Date.now() + countdown * 1000 : null,
     lastCount: Math.ceil(countdown) + 1,
     launchRev: 0.06,
     launchClock: 0,
@@ -1650,7 +1654,8 @@ function tick(now, ms) {
   }
 
   if (state === 'countdown') {
-    race.countdown -= dt;
+    if (race.goAt) race.countdown = (race.goAt - Date.now()) / 1000;
+    else race.countdown -= dt;
     race.launchClock += dt;
     const n = Math.ceil(race.countdown);
     if (n !== race.lastCount && n > 0) {
@@ -1660,7 +1665,8 @@ function tick(now, ms) {
     }
     if (race.countdown <= 0) {
       state = 'racing';
-      race.time = 0;
+      // Late (tab was in the background): the race clock is already running.
+      race.time = race.goAt ? Math.max(0, (Date.now() - race.goAt) / 1000) : 0;
       race.lapStart = 0;
       hud.countdown('GO!', true);
       audio.beep('go');
@@ -1682,7 +1688,8 @@ function tick(now, ms) {
   }
 
   if (state === 'racing') {
-    race.time += dt;
+    if (race.goAt) race.time = Math.max(0, (Date.now() - race.goAt) / 1000);
+    else race.time += dt;
     if (race.goTimer > 0) {
       race.goTimer -= dt;
       if (race.goTimer <= 0) hud.clearCountdown();

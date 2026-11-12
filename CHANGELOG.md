@@ -211,6 +211,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Online races: the 3-2-1 countdown and race clock follow a shared
+  wall-clock start time. A player who switched away (or paused) during the
+  countdown rejoins the race already under way instead of replaying 3-2-1.
 - FPS counter: it now samples raw animation-frame intervals with a 480 ms
   window and shows the average frame time next to the frame rate. A monitor
   locked to 100 Hz will still read 100 FPS when the game is keeping up, so the
