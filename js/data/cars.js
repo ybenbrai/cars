@@ -536,6 +536,8 @@ export const CARS = [
       noseDrop: 0.5, tailHeight: 0.74, vents: true, scoop: true,
     }),
     look: { spoiler: 'big' },
+    // Modern body (js/modernCar.js) instead of the original generator.
+    modern: 'hyper',
     design: { headlight: 'slim', drl: 'y-shape', grille: 'split', tail: 'y-shape' },
   },
   {

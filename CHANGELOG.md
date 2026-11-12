@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Prototype modern body for the AURELIO TEMPESTA SV (js/modernCar.js):
+  original wedge hypercar design with creased panels, raised wings, inset
+  side skirts, flank intakes, teardrop canopy, Y-shaped LED lamps, a
+  full-width rear light bar, diffuser, hexagonal exhaust, wing and
+  low-profile 10-spoke wheels with calipers. Opt-in per car with
+  `modern: '<design>'`; customisation, steering, spin and lean still work.
 - Realistic 3D car models: cars can now use a real glTF model with the
   game's paint, tint, rim colour, brake lights, spinning and steering wheels
   and body lean still working. First car: VALENZA AETHER GT, built on the
