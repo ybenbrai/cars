@@ -112,47 +112,62 @@ Build command: npm run build
 Output directory: dist
 ```
 
-### Cloudflare Pages
+### Cloudflare (Workers static assets)
 
-Cloudflare Pages can host the whole static game on its free plan, and it can
-redeploy automatically on every push. No code changes are needed: the build
-already outputs a self-contained `dist/` folder.
+Cloudflare can host the whole static game on its free plan and redeploy on every
+push. The repository's `wrangler.jsonc` points Cloudflare at the prebuilt
+`dist/` folder:
 
-Free-plan limits that matter here: **500 builds per month** (one at a time),
-up to 20,000 files per site, 25 MiB per file and 100 custom domains. This build
-is roughly 50 files and under 1 MB, so it fits comfortably.
+```jsonc
+{
+  "name": "sunset-drift",
+  "compatibility_date": "2026-11-12",
+  "assets": { "directory": "./dist" }
+}
+```
+
+No server code runs and no bindings are needed; Cloudflare only uploads the
+files. Free-plan limits that matter here: 500 builds per month (one at a time),
+up to 20,000 files per site and 25 MiB per file. This build is roughly 50 files
+and under 1 MB, so it fits comfortably.
 
 #### Connect the GitHub repository (recommended, deploys on every push)
 
-1. Open **Cloudflare Dashboard → Workers & Pages → Create → Pages →
-   Connect to Git**.
+1. Open **Cloudflare Dashboard → Workers & Pages → Create → Workers → Connect
+   to Git** (or **Pages → Connect to Git** if that flow is offered).
 2. Authorize GitHub and choose **`ybenbrai/cars`**.
-3. Project name: `sunset-drift` (this becomes
-   `https://sunset-drift.pages.dev`).
+3. Project name: `sunset-drift`.
 4. Production branch: **`main`**.
 5. Framework preset: **None**.
 6. Build command: **`npm run check && npm test && npm run build`**
    (or just `npm run build` if you do not want tests to block deploys).
 7. Build output directory: **`dist`**.
-8. Root directory: leave blank.
-9. Node version: the repo's `.nvmrc` (20) is detected automatically; add a
-   `NODE_VERSION = 20` environment variable only if the build image ignores it.
-10. Save and deploy.
+8. Deploy command: **`npx wrangler deploy`** — the current dashboard requires
+   this field. It uploads `dist/` as a static-assets Worker using the repo's
+   `wrangler.jsonc`.
+9. Root directory: leave blank.
+10. Node version: the repo's `.nvmrc` (20) is detected automatically; add a
+    `NODE_VERSION = 20` environment variable only if the build image ignores it.
+11. Save and deploy.
 
 From then on, every push to `main` builds and publishes a new production
 deployment. Pushes to other branches create preview deployments with their own
-URLs. Nothing else is required — no Wrangler config, secrets or workflow file.
+URLs.
 
-To use a custom domain, open the Pages project → **Custom domains** → add the
-domain and follow the DNS instructions. HTTPS is issued automatically.
+The site is served at `https://sunset-drift.<account-subdomain>.workers.dev`.
+To use a custom domain, open the project → **Settings → Domains & Routes** and
+follow the DNS instructions. HTTPS is issued automatically.
+
+Do **not** use `npx wrangler pages deploy` as the Deploy command in this flow:
+the build's API token is scoped to Workers, so the Pages API returns
+`Authentication error [code: 10000]`.
 
 #### Manual deploy (optional)
 
 For a one-off upload from your machine:
 
 ```bash
-npm run build
-npx wrangler pages deploy dist --project-name sunset-drift
+npm run deploy          # npm run build && npx wrangler deploy
 ```
 
 The first run asks you to log in to Cloudflare. This is useful for testing, but

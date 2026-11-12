@@ -1,0 +1,10 @@
+{
+  // Cloudflare Workers static-assets deployment of the prebuilt game in dist/.
+  // `npx wrangler deploy` (the default Deploy command in Workers & Pages) uploads
+  // dist/ as-is; no server code runs. Build with `npm run build` first.
+  "name": "sunset-drift",
+  "compatibility_date": "2026-11-12",
+  "assets": {
+    "directory": "./dist"
+  }
+}
