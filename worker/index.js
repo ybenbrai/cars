@@ -26,6 +26,17 @@ export default {
     const url = new URL(request.url);
     // The dashboard page itself is static (dist/admin.html); its data is
     // behind the admin API.
+    // Android app (Trusted Web Activity) verification. Set ANDROID_PACKAGE
+    // and ANDROID_CERT_SHA256 (comma-separated for several keys) in the
+    // Worker's variables once Google Play gives you the signing key.
+    if (url.pathname === '/.well-known/assetlinks.json') {
+      const fingerprints = String(env.ANDROID_CERT_SHA256 || '').split(',').map((f) => f.trim()).filter(Boolean);
+      const body = env.ANDROID_PACKAGE && fingerprints.length ? [{
+        relation: ['delegate_permission/common.handle_all_urls'],
+        target: { namespace: 'android_app', package_name: env.ANDROID_PACKAGE, sha256_cert_fingerprints: fingerprints },
+      }] : [];
+      return new Response(JSON.stringify(body), { headers: { 'Content-Type': 'application/json', 'Cache-Control': 'max-age=300' } });
+    }
     if (url.pathname === '/admin' || url.pathname === '/admin/') {
       return env.ASSETS.fetch(new Request(new URL('/admin.html', url), request));
     }
@@ -237,6 +248,27 @@ export class GameServer {
       if (user.banned) return json(403, { error: 'This account has been suspended.' });
       const cookie = await this.startSession(request, user.id);
       return json(200, { user: publicUser(user) }, { 'Set-Cookie': cookie });
+    }
+
+    if (path === '/api/auth/delete') {
+      // Players can delete their own account (app-store requirement). The
+      // password is asked again so a borrowed device cannot do it silently.
+      if (method !== 'POST') return json(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+      if (this.rateLimited(request)) return json(429, { error: 'Too many attempts. Wait a minute and try again.' });
+      const me = await this.currentUser(request);
+      if (!me) return json(401, { error: 'Sign in first.' });
+      const user = await this.storage.get(`user:${me.id}`);
+      const body = await readBody(request);
+      if (!safeEqual(await hashPassword(String(body.password || ''), user.salt), user.passwordHash)) {
+        return json(401, { error: 'Password is incorrect.', field: 'password' });
+      }
+      await this.admin.endSessions(user.id);
+      this.admin.kick(user.id, 'Account deleted.');
+      await this.storage.delete([`user:${user.id}`, `save:${user.id}`, `summary:${user.id}`,
+        `name:${user.username.toLowerCase()}`, `email:${user.email}`]);
+      await this.admin.audit('user.self-delete', { user: user.username });
+      const cookie = `${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`;
+      return json(200, { ok: true }, { 'Set-Cookie': cookie });
     }
 
     if (path === '/api/auth/logout') {

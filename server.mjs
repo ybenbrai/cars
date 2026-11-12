@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
-import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -414,6 +414,46 @@ export function createStaticServer({
 
       startSession(req, res, user.id);
       sendJson(req, res, 200, { user: publicUser(user) });
+      return true;
+    }
+
+    if (pathname === '/api/auth/delete') {
+      if (method !== 'POST') {
+        sendJson(req, res, 405, { error: 'Method not allowed.' }, { Allow: 'POST' });
+        return true;
+      }
+      if (rateLimited(req)) {
+        sendJson(req, res, 429, { error: 'Too many attempts. Wait a minute and try again.' });
+        return true;
+      }
+      const session = sessionFor(req);
+      if (!session) {
+        sendJson(req, res, 401, { error: 'Sign in first.' });
+        return true;
+      }
+      const body = await readJsonBody(req);
+      const result = await withDb(async () => {
+        const db = await loadUsers();
+        const user = db.users.find((u) => u.id === session.userId);
+        if (!user) return { status: 401, error: 'Sign in first.' };
+        const derived = Buffer.from(await hashPassword(String(body.password || ''), user.salt), 'base64');
+        const expected = Buffer.from(user.passwordHash, 'base64');
+        if (derived.length !== expected.length || !timingSafeEqual(derived, expected)) {
+          return { status: 401, error: 'Password is incorrect.' };
+        }
+        db.users = db.users.filter((u) => u.id !== user.id);
+        await writeUsers(db);
+        usersCache = db;
+        try { await rm(join(savesDir, `${user.id}.json`), { force: true }); } catch { /* no save */ }
+        for (const [token, s] of sessions) if (s.userId === user.id) sessions.delete(token);
+        return { ok: true };
+      });
+      if (!result.ok) {
+        sendJson(req, res, result.status, { error: result.error, field: 'password' });
+        return true;
+      }
+      res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0`);
+      sendJson(req, res, 200, { ok: true });
       return true;
     }
 

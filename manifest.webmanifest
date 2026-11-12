@@ -1,4 +1,5 @@
 {
+  "id": "./",
   "name": "Sunset Drift",
   "short_name": "Sunset Drift",
   "description": "An arcade drift racer with twenty cars, eight circuits, night and rain racing, a career, daily challenges and achievements.",
@@ -8,7 +9,10 @@
   "orientation": "landscape",
   "background_color": "#08050e",
   "theme_color": "#0b0714",
-  "categories": ["games", "racing"],
+  "categories": [
+    "games",
+    "racing"
+  ],
   "icons": [
     {
       "src": "assets/icon-192.png",
@@ -34,5 +38,7 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
-  ]
+  ],
+  "lang": "en",
+  "prefer_related_applications": false
 }

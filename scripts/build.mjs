@@ -17,6 +17,7 @@ const out = join(root, 'dist');
 const ENTRIES = [
   'index.html',
   'admin.html',
+  'privacy.html',
   'styles.css',
   'manifest.webmanifest',
   'sw.js',

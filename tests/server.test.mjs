@@ -94,3 +94,23 @@ test('rejects malformed percent-encoding', async () => {
   const res = await request('/%E0%A4%A');
   assert.equal(res.status, 400);
 });
+
+test('players can delete their own account with their password', async () => {
+  const { createStaticServer } = await import('../server.mjs');
+  const { mkdtemp } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dataDir = await mkdtemp(join(tmpdir(), 'sd-del-'));
+  const server = createStaticServer({ dataDir });
+  await new Promise((r) => server.listen(0, r));
+  const base = `http://127.0.0.1:${server.address().port}`;
+  const post = (path, body, cookie) => fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json', ...(cookie ? { Cookie: cookie } : {}) }, body: JSON.stringify(body) });
+  const reg = await post('/api/auth/register', { username: 'deleteme', email: 'd@example.com', password: 'longpassword1' });
+  const cookie = reg.headers.get('set-cookie').split(';')[0];
+  assert.equal((await post('/api/auth/delete', { password: 'wrong-password' }, cookie)).status, 401);
+  assert.equal((await post('/api/auth/delete', { password: 'longpassword1' }, cookie)).status, 200);
+  assert.equal((await post('/api/auth/login', { email: 'd@example.com', password: 'longpassword1' })).status, 401);
+  const again = await post('/api/auth/register', { username: 'deleteme', email: 'd@example.com', password: 'longpassword1' });
+  assert.equal(again.status, 201, 'name and email are free again');
+  await new Promise((r) => server.close(r));
+});

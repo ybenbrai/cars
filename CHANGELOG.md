@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Store readiness: privacy policy page (`/privacy`), in-game account
+  deletion confirmed with the password (Cloudflare and Node servers),
+  Android Digital Asset Links served from Cloudflare variables, manifest
+  `id`, and a publishing guide (`docs/STORES.md`).
 - Admin dashboard at `/admin` (Cloudflare backend, protected by an
   `ADMIN_TOKEN` secret): KPIs, sign-up chart, top drivers, popular cars;
   player list with search, CSV export and details with credit grants,

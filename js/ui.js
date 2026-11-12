@@ -1050,9 +1050,31 @@ export class UI {
         <button class="btn ghost" id="btnLogout" type="button">SIGN OUT</button>
       </div>
       <div class="session-row"><div><strong>${formatCredits(store?.wallet || 0)} CR</strong><small>Saved to ${esc(auth.user.username)}'s cloud garage</small></div></div>
+      <details class="danger-zone">
+        <summary>DELETE MY ACCOUNT</summary>
+        <p>This permanently deletes your account, your cloud save and your online name. Progress saved in this browser stays here. This cannot be undone.</p>
+        <input class="text-input" type="password" id="deletePassword" autocomplete="current-password" placeholder="Confirm with your password" />
+        <button class="btn ghost danger" id="btnDeleteAccount" type="button">DELETE ACCOUNT PERMANENTLY</button>
+      </details>
+      <p class="custom-note"><a href="privacy.html" target="_blank" rel="noopener">PRIVACY POLICY</a></p>
     ` : '';
     const logout = $('btnLogout');
     if (logout) logout.addEventListener('click', () => this.cb.onLogout?.());
+    const del = $('btnDeleteAccount');
+    if (del) {
+      del.addEventListener('click', async () => {
+        const password = $('deletePassword').value;
+        if (!password) { this.setAuthStatus('Enter your password to confirm.', 'error'); return; }
+        try {
+          del.disabled = true;
+          await this.cb.onDeleteAccount?.(password);
+        } catch (err) {
+          this.setAuthStatus(err.message || 'Could not delete the account.', 'error');
+        } finally {
+          del.disabled = false;
+        }
+      });
+    }
     if (!account) this.setAuthTab('login');
   }
 
@@ -1246,7 +1268,7 @@ export class UI {
     $('settingsExtra').innerHTML = `
       <button class="btn ghost" data-action="replay-tutorial">REPLAY TUTORIAL</button>
       <button class="btn ghost" data-action="reset-progress">RESET ALL PROGRESS</button>
-      <p class="custom-note">Controls can be remapped in the PROFILE tab.</p>`;
+      <p class="custom-note">Controls can be remapped in the PROFILE tab. · <a href="privacy.html" target="_blank" rel="noopener">PRIVACY POLICY</a></p>`;
   }
 
   setPauseMode(mode) {

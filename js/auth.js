@@ -95,6 +95,14 @@ export class AuthService {
     }
   }
 
+  /** Permanently delete this account and its cloud save (password required). */
+  async deleteAccount(password) {
+    await api('/api/auth/delete', { method: 'POST', headers: JSON_HEADERS, body: JSON.stringify({ password }) });
+    this.user = null;
+    this.mode = 'guest';
+    return this.state();
+  }
+
   async logout() {
     try {
       if (this.available) await api('/api/auth/logout', { method: 'POST', headers: JSON_HEADERS });

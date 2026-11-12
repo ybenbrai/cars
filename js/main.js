@@ -157,6 +157,7 @@ const ui = new UI({
   onLogin: handleLogin,
   onRegister: handleRegister,
   onLogout: handleLogout,
+  onDeleteAccount: handleDeleteAccount,
   onSound: toggleSound,
   onPause: pauseGame,
   onCamera: toggleCamera,
@@ -271,6 +272,26 @@ async function handleLogout() {
     ensureGarageCar();
     ui.renderGarage(store, auth);
   }
+}
+
+/** Delete the signed-in account (server checks the password). */
+async function handleDeleteAccount(password) {
+  const accountKey = store?.keyFor;
+  online.disconnect();
+  cloud.reset();
+  await auth.deleteAccount(password); // throws on a wrong password
+  // Remove this account's copy of the save from this device too.
+  try { if (accountKey && auth.mode !== 'account') localStorage.removeItem(accountKey); } catch { /* ignore */ }
+  const next = new SaveStore('guest');
+  next.load();
+  attachStore(next);
+  ui.setAuthState(auth, store);
+  ui.closeAccount?.();
+  if (state === 'garage') {
+    ensureGarageCar();
+    ui.renderGarage(store, auth);
+  }
+  ui.notice('ACCOUNT DELETED', 'ok');
 }
 
 /* ───────────────────────── profile / garage ───────────────────────── */
