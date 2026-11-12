@@ -633,6 +633,7 @@ export class UI {
         </div>
         <div class="car-stats">${statRows(car)}</div>
         <div class="car-traits">${traits}</div>
+        ${car.model?.credit ? `<p class="car-credit">${esc(car.model.credit)}</p>` : ''}
       </article>`;
     }).join('');
   }

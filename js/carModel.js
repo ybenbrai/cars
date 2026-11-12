@@ -15,6 +15,7 @@ const CABIN_FADE = 0.3;
 const _tiltPivot = new THREE.Vector3();
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { attachRealModel } from './gltfCar.js';
 import { FINISHES, RIM_STYLES, SPOILERS, STRIPES, TINTS, UNDERGLOWS } from './data/cars.js';
 
 const CARBON = 0x17171d;
@@ -493,6 +494,10 @@ export class CarModel {
     this.applyLook(look, true);
     this.mergeStaticParts();
     this.collectDetail();
+    // Real 3D model (glTF), swapped in once it has loaded.
+    if (carDef.model?.url) {
+      attachRealModel(this, carDef).catch((err) => console.warn('Car model failed to load', err));
+    }
   }
 
   buildMaterials(look) {
@@ -2297,6 +2302,7 @@ export class CarModel {
   }
 
   dispose() {
+    this.disposed = true;
     this.cockpit?.dispose();
     this.plateTex?.dispose();
     this.treadMat?.map?.dispose();

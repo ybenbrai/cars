@@ -291,3 +291,7 @@ served under their respective open font licenses.
 Designed and built as a self-contained Three.js project. Track layout, car
 models, cosmetics, environment, effects and audio are all procedural. Thanks to
 the Three.js community for the renderer, post-processing stack and documentation.
+
+## Credits
+
+Third-party assets and their licences are listed in [CREDITS.md](CREDITS.md).

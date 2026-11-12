@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Realistic 3D car models: cars can now use a real glTF model with the
+  game's paint, tint, rim colour, brake lights, spinning and steering wheels
+  and body lean still working. First car: VALENZA AETHER GT, built on the
+  CC BY 4.0 "Car Concept" model (credited in-game and in CREDITS.md),
+  compressed from 11.8 MB to 2.6 MB and preloaded in the background.
+- docs/CAR_ART_BRIEF.md: technical spec and GTA-style design brief for
+  commissioning realistic fictional versions of all 20 cars.
 - Ranked seasons: admins end a season from the dashboard; every ranked
   driver is paid by final division (1,000 to 40,000 CR, delivered with an
   inbox message), the top 10 enter a Hall of Fame and ratings soft-reset.

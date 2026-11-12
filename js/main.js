@@ -9,6 +9,7 @@ import { createEnvironment, populateScenery } from './scenery.js';
 import { GarageScene } from './garageScene.js';
 import { Car } from './car.js';
 import { CarModel } from './carModel.js';
+import { preloadCarModels } from './gltfCar.js';
 import { Effects } from './effects.js';
 import { Input, keyLabel } from './input.js';
 import { AudioEngine } from './audio.js';
@@ -2358,6 +2359,8 @@ async function boot() {
   if (tag) tag.textContent = `BUILD ${BUILD.toUpperCase()}`;
   await auth.bootstrap();
   showAnnouncement();
+  // Real 3D car models download in the background.
+  setTimeout(() => preloadCarModels(CARS), 1500);
   if (auth.isAccount) {
     // Returning session: the cloud copy wins if it is newer than this browser's.
     await adoptAccount();

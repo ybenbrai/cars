@@ -2027,3 +2027,5 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
 .friends .dot.on { background: var(--green); box-shadow: 0 0 8px var(--green); }
 .friend-actions { display: flex !important; align-items: center; gap: 8px; }
 .friends .online-join-row { margin-top: 6px; }
+
+.car-credit { margin: 8px 0 0; font-size: 11px; color: var(--faint); }

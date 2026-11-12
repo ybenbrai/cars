@@ -482,6 +482,38 @@ export const CARS = [
     design: { headlight: 'projector', drl: 'l-shape', grille: 'mesh', tail: 'quad' },
   },
   {
+    id: 'aether',
+    name: 'VALENZA AETHER GT',
+    klass: 'CONCEPT GRAND TOURER',
+    category: 'super',
+    price: 165000,
+    unlockRank: 3,
+    tagline: 'A concept car that escaped the motor show. Fully detailed, inside and out.',
+    description:
+      "The Aether GT is Valenza's design study turned road car: a low, wide fastback with a glass canopy, a hybrid V8 and a fully trimmed cabin. It is the first car in the garage built from a real 3D model, down to its brake discs and seats.",
+    paint: '#9a1020',
+    specs: { power: 680, weight: 1580, topSpeed: 318, drivetrain: 'AWD' },
+    stats: { speed: 9, accel: 9, handling: 8, drift: 6 },
+    pros: ['All-wheel-drive traction out of slow corners', 'Very stable at speed'],
+    cons: ['Wide body in narrow city streets', 'Heavier than the track supercars'],
+    physics: { speed: 1.12, accel: 1.12, grip: 1.04, turn: 0.95, boost: 1.2, slide: 1.1 },
+    body: body('gt', {
+      length: 4.56, width: 1.98, wheelRadius: 0.37, wheelbase: 1.42,
+      cabinLength: 1.7, cabinWidth: 1.5, cabinHeight: 0.46, cabinZ: -0.3,
+      roofLength: 1.1, roofWidth: 1.3, rideHeight: 0.44,
+      noseDrop: 0.6, tailHeight: 0.78,
+    }),
+    // Real model: "Car Concept" by Eric Chadwick, © Darmstadt Graphics Group,
+    // CC BY 4.0 (Khronos glTF Sample Assets). Plate and steering emblem art
+    // carry third-party logos and are hidden.
+    model: {
+      url: 'assets/cars/concept-gt.glb',
+      hide: ['License Plate', 'InteriorSteeringEmblem'],
+      credit: 'Car Concept model by Eric Chadwick, © Darmstadt Graphics Group GmbH, CC BY 4.0',
+    },
+    design: { headlight: 'projector', drl: 'l-shape', grille: 'mesh', tail: 'quad' },
+  },
+  {
     id: 'aurora',
     name: 'AURELIO TEMPESTA SV',
     klass: 'HYPERCAR',
