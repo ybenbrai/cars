@@ -442,6 +442,9 @@ export class UI {
             () => this.notice(link, 'ok'),
           );
         }
+      } else if (action === 'report') {
+        const reason = window.prompt(`Report ${button.dataset.value} to the moderators. What happened? (offensive name, cheating, abuse…)`);
+        if (reason !== null) this.cb.onReport?.(button.dataset.value, reason);
       } else if (action === 'joinlisted') {
         this.cb.onOnline?.('join', { code: button.dataset.value });
       } else if (action === 'refresh') {
@@ -1226,6 +1229,17 @@ export class UI {
     $('photoBar').classList.toggle('hidden', !visible);
   }
 
+  /** Live event badge in the garage header (e.g. DOUBLE CREDITS ×2). */
+  setLiveEvent(event) {
+    const el = $('eventBadge');
+    if (!el) return;
+    el.classList.toggle('hidden', !event);
+    if (event) {
+      el.textContent = `${event.name} ×${event.multiplier}`;
+      el.title = event.endsAt ? `Race payouts ×${event.multiplier} until ${new Date(event.endsAt).toLocaleString()}` : `Race payouts ×${event.multiplier}`;
+    }
+  }
+
   openSettings() {
     this.renderSettings();
     $('screen-settings').classList.remove('hidden');
@@ -1359,6 +1373,7 @@ export class UI {
         <i style="background:${esc(p.look?.paint || '#ffc46b')}"></i>
         <span class="who"><b>${esc(p.name)}</b><small>${esc(getCar(p.carId).name)}</small></span>
         <span class="tag ${p.host ? 'host' : p.ready ? 'ready' : 'waiting'}">${p.host ? 'HOST' : p.ready ? 'READY' : 'NOT READY'}</span>
+        ${p.id === client.id ? '' : `<button class="link-btn report-btn" data-online="report" data-value="${esc(p.name)}" title="Report this driver">REPORT</button>`}
       </div>`).join('');
     const empty = Array.from({ length: Math.max(0, room.size - room.players.length) }, () => `
       <div class="online-player empty"><i></i><span class="who"><small>Open slot</small></span></div>`).join('');
@@ -1420,11 +1435,34 @@ export class UI {
 
   /* ───────────────────────── profile / stats ───────────────────────── */
 
+  async loadLeaderboard() {
+    const el = $('lbRows');
+    if (!el) return;
+    const circuit = this.lbCircuit || CIRCUITS[0].id;
+    const data = await this.cb.onLeaderboard?.(circuit);
+    if (!$('lbRows') || (this.lbCircuit || CIRCUITS[0].id) !== circuit) return;
+    if (!data) {
+      el.innerHTML = '<li><span>Leaderboards need the online server.</span></li>';
+      return;
+    }
+    const me = this.auth?.user?.username;
+    el.innerHTML = data.rows.length ? data.rows.map((r, i) => `
+      <li class="${r.username === me ? 'me' : ''}"><b>P${i + 1}</b><span>${esc(r.username)} <small>${esc(getCar(r.car)?.name || '')}</small></span><em>${fmtTime(r.time)}</em></li>`).join('')
+      : '<li><span>No laps yet. Sign in and set the first one.</span></li>';
+  }
+
   renderProfile() {
     if (!this.store) return;
     if (!this.profileBound) {
       this.profileBound = true;
       $('profileStats').addEventListener('click', (e) => {
+        const lb = e.target.closest('[data-lb]');
+        if (lb) {
+          this.lbCircuit = lb.dataset.lb;
+          document.querySelectorAll('#lbCircuits .seg').forEach((b) => b.classList.toggle('active', b === lb));
+          this.loadLeaderboard();
+          return;
+        }
         const remap = e.target.closest('[data-remap]');
         if (remap) {
           remap.textContent = 'PRESS A KEY…';
@@ -1491,6 +1529,12 @@ export class UI {
         <div class="stat-tiles">${tiles.map(([label, value]) => `<div class="stat-tile"><small>${label}</small><strong>${value}</strong></div>`).join('')}</div>
       </section>
       <section class="setup-section">
+        <div class="section-head"><span>GLOBAL LEADERBOARD</span><span>BEST LAP</span></div>
+        <div class="segmented wrap" id="lbCircuits">${CIRCUITS.filter((c) => !c.practiceOnly).map((c) => `
+          <button class="seg ${c.id === (this.lbCircuit || CIRCUITS[0].id) ? 'active' : ''}" data-lb="${c.id}">${esc(c.name)}</button>`).join('')}</div>
+        <ol class="standings" id="lbRows"><li><span>Loading…</span></li></ol>
+      </section>
+      <section class="setup-section">
         <div class="section-head"><span>CONTROLS</span><button class="link-btn" data-reset-keys="1">RESET</button></div>
         <div class="key-list">${(() => {
           const binds = resolveBindings(data.settings.keys);
@@ -1521,6 +1565,7 @@ export class UI {
         <div class="section-head"><span>RECENT RACES</span></div>
         <div class="history-list">${history}</div>
       </section>`;
+    this.loadLeaderboard();
   }
 
   setPaused(paused) {

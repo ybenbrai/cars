@@ -9,6 +9,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Live ops: admin-run live events multiply race payouts (e.g. DOUBLE
+  CREDITS WEEKEND ×2 with an end time and presets); players see a garage
+  badge and an event line on results. Live broadcast to online players.
+- Global leaderboards: best lap per circuit in the Profile tab, from cloud
+  saves; admins can hide cheaters.
+- Player reports from online rooms, with a moderation queue in the
+  dashboard.
+- Dashboard: Analytics (daily active players, sign-ups, logins, online
+  races, saves), Live Ops, Leaderboards and Reports pages; player tools to
+  rename, message (shown at next sign-in), give a car and hide from
+  leaderboards; full JSON backup download.
 - Store readiness: privacy policy page (`/privacy`), in-game account
   deletion confirmed with the password (Cloudflare and Node servers),
   Android Digital Asset Links served from Cloudflare variables, manifest

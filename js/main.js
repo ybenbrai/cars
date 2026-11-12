@@ -157,6 +157,8 @@ const ui = new UI({
   onLogin: handleLogin,
   onRegister: handleRegister,
   onLogout: handleLogout,
+  onLeaderboard: fetchLeaderboard,
+  onReport: reportPlayer,
   onDeleteAccount: handleDeleteAccount,
   onSound: toggleSound,
   onPause: pauseGame,
@@ -217,6 +219,7 @@ function attachStore(next) {
 }
 
 async function adoptAccount() {
+  showInbox();
   cloud.reset();
   const next = new SaveStore(`user-${auth.user.id}`);
   next.load();
@@ -275,6 +278,35 @@ async function handleLogout() {
 }
 
 /** Delete the signed-in account (server checks the password). */
+/** Messages an admin left for this player, shown once after sign-in. */
+async function showInbox() {
+  if (!auth.isAccount) return;
+  try {
+    const res = await fetch('/api/inbox', { method: 'POST', headers: { Accept: 'application/json' } });
+    if (!res.ok) return;
+    const { messages = [] } = await res.json();
+    messages.forEach((m, i) => setTimeout(() => ui.notice(`MESSAGE FROM SUNSET DRIFT · ${m.text}`, 'ok', 10000), i * 1200));
+  } catch { /* offline */ }
+}
+
+/** Global top laps on a circuit (Cloudflare backend). */
+async function fetchLeaderboard(circuitId) {
+  try {
+    const res = await fetch(`/api/leaderboard?circuit=${encodeURIComponent(circuitId)}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch { return null; }
+}
+
+/** Report another online driver to the moderators. */
+async function reportPlayer(username, reason) {
+  try {
+    const res = await fetch('/api/report', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, reason }) });
+    const data = await res.json().catch(() => ({}));
+    ui.notice(res.ok ? `Report sent. Thanks for keeping races fair.` : (data.error || 'Could not send the report.'), res.ok ? 'ok' : 'error');
+  } catch { ui.notice('Could not send the report.', 'error'); }
+}
+
 async function handleDeleteAccount(password) {
   const accountKey = store?.keyFor;
   online.disconnect();
@@ -1223,6 +1255,8 @@ function finishRace() {
     eventCleared,
     eventReward: race.event?.reward || 0,
     firstWinBonus: race.event?.firstWinBonus || 0,
+    eventMultiplier: liveEvent?.multiplier || 1,
+    eventName: liveEvent?.name || '',
   });
 
   const outcome = store.completeRace({
@@ -1999,6 +2033,8 @@ function applyOnlineResults(msg) {
   const rewards = finished
     ? computeRewards({
       mode: 'online',
+      eventMultiplier: liveEvent?.multiplier || 1,
+      eventName: liveEvent?.name || '',
       circuit: run.circuit,
       laps: run.laps,
       difficulty: 'normal',
@@ -2117,6 +2153,7 @@ online.on('status', () => {
   ui.renderOnline(online, auth, store);
   tryPendingRoom();
 });
+online.on('broadcast', (msg) => ui.notice(`📢 ${msg.message}`, 'ok', 9000));
 online.on('rooms', () => {
   if (!online.room) ui.renderOnline(online, auth, store);
 });
@@ -2237,12 +2274,22 @@ async function boot() {
   setTimeout(() => document.getElementById('loader').classList.add('done'), 320);
 }
 
+// Live event (double credits etc.) announced by the backend.
+let liveEvent = null;
+
 // Admin announcement (Cloudflare backend): shown once per message.
 async function showAnnouncement() {
   try {
     const res = await fetch('/api/health', { headers: { Accept: 'application/json' } });
     if (!res.ok) return;
-    const text = String((await res.json()).announcement || '').trim();
+    const health = await res.json();
+    liveEvent = health.event || null;
+    if (liveEvent) {
+      const until = liveEvent.endsAt ? ` · until ${new Date(liveEvent.endsAt).toLocaleString()}` : '';
+      ui.setLiveEvent(liveEvent);
+      ui.notice(`${liveEvent.name}: race payouts ×${liveEvent.multiplier}${until}`, 'ok', 8000);
+    }
+    const text = String(health.announcement || '').trim();
     if (!text || localStorage.getItem('sd-announcement-seen') === text) return;
     ui.notice(text, 'ok', 9000);
     localStorage.setItem('sd-announcement-seen', text);

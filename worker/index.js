@@ -8,7 +8,8 @@
 // Same HTTP/WebSocket API as server.mjs, so the browser code is unchanged.
 
 import { Lobby } from '../server/rooms.mjs';
-import { Admin, summarize } from './admin.js';
+import { Admin, summarize, activeEvent, bump, markActive, leaderboard, dayKey } from './admin.js';
+import { CIRCUITS } from '../js/data/circuits.js';
 
 const SESSION_COOKIE = 'sd_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -121,6 +122,7 @@ export class GameServer {
     this.perIp = new Map();
     this.lobby = new Lobby();
     this.admin = new Admin(this);
+    this.lobby.onRaceStart = () => { bump(this.storage, 'onlineRaces').catch(() => {}); };
   }
 
   async fetch(request) {
@@ -156,7 +158,9 @@ export class GameServer {
       return null;
     }
     const user = await this.storage.get(`user:${session.userId}`);
-    return user && !user.banned ? publicUser(user) : null;
+    if (!user || user.banned) return null;
+    await markActive(this.storage, user.id);
+    return publicUser(user);
   }
 
   async startSession(request, userId) {
@@ -176,7 +180,7 @@ export class GameServer {
       const settings = await this.admin.settings();
       return json(200, {
         ok: true, service: 'sunset-drift', auth: true, multiplayer: settings.onlineOpen, host: 'cloudflare',
-        announcement: settings.announcement || '', time: new Date().toISOString(),
+        announcement: settings.announcement || '', event: activeEvent(settings), time: new Date().toISOString(),
       });
     }
 
@@ -221,6 +225,7 @@ export class GameServer {
       if (await this.storage.get(`name:${username.toLowerCase()}`) || await this.storage.get(`email:${email}`)) {
         return json(409, { error: 'That username or email was just taken.', field: 'username' });
       }
+      await bump(this.storage, 'signups');
       await this.storage.put({
         [`user:${user.id}`]: user,
         [`name:${username.toLowerCase()}`]: user.id,
@@ -246,6 +251,7 @@ export class GameServer {
         return json(401, { error: 'Email or password is incorrect.' });
       }
       if (user.banned) return json(403, { error: 'This account has been suspended.' });
+      await bump(this.storage, 'logins');
       const cookie = await this.startSession(request, user.id);
       return json(200, { user: publicUser(user) }, { 'Set-Cookie': cookie });
     }
@@ -301,10 +307,47 @@ export class GameServer {
         [`save:${user.id}`]: { save: body.save, updatedAt },
         [`summary:${user.id}`]: summarize(body.save, updatedAt),
       });
+      await bump(this.storage, 'saves');
       return json(200, { ok: true, updatedAt });
     }
 
     if (path === '/api/mp') return this.openSocket(request);
+
+    if (path === '/api/leaderboard') {
+      const circuit = new URL(request.url).searchParams.get('circuit') || CIRCUITS[0].id;
+      if (!CIRCUITS.some((c) => c.id === circuit)) return json(400, { error: 'Unknown circuit.' });
+      const rows = (await leaderboard(this.admin, circuit, 20)).map(({ username, time, car }) => ({ username, time, car }));
+      return json(200, { circuit, rows });
+    }
+
+    if (path === '/api/inbox') {
+      const me = await this.currentUser(request);
+      if (!me) return json(401, { error: 'Sign in first.' });
+      const user = await this.storage.get(`user:${me.id}`);
+      const messages = user.inbox || [];
+      if (messages.length && method === 'POST') {
+        user.inbox = [];
+        await this.storage.put(`user:${me.id}`, user);
+      }
+      return json(200, { messages });
+    }
+
+    if (path === '/api/report') {
+      if (method !== 'POST') return json(405, { error: 'Method not allowed.' });
+      const me = await this.currentUser(request);
+      if (!me) return json(401, { error: 'Sign in first.' });
+      if (this.rateLimited(request)) return json(429, { error: 'Too many reports. Wait a minute.' });
+      const body = await readBody(request);
+      const target = String(body.username || '').trim().slice(0, 20);
+      const reason = String(body.reason || '').trim().slice(0, 200);
+      if (!target || target.toLowerCase() === me.username.toLowerCase()) return json(400, { error: 'Choose a player to report.' });
+      await this.storage.put(`report:${Date.now()}-${randomHex(3)}`, {
+        reporter: me.username, target, reason: reason || 'No reason given', at: new Date().toISOString(),
+        targetId: (await this.storage.get(`name:${target.toLowerCase()}`)) || null,
+      });
+      await bump(this.storage, 'reports');
+      return json(200, { ok: true });
+    }
 
     return json(404, { error: 'Unknown API endpoint.' });
   }

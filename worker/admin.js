@@ -3,13 +3,27 @@
 // Cloudflare: Settings → Variables and Secrets, or `wrangler secret put`).
 // Without the secret the admin API stays switched off.
 
-import { rankForWins, RANK_LABELS } from '../js/data/cars.js';
+import { CARS, rankForWins, RANK_LABELS } from '../js/data/cars.js';
+import { CIRCUITS } from '../js/data/circuits.js';
 
 const ADMIN_COOKIE = 'sd_admin';
 const ADMIN_TTL_MS = 12 * 60 * 60 * 1000;
 const AUDIT_MAX = 300;
 
-export const DEFAULT_SETTINGS = { announcement: '', signupsOpen: true, onlineOpen: true };
+export const DEFAULT_SETTINGS = {
+  announcement: '', signupsOpen: true, onlineOpen: true,
+  // Live event, e.g. a double-credits weekend: { name, multiplier, endsAt }.
+  event: null,
+};
+
+export const dayKey = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
+
+/** The live event if one is running now, else null. */
+export function activeEvent(settings) {
+  const e = settings?.event;
+  if (!e || !(e.multiplier > 1) || (e.endsAt && Date.parse(e.endsAt) <= Date.now())) return null;
+  return { name: String(e.name || 'LIVE EVENT'), multiplier: Math.min(3, e.multiplier), endsAt: e.endsAt || null };
+}
 
 const enc = new TextEncoder();
 const randomHex = (n) => [...crypto.getRandomValues(new Uint8Array(n))].map((b) => b.toString(16).padStart(2, '0')).join('');
@@ -39,6 +53,10 @@ export function summarize(save, updatedAt) {
     selectedCar: save?.selectedCarId || '',
     achievements: Array.isArray(save?.achievements) ? save.achievements.length : 0,
     rank: RANK_LABELS[rankForWins(stats.wins || 0, stats.races || 0)] || 'Rookie',
+    // Best lap per circuit, for the global leaderboards.
+    laps: Object.fromEntries(Object.entries(save?.records || {})
+      .map(([id, r]) => [id, Number(r?.bestLap)])
+      .filter(([, t]) => Number.isFinite(t) && t > 5 && t < 3600)),
     updatedAt,
   };
 }
@@ -171,7 +189,17 @@ export class Admin {
       const carCounts = {};
       for (const s of sums) if (s.selectedCar) carCounts[s.selectedCar] = (carCounts[s.selectedCar] || 0) + 1;
       const rooms = this.rooms();
+      const daily = [];
+      for (const s of signups) {
+        const m = (await this.storage.get(`metrics:${s.day}`)) || {};
+        daily.push({ day: s.day, active: m.active || 0, logins: m.logins || 0, onlineRaces: m.onlineRaces || 0, saves: m.saves || 0 });
+      }
+      const reports = (await this.list('report:')).length;
       return json(200, {
+        daily,
+        reports,
+        dauToday: daily[13].active,
+        dauWeek: daily.slice(7).reduce((a, d) => a + d.active, 0),
         users: rows.length,
         newToday: signups[13].count,
         newWeek: signups.slice(7).reduce((a, d) => a + d.count, 0),
@@ -190,7 +218,8 @@ export class Admin {
         signups,
         topPlayers: rows.filter((r) => r.summary).sort((a, b) => b.summary.wins - a.summary.wins || b.summary.races - a.summary.races)
           .slice(0, 8).map((r) => ({ id: r.id, username: r.username, ...r.summary })),
-        popularCars: Object.entries(carCounts).sort((a, b) => b[1] - a[1]).slice(0, 8),
+        popularCars: Object.entries(carCounts).sort((a, b) => b[1] - a[1]).slice(0, 8)
+          .map(([id, n]) => [CARS.find((c) => c.id === id)?.name || id, n]),
         settings: await this.settings(),
       });
     }
@@ -205,7 +234,10 @@ export class Admin {
       if (!userMatch[2]) {
         const stored = (await this.storage.get(`save:${id}`)) || { save: null, updatedAt: null };
         const { salt, passwordHash, ...safe } = user;
-        return json(200, { user: safe, save: stored.save, updatedAt: stored.updatedAt, summary: await this.summaryFor(id) });
+        return json(200, {
+          user: safe, save: stored.save, updatedAt: stored.updatedAt, summary: await this.summaryFor(id),
+          cars: CARS.map((c) => ({ id: c.id, name: c.name })),
+        });
       }
       if (method !== 'POST') return json(405, { error: 'Method not allowed.' });
       const body = await readBody(request);
@@ -233,12 +265,56 @@ export class Admin {
       if (typeof body.announcement === 'string') next.announcement = body.announcement.trim().slice(0, 240);
       if (typeof body.signupsOpen === 'boolean') next.signupsOpen = body.signupsOpen;
       if (typeof body.onlineOpen === 'boolean') next.onlineOpen = body.onlineOpen;
+      if (body.event === null) next.event = null;
+      else if (body.event && typeof body.event === 'object') {
+        const multiplier = Math.min(3, Math.max(1, Number(body.event.multiplier) || 1));
+        const endsAt = body.event.endsAt && !Number.isNaN(Date.parse(body.event.endsAt)) ? new Date(body.event.endsAt).toISOString() : null;
+        next.event = { name: String(body.event.name || 'LIVE EVENT').trim().slice(0, 40).toUpperCase(), multiplier, endsAt };
+      }
       await this.storage.put('settings', next);
       await this.audit('settings', next);
       return json(200, next);
     }
 
     if (path === '/api/admin/audit') return json(200, { log: (await this.storage.get('audit')) || [] });
+
+    if (path === '/api/admin/leaderboard') {
+      const circuit = new URL(request.url).searchParams.get('circuit') || CIRCUITS[0].id;
+      const rows = (await leaderboard(this, circuit, 50)).map((r) => ({ ...r, car: CARS.find((c) => c.id === r.car)?.name || r.car }));
+      return json(200, { circuit, rows, circuits: CIRCUITS.filter((c) => !c.practiceOnly).map((c) => ({ id: c.id, name: c.name })) });
+    }
+
+    if (path === '/api/admin/reports') {
+      if (method === 'GET') {
+        const rows = (await this.list('report:')).map(([key, r]) => ({ id: key.slice(7), ...r }));
+        return json(200, { reports: rows.sort((a, b) => String(b.at).localeCompare(String(a.at))) });
+      }
+      if (method === 'POST') {
+        const body = await readBody(request);
+        if (typeof body.id !== 'string') return json(400, { error: 'Report id required.' });
+        await this.storage.delete(`report:${body.id}`);
+        await this.audit('report.resolve', { id: body.id, note: String(body.note || '').slice(0, 120) });
+        return json(200, { ok: true });
+      }
+    }
+
+    if (path === '/api/admin/broadcast' && method === 'POST') {
+      const body = await readBody(request);
+      const message = String(body.message || '').trim().slice(0, 200);
+      if (!message) return json(400, { error: 'Write a message.' });
+      let sent = 0;
+      for (const p of this.server.lobby.players.values()) { p.conn.send({ type: 'broadcast', message }); sent += 1; }
+      await this.audit('broadcast', { message, sent });
+      return json(200, { ok: true, sent });
+    }
+
+    if (path === '/api/admin/export') {
+      const users = (await this.list('user:')).map(([, u]) => { const { salt, passwordHash, ...safe } = u; return safe; });
+      const summaries = Object.fromEntries((await this.list('summary:')).map(([k, v]) => [k.slice(8), v]));
+      await this.audit('export', { users: users.length });
+      return json(200, { exportedAt: new Date().toISOString(), users, summaries, settings: await this.settings() },
+        { 'Content-Disposition': `attachment; filename="sunset-drift-backup-${dayKey()}.json"` });
+    }
 
     return json(404, { error: 'Unknown admin endpoint.' });
   }
@@ -295,6 +371,46 @@ export class Admin {
       await this.audit(`user.${action}`, { user: user.username });
       return json(200, { ok: true, banned: user.banned });
     }
+    if (action === 'rename') {
+      const name = String(body.username || '').trim();
+      if (!/^[A-Za-z0-9_.-]{3,16}$/.test(name)) return json(400, { error: 'Usernames are 3–16 letters, numbers, dots, dashes or underscores.' });
+      const taken = await this.storage.get(`name:${name.toLowerCase()}`);
+      if (taken && taken !== id) return json(409, { error: 'That username is taken.' });
+      await this.storage.delete(`name:${user.username.toLowerCase()}`);
+      const old = user.username;
+      user.username = name;
+      await this.storage.put({ [`user:${id}`]: user, [`name:${name.toLowerCase()}`]: id });
+      this.kick(id, 'Your username was changed by an admin. Reconnect to race online.');
+      await this.audit('user.rename', { from: old, to: name });
+      return json(200, { ok: true });
+    }
+    if (action === 'message') {
+      const text = String(body.text || '').trim().slice(0, 300);
+      if (!text) return json(400, { error: 'Write a message.' });
+      user.inbox = [...(user.inbox || []), { text, at: new Date().toISOString() }].slice(-10);
+      await this.storage.put(`user:${id}`, user);
+      await this.audit('user.message', { user: user.username, text });
+      return json(200, { ok: true });
+    }
+    if (action === 'givecar') {
+      const car = CARS.find((c) => c.id === body.carId);
+      if (!car) return json(400, { error: 'Unknown car.' });
+      const stored = await this.storage.get(`save:${id}`);
+      if (!stored?.save) return json(409, { error: 'This player has no cloud save yet.' });
+      const owned = Array.isArray(stored.save.ownedCars) ? stored.save.ownedCars : [];
+      if (!owned.includes(car.id)) owned.push(car.id);
+      stored.save.ownedCars = owned;
+      stored.updatedAt = new Date().toISOString();
+      await this.storage.put({ [`save:${id}`]: stored, [`summary:${id}`]: summarize(stored.save, stored.updatedAt) });
+      await this.audit('user.givecar', { user: user.username, car: car.name });
+      return json(200, { ok: true });
+    }
+    if (action === 'lbhide' || action === 'lbshow') {
+      user.lbHidden = action === 'lbhide';
+      await this.storage.put(`user:${id}`, user);
+      await this.audit(`user.${action}`, { user: user.username });
+      return json(200, { ok: true });
+    }
     if (action === 'kick') {
       this.kick(id, 'Removed from online play by an admin.');
       await this.audit('user.kick', { user: user.username });
@@ -311,4 +427,37 @@ export class Admin {
     }
     return json(400, { error: 'Unknown action.' });
   }
+}
+
+/* ───────────────────── metrics, leaderboards, reports ───────────────────── */
+
+/** Bump today's counters (signups, logins, saves, onlineRaces, reports). */
+export async function bump(storage, field, by = 1) {
+  const key = `metrics:${dayKey()}`;
+  const m = (await storage.get(key)) || {};
+  m[field] = (m[field] || 0) + by;
+  await storage.put(key, m);
+}
+
+/** Record that a player was active today (daily active players). */
+export async function markActive(storage, userId) {
+  const key = `seen:${dayKey()}:${userId}`;
+  if (await storage.get(key)) return;
+  await storage.put(key, 1);
+  await bump(storage, 'active');
+}
+
+/** Top laps on a circuit from player summaries (banned and hidden excluded). */
+export async function leaderboard(admin, circuitId, limit = 20) {
+  const rows = [];
+  for (const [key, summary] of await admin.list('summary:')) {
+    const t = summary?.laps?.[circuitId];
+    if (!Number.isFinite(t)) continue;
+    const userId = key.slice('summary:'.length);
+    const user = await admin.storage.get(`user:${userId}`);
+    if (!user || user.banned || user.lbHidden) continue;
+    rows.push({ userId, username: user.username, time: t, car: summary.selectedCar || '' });
+  }
+  rows.sort((a, b) => a.time - b.time);
+  return rows.slice(0, limit);
 }

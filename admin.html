@@ -16,6 +16,8 @@
     --display: "Chakra Petch", system-ui, sans-serif; --body: "Inter", system-ui, sans-serif;
   }
   * { box-sizing: border-box; }
+  :root { color-scheme: dark; }
+  input[type=datetime-local] { width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; }
   html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 14px; }
   button, input, textarea { font: inherit; color: inherit; }
   .hidden { display: none !important; }
@@ -102,6 +104,11 @@
   .detail-grid small { display: block; color: var(--faint); font-size: 10px; letter-spacing: 0.12em; }
   .actions { display: flex; flex-wrap: wrap; gap: 8px; }
   pre { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 12px; max-height: 300px; overflow: auto; font-size: 12px; color: var(--muted); }
+  .line-chart { width: 100%; height: 160px; display: block; }
+  .chart-axis { display: flex; justify-content: space-between; font-size: 10px; color: var(--faint); }
+  .select { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; color: var(--ink); }
+  nav .pill { margin-left: 6px; font-size: 10px; padding: 0 6px; }
+  td.click { cursor: pointer; }
   .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--green); color: var(--green); padding: 10px 16px; border-radius: 6px; z-index: 20; }
   .toast.bad { border-color: var(--red); color: var(--red); }
 
@@ -131,7 +138,11 @@
     <div class="brand">SUNSET<b>DRIFT</b></div>
     <button data-view="overview" class="active">OVERVIEW</button>
     <button data-view="players">PLAYERS</button>
+    <button data-view="analytics">ANALYTICS</button>
     <button data-view="online">ONLINE</button>
+    <button data-view="liveops">LIVE OPS</button>
+    <button data-view="leaderboards">LEADERBOARDS</button>
+    <button data-view="reports">REPORTS <span id="reportCount" class="pill red hidden"></span></button>
     <button data-view="settings">SETTINGS</button>
     <button data-view="audit">AUDIT LOG</button>
     <div class="spacer"></div>
@@ -226,9 +237,16 @@ document.querySelectorAll('nav [data-view]').forEach((b) => b.addEventListener('
 }));
 
 async function render(quiet = false) {
-  $('viewTitle').textContent = { overview: 'OVERVIEW', players: 'PLAYERS', online: 'ONLINE ROOMS', settings: 'GAME SETTINGS', audit: 'AUDIT LOG' }[view];
+  $('viewTitle').textContent = {
+    overview: 'OVERVIEW', players: 'PLAYERS', analytics: 'ANALYTICS', online: 'ONLINE ROOMS', liveops: 'LIVE OPS',
+    leaderboards: 'LEADERBOARDS', reports: 'REPORTS', settings: 'GAME SETTINGS', audit: 'AUDIT LOG',
+  }[view];
   try {
     if (view === 'overview') await renderOverview();
+    else if (view === 'analytics') await renderAnalytics();
+    else if (view === 'liveops') await renderLiveOps();
+    else if (view === 'leaderboards') await renderLeaderboards();
+    else if (view === 'reports') await renderReports();
     else if (view === 'players') await renderPlayers(quiet);
     else if (view === 'online') await renderOnline();
     else if (view === 'settings') await renderSettings();
@@ -241,6 +259,9 @@ async function render(quiet = false) {
 
 async function renderOverview() {
   const d = await api('/api/admin/overview');
+  overviewCache = d;
+  $('reportCount').textContent = d.reports;
+  $('reportCount').classList.toggle('hidden', !d.reports);
   const max = Math.max(1, ...d.signups.map((s) => s.count));
   const carMax = Math.max(1, ...d.popularCars.map((c) => c[1]));
   $('view').innerHTML = `
@@ -252,6 +273,8 @@ async function renderOverview() {
       ${kpi('RACES RUN', num(d.races), `${num(d.wins)} wins`)}
       ${kpi('LAPS DRIVEN', num(d.laps))}
       ${kpi('CREDITS HELD', num(d.credits), `${num(d.creditsEarned)} earned`)}
+      ${kpi('ACTIVE TODAY', num(d.dauToday), `${num(d.dauWeek)} player-days this week`)}
+      ${kpi('OPEN REPORTS', num(d.reports))}
       ${kpi('BANNED', num(d.banned))}
     </div>
     <div class="grid2">
@@ -337,6 +360,15 @@ async function openUser(id) {
       <button class="btn primary" data-act="grant">APPLY</button></div>
       <p class="meta">The player's game picks up the change on its next cloud sync.</p>
     </div>
+    <div class="card"><h2>PLAYER TOOLS</h2>
+      <div class="toolbar"><input type="text" id="newName" placeholder="New username" value="${esc(u.username)}" style="max-width:220px" />
+        <button class="btn" data-act="rename">RENAME</button></div>
+      <div class="toolbar"><input type="text" id="msgText" placeholder="Message shown to the player on their next sign-in" maxlength="300" />
+        <button class="btn" data-act="message">SEND MESSAGE</button></div>
+      <div class="toolbar" style="margin:0"><select id="carPick" class="select">${(d.cars || []).map((c) => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join('')}</select>
+        <button class="btn" data-act="givecar">GIVE CAR</button>
+        <button class="btn" data-act="${u.lbHidden ? 'lbshow' : 'lbhide'}">${u.lbHidden ? 'SHOW ON LEADERBOARDS' : 'HIDE FROM LEADERBOARDS'}</button></div>
+    </div>
     <div class="card"><h2>ACCOUNT</h2><div class="actions">
       <button class="btn" data-act="kick">KICK FROM ONLINE</button>
       <button class="btn" data-act="logout">SIGN OUT EVERYWHERE</button>
@@ -361,6 +393,9 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawe
 async function userAction(u, act) {
   const body = { action: act };
   if (act === 'grant') body.amount = Number($('amount').value);
+  if (act === 'rename') body.username = $('newName').value.trim();
+  if (act === 'message') body.text = $('msgText').value.trim();
+  if (act === 'givecar') body.carId = $('carPick').value;
   if (act === 'reset' && !confirm(`Erase all progress for ${u.username}?`)) return;
   if (act === 'ban' && !confirm(`Ban ${u.username}? They are signed out and cannot sign in.`)) return;
   if (act === 'delete') {
@@ -397,6 +432,119 @@ async function renderOnline() {
   }));
 }
 
+let overviewCache = null;
+
+function lineChart(points, color) {
+  const w = 600; const h = 160; const max = Math.max(1, ...points.map((p) => p.v));
+  const step = points.length > 1 ? w / (points.length - 1) : w;
+  const xy = points.map((p, i) => [i * step, h - 14 - (p.v / max) * (h - 30)]);
+  const line = xy.map(([x, y], i) => `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
+  const area = `${line} L${w},${h - 14} L0,${h - 14} Z`;
+  return `<svg viewBox="0 0 ${w} ${h}" class="line-chart" preserveAspectRatio="none" role="img">
+    <path d="${area}" fill="${color}" opacity="0.14"></path>
+    <path d="${line}" fill="none" stroke="${color}" stroke-width="2.5" vector-effect="non-scaling-stroke"></path>
+    ${xy.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="3" fill="${color}"><title>${points[i].label}: ${points[i].v}</title></circle>`).join('')}
+  </svg><div class="chart-axis">${points.map((p, i) => `<span>${i % 2 ? '' : p.label.slice(5)}</span>`).join('')}</div>`;
+}
+
+async function renderAnalytics() {
+  const d = await api('/api/admin/overview');
+  const series = (key) => d.daily.map((x) => ({ label: x.day, v: x[key] }));
+  const sum = (key) => d.daily.reduce((a, x) => a + x[key], 0);
+  $('view').innerHTML = `
+    <div class="kpis">
+      ${kpi('ACTIVE TODAY', num(d.dauToday))}
+      ${kpi('PLAYER-DAYS · 14D', num(sum('active')))}
+      ${kpi('LOGINS · 14D', num(sum('logins')))}
+      ${kpi('ONLINE RACES · 14D', num(sum('onlineRaces')))}
+      ${kpi('CLOUD SAVES · 14D', num(sum('saves')))}
+      ${kpi('AVG RACES / PLAYER', d.users ? (d.races / d.users).toFixed(1) : '0')}
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>DAILY ACTIVE PLAYERS</h2>${lineChart(series('active'), '#5ce1e6')}</div>
+      <div class="card"><h2>SIGN-UPS</h2>${lineChart(d.signups.map((x) => ({ label: x.day, v: x.count })), '#ffc46b')}</div>
+      <div class="card"><h2>ONLINE RACES</h2>${lineChart(series('onlineRaces'), '#ff7a45')}</div>
+      <div class="card"><h2>LOGINS</h2>${lineChart(series('logins'), '#8dffb0')}</div>
+    </div>
+    <p class="meta" style="margin-top:12px">Daily counters start from the day this version was deployed.</p>`;
+}
+
+async function renderLiveOps() {
+  const s = await api('/api/admin/settings');
+  const e = s.event;
+  const live = e && e.multiplier > 1 && (!e.endsAt || Date.parse(e.endsAt) > Date.now());
+  const local = (iso) => { if (!iso) return ''; const d = new Date(iso); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
+  $('view').innerHTML = `<div class="grid2">
+    <div class="card"><h2>LIVE EVENT ${live ? '<span class="pill green">RUNNING</span>' : '<span class="pill">OFF</span>'}</h2>
+      <p class="meta">Multiplies every race payout in the game (not practice). Players see a badge in the garage and a line on their results.</p>
+      <label>EVENT NAME<input type="text" id="evName" maxlength="40" value="${esc(e?.name || 'DOUBLE CREDITS WEEKEND')}" /></label>
+      <div class="toolbar" style="margin-top:10px">
+        <label style="flex:1">MULTIPLIER<select id="evMult" class="select">${[1.5, 2, 2.5, 3].map((m) => `<option value="${m}" ${e?.multiplier === m ? 'selected' : ''}>×${m}</option>`).join('')}</select></label>
+        <label style="flex:2">ENDS<input type="datetime-local" id="evEnd" value="${local(e?.endsAt)}" /></label>
+      </div>
+      <div class="toolbar"><button class="btn primary" id="evStart">${live ? 'UPDATE EVENT' : 'START EVENT'}</button>
+        <button class="btn danger" id="evStop" ${e ? '' : 'disabled'}>END EVENT</button></div>
+      <div class="toolbar">${[['WEEKEND ×2', 2, 3], ['24 H ×1.5', 1.5, 1], ['FLASH 2 H ×3', 3, 2 / 24]].map(([n, m, days]) => `<button class="btn" data-preset="${m}|${days}">${n}</button>`).join('')}</div>
+    </div>
+    <div class="card"><h2>BROADCAST TO ONLINE PLAYERS</h2>
+      <p class="meta">Pops up right now for everyone connected to online play (${num(overviewCache?.onlineNow || 0)} players at last refresh).</p>
+      <textarea id="bcText" rows="3" maxlength="200" placeholder="e.g. Server restart in 5 minutes"></textarea>
+      <div class="toolbar" style="margin-top:10px"><button class="btn primary" id="bcSend">SEND NOW</button></div>
+      <h2 style="margin-top:16px">ANNOUNCEMENT</h2>
+      <p class="meta">Shown once to every player when they open the game. Edit it in SETTINGS.</p>
+      <p>${esc(s.announcement || '—')}</p>
+    </div>
+  </div>`;
+  const send = async (event) => {
+    try { await api('/api/admin/settings', { method: 'POST', body: JSON.stringify({ event }) }); toast(event ? 'Event live' : 'Event ended'); renderLiveOps(); } catch (err) { toast(err.message, true); }
+  };
+  $('evStart').onclick = () => send({ name: $('evName').value, multiplier: Number($('evMult').value), endsAt: $('evEnd').value ? new Date($('evEnd').value).toISOString() : null });
+  $('evStop').onclick = () => send(null);
+  document.querySelectorAll('[data-preset]').forEach((b) => b.addEventListener('click', () => {
+    const [m, days] = b.dataset.preset.split('|').map(Number);
+    $('evMult').value = String(m);
+    $('evEnd').value = local(new Date(Date.now() + days * 86400000).toISOString());
+  }));
+  $('bcSend').onclick = async () => {
+    try { const r = await api('/api/admin/broadcast', { method: 'POST', body: JSON.stringify({ message: $('bcText').value }) }); toast(`Sent to ${r.sent} players`); $('bcText').value = ''; } catch (err) { toast(err.message, true); }
+  };
+}
+
+let lbCircuit = null;
+async function renderLeaderboards() {
+  const d = await api(`/api/admin/leaderboard${lbCircuit ? `?circuit=${lbCircuit}` : ''}`);
+  lbCircuit = d.circuit;
+  const fmt = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')}`;
+  $('view').innerHTML = `<div class="toolbar">${d.circuits.map((c) => `<button class="btn ${c.id === d.circuit ? 'primary' : ''}" data-circuit="${c.id}">${esc(c.name)}</button>`).join('')}</div>
+    <div class="card table-wrap">${d.rows.length ? `<table><tr><th>#</th><th>DRIVER</th><th>BEST LAP</th><th>CAR</th><th></th></tr>
+      ${d.rows.map((r, i) => `<tr><td>${i + 1}</td><td class="click" data-user="${r.userId}"><b>${esc(r.username)}</b></td><td>${fmt(r.time)}</td><td>${esc(r.car)}</td>
+        <td><button class="btn danger" data-hide="${r.userId}">HIDE (CHEAT)</button></td></tr>`).join('')}</table>`
+      : '<p class="empty">No laps on this circuit yet.</p>'}</div>
+    <p class="meta">Hidden players disappear from every public leaderboard; unhide them from their player page.</p>`;
+  document.querySelectorAll('[data-circuit]').forEach((b) => b.addEventListener('click', () => { lbCircuit = b.dataset.circuit; renderLeaderboards(); }));
+  document.querySelectorAll('[data-hide]').forEach((b) => b.addEventListener('click', async () => {
+    try { await api(`/api/admin/users/${b.dataset.hide}/action`, { method: 'POST', body: JSON.stringify({ action: 'lbhide' }) }); toast('Hidden from leaderboards'); renderLeaderboards(); } catch (err) { toast(err.message, true); }
+  }));
+  bindUserRows();
+}
+
+async function renderReports() {
+  const { reports } = await api('/api/admin/reports');
+  $('reportCount').textContent = reports.length;
+  $('reportCount').classList.toggle('hidden', !reports.length);
+  $('view').innerHTML = `<div class="card table-wrap">${reports.length ? `<table><tr><th>WHEN</th><th>REPORTED</th><th>BY</th><th>REASON</th><th></th></tr>
+    ${reports.map((r) => `<tr><td>${ago(r.at)}</td>
+      <td>${r.targetId ? `<a href="#" data-open="${r.targetId}"><b>${esc(r.target)}</b></a>` : `<b>${esc(r.target)}</b>`}</td>
+      <td>${esc(r.reporter)}</td><td style="white-space:normal">${esc(r.reason)}</td>
+      <td><button class="btn" data-resolve="${esc(r.id)}">RESOLVE</button></td></tr>`).join('')}</table>`
+    : '<p class="empty">No open reports. 🎉</p>'}</div>
+    <p class="meta">Players report each other from online rooms. Open the reported player to rename, message, kick or ban them, then resolve the report.</p>`;
+  document.querySelectorAll('[data-open]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); openUser(a.dataset.open); }));
+  document.querySelectorAll('[data-resolve]').forEach((b) => b.addEventListener('click', async () => {
+    try { await api('/api/admin/reports', { method: 'POST', body: JSON.stringify({ id: b.dataset.resolve }) }); toast('Resolved'); renderReports(); } catch (err) { toast(err.message, true); }
+  }));
+}
+
 async function renderSettings() {
   const s = await api('/api/admin/settings');
   $('view').innerHTML = `<div class="card" style="max-width:720px">
@@ -406,12 +554,23 @@ async function renderSettings() {
     <div class="toolbar" style="margin-top:10px"><button class="btn primary" id="saveAnn">PUBLISH</button><button class="btn" id="clearAnn">CLEAR</button></div>
     <h2 style="margin-top:18px">SWITCHES</h2>
     <div class="toggle"><span><b>New sign-ups</b><small>Off: the game refuses to create new accounts.</small></span><div class="switch ${s.signupsOpen ? 'on' : ''}" data-key="signupsOpen"></div></div>
+    <div class="toolbar" style="margin-top:14px"><button class="btn" id="btnBackup">DOWNLOAD FULL BACKUP (JSON)</button></div>
     <div class="toggle"><span><b>Online play</b><small>Off: no new online connections (players already racing finish their race).</small></span><div class="switch ${s.onlineOpen ? 'on' : ''}" data-key="onlineOpen"></div></div>
   </div>`;
   const save = async (patch) => {
     try { await api('/api/admin/settings', { method: 'POST', body: JSON.stringify(patch) }); toast('Saved'); renderSettings(); } catch (err) { toast(err.message, true); }
   };
   $('saveAnn').onclick = () => save({ announcement: $('ann').value });
+  $('btnBackup').onclick = async () => {
+    try {
+      const data = await api('/api/admin/export');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+      a.download = `sunset-drift-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      toast(`Backup of ${data.users.length} players downloaded`);
+    } catch (err) { toast(err.message, true); }
+  };
   $('clearAnn').onclick = () => save({ announcement: '' });
   document.querySelectorAll('.switch').forEach((sw) => sw.addEventListener('click', () => save({ [sw.dataset.key]: !sw.classList.contains('on') })));
 }

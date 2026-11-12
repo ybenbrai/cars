@@ -251,6 +251,7 @@ export class Lobby {
     if (!this.canStart(room)) return this.error(player, 'Every driver must be ready.');
 
     room.state = 'countdown';
+    this.onRaceStart?.(room);
     room.results = null;
     room.firstFinishAt = 0;
     // Random grid so the host has no built-in advantage.

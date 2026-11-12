@@ -81,6 +81,8 @@ export function computeRewards({
   eventCleared = false,
   eventReward = 0,
   firstWinBonus = 0,
+  eventMultiplier = 1,
+  eventName = '',
 }) {
   const diff = getDifficulty(difficulty);
   const lines = [];
@@ -149,6 +151,13 @@ export function computeRewards({
   if (newLapRecord) {
     const value = Math.round(600 + (circuit?.lengthKm || 0.6) * 260);
     lines.push({ label: 'New circuit lap record', value });
+    total += value;
+  }
+
+  // Live event (e.g. double credits weekend) multiplies the whole payout.
+  if (eventMultiplier > 1 && total > 0) {
+    const value = Math.round(total * (Math.min(3, eventMultiplier) - 1));
+    lines.push({ label: `${eventName || 'Live event'} ×${eventMultiplier}`, value });
     total += value;
   }
 
