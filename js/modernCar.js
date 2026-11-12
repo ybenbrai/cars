@@ -24,7 +24,7 @@ import { toCreasedNormals, mergeGeometries } from 'three/addons/utils/BufferGeom
 // tail: y | bar | split | triple | square; spoiler: big | duck | roof | none
 // exhaust: hex | quad | twin; spokes: rim spoke count
 export const FAMILIES = {
-  hatch: { beltRaise: 0.3, hoodDrop: 0.2, tailDrop: 0.04, hood: 1.8, flare: 0.04, wing: 0.05, roof: 'hatch', lamps: 'slim', grille: 'mesh', tail: 'split', spoiler: 'roof', exhaust: 'twin', spokes: 5 },
+  hatch: { cabinToTail: true, beltRaise: 0.26, hoodDrop: 0.2, tailDrop: 0.04, hood: 1.8, flare: 0.04, wing: 0.05, roof: 'hatch', lamps: 'slim', grille: 'mesh', tail: 'split', spoiler: 'roof', exhaust: 'twin', spokes: 5 },
   sedan: { beltRaise: 0.36, hoodDrop: 0.18, tailDrop: 0.06, hood: 2.6, flare: 0.035, wing: 0.04, roof: 'notch', lamps: 'bar', grille: 'big', tail: 'bar', spoiler: 'none', exhaust: 'quad', spokes: 5 },
   sports: { beltRaise: 0.12, hoodDrop: 0.26, tailDrop: 0.08, hood: 1.4, flare: 0.06, wing: 0.06, roof: 'fast', lamps: 'slim', grille: 'mesh', tail: 'split', spoiler: 'duck', exhaust: 'twin', spokes: 10 },
   roadster: { beltRaise: 0.1, hoodDrop: 0.2, tailDrop: 0.06, hood: 1.6, flare: 0.05, wing: 0.05, roof: 'open', lamps: 'round', grille: 'mesh', tail: 'split', spoiler: 'duck', exhaust: 'twin', spokes: 5 },
@@ -32,8 +32,8 @@ export const FAMILIES = {
   muscle: { beltRaise: 0.26, hoodDrop: 0.12, tailDrop: 0.06, hood: 3.0, flare: 0.07, wing: 0.05, roof: 'fast', lamps: 'square', grille: 'wide', tail: 'triple', spoiler: 'duck', exhaust: 'twin', spokes: 5 },
   super: { beltRaise: 0.02, hoodDrop: 0.36, tailDrop: 0.12, hood: 1.15, flare: 0.08, wing: 0.08, roof: 'canopy', lamps: 'slim', grille: 'none', tail: 'bar', spoiler: 'duck', exhaust: 'quad', spokes: 10, scoops: true, diffuser: true },
   hyper: { beltRaise: 0, hoodDrop: 0.42, tailDrop: 0.16, hood: 1.0, flare: 0.09, wing: 0.1, roof: 'canopy', lamps: 'y', grille: 'none', tail: 'y', spoiler: 'big', exhaust: 'hex', spokes: 10, scoops: true, diffuser: true },
-  suv: { beltRaise: 0.45, hoodDrop: 0.14, tailDrop: 0.04, hood: 3.2, flare: 0.04, wing: 0.03, roof: 'boxy', lamps: 'square', grille: 'big', tail: 'square', spoiler: 'roof', exhaust: 'twin', spokes: 5, clad: true, rails: true },
-  offroad: { beltRaise: 0.4, hoodDrop: 0.12, tailDrop: 0.04, hood: 3.0, flare: 0.06, wing: 0.04, roof: 'boxy', lamps: 'round', grille: 'wide', tail: 'square', spoiler: 'roof', exhaust: 'twin', spokes: 6, clad: true, lightbar: true },
+  suv: { beltRaise: 0.3, hoodDrop: 0.14, tailDrop: 0.04, hood: 3.2, flare: 0.04, wing: 0.03, roof: 'boxy', lamps: 'square', grille: 'big', tail: 'square', spoiler: 'roof', exhaust: 'twin', spokes: 5, clad: true, rails: true },
+  offroad: { beltRaise: 0.3, hoodDrop: 0.12, tailDrop: 0.04, hood: 3.0, flare: 0.06, wing: 0.04, roof: 'boxy', lamps: 'round', grille: 'wide', tail: 'square', spoiler: 'roof', exhaust: 'twin', spokes: 6, clad: true, lightbar: true },
 };
 
 export const familyFor = (def) => (FAMILIES[def.body?.style] ? def.body.style : null);
@@ -136,7 +136,8 @@ function profileFor(def, fam) {
   const L = b.length;
   const r = b.wheelRadius;
   const tOf = (z) => Math.min(1, Math.max(0, (z + L / 2) / L));
-  const tCabR = tOf(b.cabinZ - b.cabinLength / 2);
+  // Hatchbacks: the roof runs almost to the tail, ending in a steep hatch.
+  const tCabR = fam.cabinToTail ? tOf(-L / 2 + 0.22) : tOf(b.cabinZ - b.cabinLength / 2);
   const tCabF = tOf(b.cabinZ + b.cabinLength / 2);
   // Beltline: part of the old cabin height becomes painted body, so tall
   // cars get tall flanks and a sensible amount of glass.
@@ -145,7 +146,7 @@ function profileFor(def, fam) {
   const glassH = b.cabinHeight - raise;
   const floor = Math.max(0.1, b.rideHeight - 0.2);
   const noseY = Math.max(floor + 0.2, b.noseDrop - 0.04, belt - fam.hoodDrop - 0.1);
-  const tailY = Math.max(b.tailHeight, belt - fam.tailDrop);
+  const tailY = fam.cabinToTail ? belt - 0.02 : Math.max(b.tailHeight, belt - fam.tailDrop);
   const hoodTop = belt - 0.03;
   // Bonnet from the windscreen (u=0) to the nose (u=1).
   const keys = [[0, tailY - 0.05], [0.035, tailY + 0.01], [Math.max(0.06, tCabR - 0.05), Math.max(tailY + 0.03, belt - 0.04)], [tCabR, belt], [tCabF, belt - 0.01]];
@@ -231,6 +232,25 @@ function buildBody(model, def, fam, prof) {
         clad.position.set(sx * (st.w - 0.01), r, za);
       }
     }
+  }
+  if (def.modernBed) {
+    // Pickup: an open load bed between the cab and the tailgate.
+    const z0 = -L / 2 + 0.12;
+    const z1 = b.cabinZ - b.cabinLength / 2 - 0.08;
+    const st = nearest(info, (z0 + z1) / 2);
+    const bed = mesh(new THREE.BoxGeometry(st.w * 1.7, 0.02, z1 - z0), model.trimMat, group, false);
+    bed.position.set(0, st.center + 0.004, (z0 + z1) / 2);
+    for (const sx of [-1, 1]) {
+      const rail = mesh(new THREE.BoxGeometry(0.05, 0.05, z1 - z0), model.trimMat, group, false);
+      rail.position.set(sx * st.w * 0.9, st.center + 0.03, (z0 + z1) / 2);
+    }
+    // Low sports bar behind the cab: two posts and a crossbar.
+    for (const sx of [-1, 1]) {
+      const post = mesh(new THREE.BoxGeometry(0.05, 0.3, 0.05), model.trimMat, group, false);
+      post.position.set(sx * st.w * 0.8, st.center + 0.15, z1 - 0.12);
+    }
+    const cross = mesh(new THREE.BoxGeometry(st.w * 1.65, 0.05, 0.05), model.trimMat, group, false);
+    cross.position.set(0, st.center + 0.3, z1 - 0.12);
   }
   if (fam.clad) {
     const st = info[Math.floor(info.length / 2)];
@@ -511,9 +531,10 @@ function buildSides(model, def, fam, info, g) {
     if (fam.scoops) {
       const zs = b.cabinZ - b.cabinLength * 0.4;
       const st = nearest(info, zs);
-      const scoop = mesh(new THREE.BoxGeometry(0.012, 0.17, 0.56), black, g, false);
-      scoop.position.set(sx * (st.w + 0.004), st.mid + 0.05, zs);
-      scoop.rotation.x = 0.32;
+      // Side intake: a slim dark slot along the flank, angled with the body.
+      const scoop = mesh(new THREE.BoxGeometry(0.01, 0.07, 0.48), black, g, false);
+      scoop.position.set(sx * (st.w + 0.003), st.mid + 0.02, zs);
+      scoop.rotation.x = 0.12;
     }
     // Mirror on a short stalk near the base of the windscreen.
     const mz = b.cabinZ + b.cabinLength / 2 - 0.12;

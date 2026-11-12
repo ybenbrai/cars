@@ -277,6 +277,7 @@ export const CARS = [
     pros: ['Unshakeable over rough surfaces', 'Huge mechanical grip'],
     cons: ['Heavy, tall and thirsty', 'Slow to change direction'],
     physics: { speed: 0.99, accel: 1.04, grip: 1.06, turn: 1.0, boost: 1.1, slide: 0.85 },
+    modernBed: true,
     body: body('offroad', {
       length: 4.72, width: 2.06, wheelRadius: 0.48, wheelbase: 1.62,
       cabinLength: 1.9, cabinWidth: 1.56, cabinHeight: 0.66, cabinZ: -0.16,
