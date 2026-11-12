@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Ranked seasons: admins end a season from the dashboard; every ranked
+  driver is paid by final division (1,000 to 40,000 CR, delivered with an
+  inbox message), the top 10 enter a Hall of Fame and ratings soft-reset.
+  The ONLINE tab shows the season number and last champion.
+- Cheat-resistant leaderboards: laps faster than the fastest fully tuned
+  car could drive are flagged and never shown publicly; online best laps
+  must also fit inside the server-timed race. Flagged laps appear in the
+  dashboard for review.
 - Daily login rewards: a seven-day ladder (500 → 5,000 CR) shown as a
   popup in the garage; consecutive days climb, a missed day restarts.
 - Ranked online racing: every online race with two or more finishers

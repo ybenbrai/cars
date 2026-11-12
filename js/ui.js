@@ -1392,14 +1392,14 @@ export class UI {
           </button>
         </div>
         ${this.ranked?.me ? `<section class="ranked-card div-${this.ranked.me.division.toLowerCase()}">
-          <div><small>RANKED · YOUR DIVISION</small><strong>${esc(this.ranked.me.division)}</strong></div>
+          <div><small>SEASON ${this.ranked.season || 1} · DIVISION</small><strong>${esc(this.ranked.me.division)}</strong></div>
           <div><small>RATING</small><strong>${this.ranked.me.rating}</strong></div>
           <div><small>RANKED RACES</small><strong>${this.ranked.me.races}</strong></div>
           <div><small>WORLD</small><strong>${this.ranked.me.position ? `#${this.ranked.me.position}` : '—'}</strong></div>
         </section>
         <p class="custom-note">Every online race with two or more finishers is ranked. Beat higher-rated drivers to climb faster.</p>` : ''}
         ${this.ranked?.top?.length ? `<section class="online-open">
-          <div class="section-head"><span>TOP RANKED DRIVERS</span></div>
+          <div class="section-head"><span>TOP RANKED DRIVERS</span>${this.ranked.lastChampions?.length ? `<span>LAST CHAMPION: ${esc(this.ranked.lastChampions[0].username)}</span>` : ''}</div>
           <ol class="standings">${this.ranked.top.slice(0, 5).map((r, i) => `<li class="${r.username === auth.displayName ? 'me' : ''}"><b>#${i + 1}</b><span>${esc(r.username)} <small>${esc(r.division)}</small></span><em>${r.rating}</em></li>`).join('')}</ol>
         </section>` : ''}
         <section class="online-open">

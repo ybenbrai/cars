@@ -232,7 +232,6 @@ function attachStore(next) {
 }
 
 async function adoptAccount() {
-  showInbox();
   cloud.reset();
   const next = new SaveStore(`user-${auth.user.id}`);
   next.load();
@@ -259,6 +258,8 @@ async function adoptAccount() {
   }
   if (ui.tab === 'online') handleOnline('connect');
   tryPendingRoom();
+  // After the account's own save is in place, so inbox credits land there.
+  showInbox();
   return { ok: true };
 }
 
@@ -298,6 +299,16 @@ async function showInbox() {
     const res = await fetch('/api/inbox', { method: 'POST', headers: { Accept: 'application/json' } });
     if (!res.ok) return;
     const { messages = [] } = await res.json();
+    // Messages can carry credits (season rewards); the server deletes them on
+    // read, so each one is paid once.
+    let credits = 0;
+    for (const m of messages) credits += Math.max(0, Math.min(100000, Number(m.credits) || 0));
+    if (credits && store) {
+      store.data.wallet += credits;
+      store.data.stats.creditsEarned += credits;
+      store.save();
+      if (state === 'garage') ui.renderGarage(store, auth);
+    }
     messages.forEach((m, i) => setTimeout(() => ui.notice(`MESSAGE FROM SUNSET DRIFT · ${m.text}`, 'ok', 10000), i * 1200));
   } catch { /* offline */ }
 }

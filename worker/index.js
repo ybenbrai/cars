@@ -337,7 +337,10 @@ export class GameServer {
         mine = { rating, division: divisionFor(rating).name, races: u.rankedRaces || 0, best: u.bestRating || rating,
           position: users.findIndex((x) => x.id === me.id) + 1 || null };
       }
-      return json(200, { top, me: mine });
+      const settings = await this.admin.settings();
+      const number = settings.season?.number || 1;
+      const last = number > 1 ? await this.storage.get(`hall:${number - 1}`) : null;
+      return json(200, { top, me: mine, season: number, lastChampions: last?.top?.slice(0, 3) || [] });
     }
 
     if (path === '/api/community') {

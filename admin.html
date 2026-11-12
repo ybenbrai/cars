@@ -142,6 +142,7 @@
     <button data-view="online">ONLINE</button>
     <button data-view="liveops">LIVE OPS</button>
     <button data-view="leaderboards">LEADERBOARDS</button>
+    <button data-view="seasons">RANKED SEASONS</button>
     <button data-view="reports">REPORTS <span id="reportCount" class="pill red hidden"></span></button>
     <button data-view="settings">SETTINGS</button>
     <button data-view="audit">AUDIT LOG</button>
@@ -239,13 +240,14 @@ document.querySelectorAll('nav [data-view]').forEach((b) => b.addEventListener('
 async function render(quiet = false) {
   $('viewTitle').textContent = {
     overview: 'OVERVIEW', players: 'PLAYERS', analytics: 'ANALYTICS', online: 'ONLINE ROOMS', liveops: 'LIVE OPS',
-    leaderboards: 'LEADERBOARDS', reports: 'REPORTS', settings: 'GAME SETTINGS', audit: 'AUDIT LOG',
+    leaderboards: 'LEADERBOARDS', seasons: 'RANKED SEASONS', reports: 'REPORTS', settings: 'GAME SETTINGS', audit: 'AUDIT LOG',
   }[view];
   try {
     if (view === 'overview') await renderOverview();
     else if (view === 'analytics') await renderAnalytics();
     else if (view === 'liveops') await renderLiveOps();
     else if (view === 'leaderboards') await renderLeaderboards();
+    else if (view === 'seasons') await renderSeasons();
     else if (view === 'reports') await renderReports();
     else if (view === 'players') await renderPlayers(quiet);
     else if (view === 'online') await renderOnline();
@@ -536,15 +538,54 @@ async function renderLeaderboards() {
   const fmt = (t) => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, '0')}`;
   $('view').innerHTML = `<div class="toolbar">${d.circuits.map((c) => `<button class="btn ${c.id === d.circuit ? 'primary' : ''}" data-circuit="${c.id}">${esc(c.name)}</button>`).join('')}</div>
     <div class="card table-wrap">${d.rows.length ? `<table><tr><th>#</th><th>DRIVER</th><th>BEST LAP</th><th>CAR</th><th></th></tr>
-      ${d.rows.map((r, i) => `<tr><td>${i + 1}</td><td class="click" data-user="${r.userId}"><b>${esc(r.username)}</b></td><td>${fmt(r.time)}</td><td>${esc(r.car)}</td>
-        <td><button class="btn danger" data-hide="${r.userId}">HIDE (CHEAT)</button></td></tr>`).join('')}</table>`
+      ${d.rows.map((r, i) => `<tr><td>${r.flagged ? '—' : i + 1}</td><td class="click" data-user="${r.userId}"><b>${esc(r.username)}</b>
+          ${r.flagged ? ' <span class="pill red" title="Faster than any car in the game can drive. Never shown publicly.">IMPOSSIBLE LAP</span>' : ''}
+          ${r.hidden ? ' <span class="pill">HIDDEN</span>' : ''}</td><td>${fmt(r.time)}</td><td>${esc(r.car)}</td>
+        <td>${r.flagged || r.hidden ? '' : `<button class="btn danger" data-hide="${r.userId}">HIDE (CHEAT)</button>`}</td></tr>`).join('')}</table>`
       : '<p class="empty">No laps on this circuit yet.</p>'}</div>
-    <p class="meta">Hidden players disappear from every public leaderboard; unhide them from their player page.</p>`;
+    <p class="meta">Laps faster than the fastest fully tuned car could drive are flagged automatically and never shown to players. Hidden players disappear from every public leaderboard; unhide them from their player page.</p>`;
   document.querySelectorAll('[data-circuit]').forEach((b) => b.addEventListener('click', () => { lbCircuit = b.dataset.circuit; renderLeaderboards(); }));
   document.querySelectorAll('[data-hide]').forEach((b) => b.addEventListener('click', async () => {
     try { await api(`/api/admin/users/${b.dataset.hide}/action`, { method: 'POST', body: JSON.stringify({ action: 'lbhide' }) }); toast('Hidden from leaderboards'); renderLeaderboards(); } catch (err) { toast(err.message, true); }
   }));
   bindUserRows();
+}
+
+async function renderSeasons() {
+  const d = await api('/api/admin/season');
+  const order = ['CHAMPION', 'DIAMOND', 'PLATINUM', 'GOLD', 'SILVER', 'BRONZE'];
+  const total = Object.values(d.rewards).length;
+  $('view').innerHTML = `
+    <div class="kpis">
+      ${kpi('CURRENT SEASON', num(d.season.number), d.season.startedAt ? `since ${new Date(d.season.startedAt).toLocaleDateString()}` : 'since launch')}
+      ${kpi('RANKED DRIVERS', num(d.players))}
+      ${order.slice(0, 3).map((div) => kpi(div, num(d.byDivision[div] || 0))).join('')}
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>DIVISIONS NOW</h2>
+        ${order.map((div) => { const n = d.byDivision[div] || 0; const max = Math.max(1, ...Object.values(d.byDivision)); return `<div class="hbar"><span>${div}</span><i style="width:${(n / max) * 100}%"></i><b>${n}</b></div>`; }).join('')}
+        <h2 style="margin-top:16px">END-OF-SEASON REWARDS</h2>
+        <div class="detail-grid">${order.map((div) => `<div><small>${div}</small>${num(d.rewards[div.toLowerCase()])} CR</div>`).join('')}</div>
+      </div>
+      <div class="card"><h2>END SEASON ${d.season.number}</h2>
+        <p class="meta">Pays every ranked driver the reward for their division (delivered to their inbox on next sign-in), saves the top 10 to the Hall of Fame, and softly resets ratings halfway back to 1,000.</p>
+        <label>Type <b>END SEASON ${d.season.number}</b> to confirm<input type="text" id="seasonConfirm" autocomplete="off" /></label>
+        <div class="toolbar" style="margin-top:10px"><button class="btn danger" id="seasonEnd">END SEASON AND PAY REWARDS</button></div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><h2>HALL OF FAME</h2>
+      ${d.hall.length ? d.hall.map((h) => `<h3 style="margin:10px 0 6px;font-size:14px">SEASON ${h.number} <span class="meta">ended ${new Date(h.endedAt).toLocaleDateString()}</span></h3>
+        <table><tr><th>#</th><th>DRIVER</th><th>DIVISION</th><th>RATING</th><th>RACES</th></tr>
+        ${h.top.map((t, i) => `<tr><td>${i === 0 ? '🏆' : i + 1}</td><td><b>${esc(t.username)}</b></td><td>${esc(t.division)}</td><td>${t.rating}</td><td>${t.races}</td></tr>`).join('')}</table>`).join('')
+        : '<p class="empty">No finished seasons yet.</p>'}
+    </div>`;
+  $('seasonEnd').onclick = async () => {
+    try {
+      const r = await api('/api/admin/season', { method: 'POST', body: JSON.stringify({ confirm: $('seasonConfirm').value.trim() }) });
+      toast(`Season ended: ${r.players} drivers paid ${num(r.paid)} CR. Season ${r.season.number} has begun.`);
+      renderSeasons();
+    } catch (err) { toast(err.message, true); }
+  };
 }
 
 async function renderReports() {

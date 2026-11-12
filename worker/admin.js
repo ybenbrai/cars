@@ -5,6 +5,8 @@
 
 import { CARS, rankForWins, RANK_LABELS } from '../js/data/cars.js';
 import { CIRCUITS } from '../js/data/circuits.js';
+import { plausibleLap } from '../js/lapCheck.js';
+import { divisionFor, seasonReset, SEASON_REWARDS, START_RATING } from '../server/ranked.mjs';
 
 const ADMIN_COOKIE = 'sd_admin';
 const ADMIN_TTL_MS = 12 * 60 * 60 * 1000;
@@ -292,7 +294,11 @@ export class Admin {
 
     if (path === '/api/admin/leaderboard') {
       const circuit = new URL(request.url).searchParams.get('circuit') || CIRCUITS[0].id;
-      const rows = (await leaderboard(this, circuit, 50)).map((r) => ({ ...r, car: CARS.find((c) => c.id === r.car)?.name || r.car }));
+      const rows = [];
+      for (const r of await leaderboard(this, circuit, 50, true)) {
+        if (r.flagged) r.username = (await this.storage.get(`user:${r.userId}`))?.username || r.userId;
+        rows.push({ ...r, car: CARS.find((c) => c.id === r.car)?.name || r.car });
+      }
       return json(200, { circuit, rows, circuits: CIRCUITS.filter((c) => !c.practiceOnly).map((c) => ({ id: c.id, name: c.name })) });
     }
 
@@ -308,6 +314,50 @@ export class Admin {
         await this.audit('report.resolve', { id: body.id, note: String(body.note || '').slice(0, 120) });
         return json(200, { ok: true });
       }
+    }
+
+    if (path === '/api/admin/season') {
+      const settings = await this.settings();
+      const season = settings.season || { number: 1, startedAt: null };
+      if (method === 'GET') {
+        const hall = [];
+        for (let n = season.number - 1; n >= Math.max(1, season.number - 5); n--) {
+          const h = await this.storage.get(`hall:${n}`);
+          if (h) hall.push(h);
+        }
+        const ranked = (await this.list('user:')).map(([, u]) => u).filter((u) => (u.rankedRaces || 0) > 0 && !u.banned);
+        const byDivision = {};
+        for (const u of ranked) { const d = divisionFor(u.rating ?? START_RATING).name; byDivision[d] = (byDivision[d] || 0) + 1; }
+        return json(200, { season, players: ranked.length, byDivision, rewards: SEASON_REWARDS, hall });
+      }
+      if (method !== 'POST') return json(405, { error: 'Method not allowed.' });
+      const body = await readBody(request);
+      if (body.confirm !== `END SEASON ${season.number}`) return json(400, { error: `Type END SEASON ${season.number} to confirm.` });
+      const ranked = (await this.list('user:')).map(([, u]) => u).filter((u) => (u.rankedRaces || 0) > 0 && !u.banned)
+        .sort((a, b) => (b.rating ?? START_RATING) - (a.rating ?? START_RATING));
+      const hall = {
+        number: season.number, endedAt: new Date().toISOString(), startedAt: season.startedAt,
+        top: ranked.slice(0, 10).map((u) => ({ username: u.username, rating: u.rating, division: divisionFor(u.rating).name, races: u.rankedRaces })),
+      };
+      let paid = 0;
+      for (const u of ranked) {
+        const div = divisionFor(u.rating ?? START_RATING);
+        const credits = SEASON_REWARDS[div.id] || 0;
+        u.inbox = [...(u.inbox || []), {
+          text: `Season ${season.number} is over! You finished in ${div.name} with ${u.rating}. Season reward: ${credits.toLocaleString('en-US')} CR.`,
+          credits, at: new Date().toISOString(),
+        }].slice(-10);
+        u.seasons = [...(u.seasons || []), { number: season.number, rating: u.rating, division: div.name }].slice(-20);
+        u.rating = seasonReset(u.rating ?? START_RATING);
+        u.rankedRaces = 0;
+        await this.storage.put(`user:${u.id}`, u);
+        paid += credits;
+      }
+      await this.storage.put(`hall:${season.number}`, hall);
+      settings.season = { number: season.number + 1, startedAt: new Date().toISOString() };
+      await this.storage.put('settings', settings);
+      await this.audit('season.end', { season: season.number, players: ranked.length, paid });
+      return json(200, { ok: true, season: settings.season, players: ranked.length, paid });
     }
 
     if (path === '/api/admin/broadcast' && method === 'POST') {
@@ -460,15 +510,20 @@ export async function markActive(storage, userId) {
 }
 
 /** Top laps on a circuit from player summaries (banned and hidden excluded). */
-export async function leaderboard(admin, circuitId, limit = 20) {
+export async function leaderboard(admin, circuitId, limit = 20, includeFlagged = false) {
   const rows = [];
   for (const [key, summary] of await admin.list('summary:')) {
     const t = summary?.bestLaps?.[circuitId];
     if (!Number.isFinite(t)) continue;
+    // Faster than any build in the game could drive: never shown publicly.
+    if (!plausibleLap(circuitId, t)) {
+      if (includeFlagged) rows.push({ userId: key.slice('summary:'.length), username: '', time: t, car: summary.selectedCar || '', flagged: true });
+      continue;
+    }
     const userId = key.slice('summary:'.length);
     const user = await admin.storage.get(`user:${userId}`);
-    if (!user || user.banned || user.lbHidden) continue;
-    rows.push({ userId, username: user.username, time: t, car: summary.selectedCar || '' });
+    if (!user || user.banned || (user.lbHidden && !includeFlagged)) continue;
+    rows.push({ userId, username: user.username, time: t, car: summary.selectedCar || '', hidden: !!user.lbHidden });
   }
   rows.sort((a, b) => a.time - b.time);
   return rows.slice(0, limit);

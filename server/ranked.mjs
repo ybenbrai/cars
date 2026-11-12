@@ -41,5 +41,8 @@ export function rateRace(ratings) {
   });
 }
 
+/** Credits paid at the end of a season for the division a driver reached. */
+export const SEASON_REWARDS = { bronze: 1000, silver: 2500, gold: 5000, platinum: 10000, diamond: 20000, champion: 40000 };
+
 /** Soft reset between seasons: halfway back to the start rating. */
 export const seasonReset = (rating) => Math.round(START_RATING + (rating - START_RATING) / 2);

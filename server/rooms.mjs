@@ -12,6 +12,7 @@ import { randomBytes } from 'node:crypto';
 
 import { CARS, normalizeLook } from '../js/data/cars.js';
 import { CIRCUITS } from '../js/data/circuits.js';
+import { plausibleLap } from '../js/lapCheck.js';
 
 export const ROOM_SIZE = 6;
 export const MAX_ROOMS = 500;
@@ -320,7 +321,9 @@ export class Lobby {
     player.finished = true;
     // Ranked by the server's clock, not the client's claim.
     player.finishMs = Math.max(0, this.now() - room.startedAt);
-    player.bestLap = finite(bestLap, 1, 3600) ? bestLap : null;
+    // A best lap must be physically possible and fit inside the race time.
+    player.bestLap = finite(bestLap, 1, 3600) && plausibleLap(room.circuitId, bestLap)
+      && bestLap * room.laps <= (player.finishMs / 1000) * 1.05 + 2 ? bestLap : null;
     if (!room.firstFinishAt) {
       room.firstFinishAt = this.now();
       this.clearTimer(room.timer);
