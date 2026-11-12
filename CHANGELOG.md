@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Admin dashboard at `/admin` (Cloudflare backend, protected by an
+  `ADMIN_TOKEN` secret): KPIs, sign-up chart, top drivers, popular cars;
+  player list with search, CSV export and details with credit grants,
+  progress reset, sign-out everywhere, kick, ban and delete; live online
+  rooms with close and kick; announcement banner, sign-up and online-play
+  switches; audit log.
 - Online invites: rooms show an INVITE FRIENDS card with COPY CODE and
   SHARE INVITE LINK (native share sheet on phones). Opening a link like
   `/?room=ABCDE` jumps to ONLINE and joins the room after sign-in.

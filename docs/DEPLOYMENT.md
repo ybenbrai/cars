@@ -146,6 +146,24 @@ Accounts created on a self-hosted Node server do not carry over.
 Every push to `main` then builds and publishes. Do **not** use
 `npx wrangler pages deploy`: Pages cannot run the Worker or Durable Object.
 
+#### Admin dashboard (`/admin`)
+
+The Worker also serves an admin dashboard at `https://<your-site>/admin`:
+overview KPIs and charts, player search with details and actions (credits,
+reset, sign out everywhere, kick, ban, delete), live online rooms (close room,
+kick), game switches (announcement shown to players, pause sign-ups, pause
+online play), CSV export and an audit log of every admin action.
+
+It stays switched off until you add a secret:
+
+1. Cloudflare Dashboard → your `sunset-drift` Worker → **Settings → Variables
+   and Secrets → Add** → type **Secret**, name **`ADMIN_TOKEN`**, value: a long
+   random string (16+ characters; a password manager can generate one).
+2. Deploy (or wait for the next push), open `/admin` and paste the token.
+
+The token is never stored in the browser: signing in gives a 12-hour HttpOnly
+admin cookie scoped to `/api/admin`. Rotate the secret to revoke access.
+
 #### Local test of the Cloudflare build
 
 ```bash

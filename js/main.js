@@ -2186,6 +2186,7 @@ async function boot() {
   const tag = document.getElementById('buildTag');
   if (tag) tag.textContent = `BUILD ${BUILD.toUpperCase()}`;
   await auth.bootstrap();
+  showAnnouncement();
   if (auth.isAccount) {
     // Returning session: the cloud copy wins if it is newer than this browser's.
     await adoptAccount();
@@ -2206,6 +2207,18 @@ async function boot() {
   }
 
   setTimeout(() => document.getElementById('loader').classList.add('done'), 320);
+}
+
+// Admin announcement (Cloudflare backend): shown once per message.
+async function showAnnouncement() {
+  try {
+    const res = await fetch('/api/health', { headers: { Accept: 'application/json' } });
+    if (!res.ok) return;
+    const text = String((await res.json()).announcement || '').trim();
+    if (!text || localStorage.getItem('sd-announcement-seen') === text) return;
+    ui.notice(text, 'ok', 9000);
+    localStorage.setItem('sd-announcement-seen', text);
+  } catch { /* static host or offline */ }
 }
 
 // Turning the phone upright mid-race pauses it under the rotate hint; turning

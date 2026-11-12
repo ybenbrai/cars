@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>Sunset Drift Admin</title>
+<link rel="icon" type="image/svg+xml" href="assets/icon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0b0714; --panel: #130c1f; --panel-2: #1a1128; --line: rgba(255, 246, 236, 0.1);
+    --ink: #fff6ec; --muted: rgba(255, 246, 236, 0.7); --faint: rgba(255, 246, 236, 0.45);
+    --orange: #ff7a45; --gold: #ffc46b; --green: #8dffb0; --red: #ff4d6d; --cyan: #5ce1e6;
+    --display: "Chakra Petch", system-ui, sans-serif; --body: "Inter", system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font-family: var(--body); font-size: 14px; }
+  button, input, textarea { font: inherit; color: inherit; }
+  .hidden { display: none !important; }
+  h1, h2, h3 { font-family: var(--display); letter-spacing: 0.06em; margin: 0; }
+
+  /* Sign-in */
+  .gate { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+  .gate form { width: min(380px, 100%); background: var(--panel); border: 1px solid var(--line); padding: 28px; display: grid; gap: 14px; }
+  .brand { font-family: var(--display); font-weight: 700; letter-spacing: 0.2em; font-size: 15px; }
+  .brand b { color: var(--orange); }
+
+  /* Layout */
+  .app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+  nav { background: var(--panel); border-right: 1px solid var(--line); padding: 20px 12px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0; height: 100vh; }
+  nav .brand { padding: 0 10px 18px; }
+  nav button { text-align: left; background: none; border: 0; padding: 10px 12px; border-radius: 6px; cursor: pointer; color: var(--muted); font-family: var(--display); letter-spacing: 0.1em; font-size: 13px; }
+  nav button.active, nav button:hover { background: var(--panel-2); color: var(--ink); }
+  nav button.active { box-shadow: inset 3px 0 0 var(--orange); }
+  nav .spacer { flex: 1; }
+  main { padding: 24px 28px 48px; min-width: 0; }
+  header.top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  header.top h1 { font-size: 22px; }
+  .meta { color: var(--faint); font-size: 12px; }
+
+  /* Components */
+  .btn { border: 1px solid var(--line); background: var(--panel-2); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-family: var(--display); letter-spacing: 0.08em; font-size: 12px; }
+  .btn:hover { border-color: var(--orange); }
+  .btn.primary { background: var(--orange); border-color: var(--orange); color: #1b0b05; font-weight: 700; }
+  .btn.danger { border-color: rgba(255, 77, 109, 0.6); color: var(--red); }
+  .btn.danger:hover { background: rgba(255, 77, 109, 0.12); }
+  input[type=text], input[type=password], input[type=search], input[type=number], textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 9px 11px; outline: none;
+  }
+  input:focus, textarea:focus { border-color: var(--orange); }
+  label { display: grid; gap: 6px; font-size: 12px; color: var(--muted); letter-spacing: 0.06em; }
+  .error { color: var(--red); font-size: 13px; min-height: 18px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 12px; margin-bottom: 18px; }
+  .kpi { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
+  .kpi small { display: block; color: var(--faint); font-size: 11px; letter-spacing: 0.14em; font-family: var(--display); }
+  .kpi strong { display: block; font-family: var(--display); font-size: 26px; margin-top: 6px; }
+  .kpi em { font-style: normal; font-size: 12px; color: var(--green); }
+  .grid2 { display: grid; grid-template-columns: 1.4fr 1fr; gap: 14px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; min-width: 0; }
+  .card h2 { font-size: 13px; letter-spacing: 0.16em; color: var(--muted); margin-bottom: 12px; }
+  .chart { display: flex; align-items: flex-end; gap: 6px; height: 160px; }
+  .chart .bar { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; height: 100%; justify-content: flex-end; }
+  .chart .bar i { width: 100%; background: linear-gradient(180deg, var(--gold), var(--orange)); border-radius: 3px 3px 0 0; min-height: 2px; }
+  .chart .bar span { font-size: 10px; color: var(--faint); }
+  .chart .bar b { font-size: 11px; color: var(--muted); font-weight: 500; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--faint); font-weight: 500; font-size: 11px; letter-spacing: 0.12em; font-family: var(--display); }
+  tr.click { cursor: pointer; }
+  tr.click:hover td { background: var(--panel-2); }
+  .table-wrap { overflow-x: auto; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11px; border: 1px solid var(--line); }
+  .pill.green { color: var(--green); border-color: rgba(141, 255, 176, 0.4); }
+  .pill.red { color: var(--red); border-color: rgba(255, 77, 109, 0.5); }
+  .pill.gold { color: var(--gold); border-color: rgba(255, 196, 107, 0.5); }
+  .toolbar { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+  .toolbar input { max-width: 320px; }
+  .hbar { display: grid; grid-template-columns: 120px 1fr 32px; gap: 10px; align-items: center; margin: 6px 0; font-size: 13px; }
+  .hbar i { display: block; height: 8px; background: var(--cyan); border-radius: 4px; }
+  .toggle { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .toggle span { display: grid; gap: 2px; }
+  .toggle small { color: var(--faint); }
+  .switch { width: 44px; height: 24px; border-radius: 12px; background: var(--panel-2); border: 1px solid var(--line); position: relative; cursor: pointer; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; border-radius: 50%; background: var(--muted); transition: 0.15s; }
+  .switch.on { background: rgba(141, 255, 176, 0.25); border-color: var(--green); }
+  .switch.on::after { left: 22px; background: var(--green); }
+  .empty { color: var(--faint); padding: 18px 0; }
+  .room { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin-bottom: 10px; background: var(--panel); }
+  .room-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .room-head strong { font-family: var(--display); font-size: 18px; letter-spacing: 0.2em; color: var(--gold); }
+
+  /* Drawer */
+  .drawer-bg { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 10; }
+  .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(560px, 100%); background: var(--panel); border-left: 1px solid var(--line); z-index: 11; overflow-y: auto; padding: 22px; display: grid; gap: 16px; align-content: start; }
+  .drawer h2 { font-size: 20px; }
+  .drawer .card h2 { font-size: 13px; }
+  a.btn { color: var(--ink); }
+  .detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .detail-grid div { background: var(--panel-2); border-radius: 6px; padding: 8px 10px; }
+  .detail-grid small { display: block; color: var(--faint); font-size: 10px; letter-spacing: 0.12em; }
+  .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  pre { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 12px; max-height: 300px; overflow: auto; font-size: 12px; color: var(--muted); }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--green); color: var(--green); padding: 10px 16px; border-radius: 6px; z-index: 20; }
+  .toast.bad { border-color: var(--red); color: var(--red); }
+
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; }
+    nav { position: static; height: auto; flex-direction: row; overflow-x: auto; padding: 10px; border-right: 0; border-bottom: 1px solid var(--line); }
+    nav .brand, nav .spacer { display: none; }
+    main { padding: 16px; }
+    .grid2 { grid-template-columns: 1fr; }
+    .detail-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+<section class="gate hidden" id="gate">
+  <form id="loginForm">
+    <div class="brand">SUNSET<b>DRIFT</b> · ADMIN</div>
+    <label>ADMIN TOKEN<input type="password" id="token" autocomplete="current-password" required /></label>
+    <div class="error" id="loginError"></div>
+    <button class="btn primary" type="submit">SIGN IN</button>
+    <p class="meta">The token is the <code>ADMIN_TOKEN</code> secret set in Cloudflare. It is never stored in this browser; you get a 12-hour admin session cookie.</p>
+  </form>
+</section>
+
+<div class="app hidden" id="app">
+  <nav>
+    <div class="brand">SUNSET<b>DRIFT</b></div>
+    <button data-view="overview" class="active">OVERVIEW</button>
+    <button data-view="players">PLAYERS</button>
+    <button data-view="online">ONLINE</button>
+    <button data-view="settings">SETTINGS</button>
+    <button data-view="audit">AUDIT LOG</button>
+    <div class="spacer"></div>
+    <button id="btnLogout">SIGN OUT</button>
+  </nav>
+  <main>
+    <header class="top">
+      <h1 id="viewTitle">OVERVIEW</h1>
+      <div class="toolbar" style="margin:0">
+        <span class="meta" id="updated"></span>
+        <button class="btn" id="btnRefresh">REFRESH</button>
+        <a class="btn" href="/" target="_blank" rel="noopener" style="text-decoration:none">OPEN GAME ↗</a>
+      </div>
+    </header>
+    <div id="view"></div>
+  </main>
+</div>
+
+<div class="drawer-bg hidden" id="drawerBg"></div>
+<aside class="drawer hidden" id="drawer" aria-label="Player details"></aside>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const num = (n) => Number(n || 0).toLocaleString('en-US');
+const ago = (iso) => {
+  if (!iso) return '—';
+  const s = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  return `${Math.floor(s / 86400)} d ago`;
+};
+
+async function api(path, options = {}) {
+  const res = await fetch(path, { credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, ...options });
+  let data = {};
+  try { data = await res.json(); } catch { /* empty */ }
+  if (res.status === 401) { showGate(); throw new Error(data.error || 'Sign in required.'); }
+  if (!res.ok) throw new Error(data.error || `Error ${res.status}`);
+  return data;
+}
+
+function toast(text, bad = false) {
+  const el = document.createElement('div');
+  el.className = `toast ${bad ? 'bad' : ''}`;
+  el.textContent = text;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 3200);
+}
+
+let view = 'overview';
+let users = [];
+let timer = null;
+
+function showGate(message = '') {
+  $('app').classList.add('hidden');
+  $('gate').classList.remove('hidden');
+  $('loginError').textContent = message;
+  clearInterval(timer);
+}
+
+function showApp() {
+  $('gate').classList.add('hidden');
+  $('app').classList.remove('hidden');
+  render();
+  clearInterval(timer);
+  timer = setInterval(() => { if (view === 'overview' || view === 'online') render(true); }, 10000);
+}
+
+$('loginForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('loginError').textContent = '';
+  try {
+    await api('/api/admin/login', { method: 'POST', body: JSON.stringify({ token: $('token').value }) });
+    $('token').value = '';
+    showApp();
+  } catch (err) {
+    $('loginError').textContent = err.message;
+  }
+});
+
+$('btnLogout').addEventListener('click', async () => {
+  try { await api('/api/admin/logout', { method: 'POST' }); } catch { /* ignore */ }
+  showGate();
+});
+$('btnRefresh').addEventListener('click', () => render());
+document.querySelectorAll('nav [data-view]').forEach((b) => b.addEventListener('click', () => {
+  view = b.dataset.view;
+  document.querySelectorAll('nav [data-view]').forEach((x) => x.classList.toggle('active', x === b));
+  render();
+}));
+
+async function render(quiet = false) {
+  $('viewTitle').textContent = { overview: 'OVERVIEW', players: 'PLAYERS', online: 'ONLINE ROOMS', settings: 'GAME SETTINGS', audit: 'AUDIT LOG' }[view];
+  try {
+    if (view === 'overview') await renderOverview();
+    else if (view === 'players') await renderPlayers(quiet);
+    else if (view === 'online') await renderOnline();
+    else if (view === 'settings') await renderSettings();
+    else await renderAudit();
+    $('updated').textContent = `Updated ${new Date().toLocaleTimeString()}`;
+  } catch (err) {
+    if (!quiet) $('view').innerHTML = `<p class="error">${esc(err.message)}</p>`;
+  }
+}
+
+async function renderOverview() {
+  const d = await api('/api/admin/overview');
+  const max = Math.max(1, ...d.signups.map((s) => s.count));
+  const carMax = Math.max(1, ...d.popularCars.map((c) => c[1]));
+  $('view').innerHTML = `
+    <div class="kpis">
+      ${kpi('PLAYERS', num(d.users), `+${d.newWeek} this week`)}
+      ${kpi('NEW TODAY', num(d.newToday))}
+      ${kpi('SIGNED IN', num(d.signedIn), `${num(d.activeSessions)} sessions`)}
+      ${kpi('ONLINE NOW', num(d.onlineNow), `${d.rooms} rooms · ${d.racing} racing`)}
+      ${kpi('RACES RUN', num(d.races), `${num(d.wins)} wins`)}
+      ${kpi('LAPS DRIVEN', num(d.laps))}
+      ${kpi('CREDITS HELD', num(d.credits), `${num(d.creditsEarned)} earned`)}
+      ${kpi('BANNED', num(d.banned))}
+    </div>
+    <div class="grid2">
+      <div class="card"><h2>SIGN-UPS · LAST 14 DAYS</h2>
+        <div class="chart">${d.signups.map((s) => `<div class="bar" title="${s.day}: ${s.count}">
+          <b>${s.count || ''}</b><i style="height:${(s.count / max) * 100}%"></i><span>${s.day.slice(8)}</span></div>`).join('')}</div>
+      </div>
+      <div class="card"><h2>MOST EQUIPPED CARS</h2>
+        ${d.popularCars.length ? d.popularCars.map(([car, n]) => `<div class="hbar"><span>${esc(car)}</span><i style="width:${(n / carMax) * 100}%"></i><b>${n}</b></div>`).join('') : '<p class="empty">No cloud saves yet.</p>'}
+      </div>
+    </div>
+    <div class="card" style="margin-top:14px"><h2>TOP DRIVERS</h2>
+      ${d.topPlayers.length ? `<div class="table-wrap"><table><tr><th>DRIVER</th><th>RANK</th><th>WINS</th><th>RACES</th><th>PODIUMS</th><th>WALLET</th><th>CARS</th></tr>
+        ${d.topPlayers.map((p) => `<tr class="click" data-user="${p.id}"><td><b>${esc(p.username)}</b></td><td>${esc(p.rank)}</td><td>${num(p.wins)}</td><td>${num(p.races)}</td><td>${num(p.podiums)}</td><td>${num(p.wallet)} CR</td><td>${p.cars}</td></tr>`).join('')}
+      </table></div>` : '<p class="empty">No races yet.</p>'}
+    </div>
+    ${d.settings.announcement ? `<div class="card" style="margin-top:14px"><h2>LIVE ANNOUNCEMENT</h2><p>${esc(d.settings.announcement)}</p></div>` : ''}`;
+  bindUserRows();
+}
+
+const kpi = (label, value, sub = '') => `<div class="kpi"><small>${label}</small><strong>${value}</strong>${sub ? `<em>${esc(sub)}</em>` : ''}</div>`;
+
+async function renderPlayers(quiet) {
+  const q = $('search')?.value || '';
+  users = (await api('/api/admin/users')).users;
+  if (quiet && $('search')) return drawPlayers(q);
+  $('view').innerHTML = `
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="Search username or email" value="${esc(q)}" />
+      <span class="meta" id="count"></span>
+      <button class="btn" id="btnCsv">EXPORT CSV</button>
+    </div>
+    <div class="card table-wrap"><table id="userTable"></table></div>`;
+  $('search').addEventListener('input', () => drawPlayers($('search').value));
+  $('btnCsv').addEventListener('click', exportCsv);
+  drawPlayers(q);
+}
+
+function drawPlayers(q) {
+  const term = q.trim().toLowerCase();
+  const rows = users.filter((u) => !term || u.username.toLowerCase().includes(term) || u.email.includes(term));
+  $('count').textContent = `${rows.length} of ${users.length}`;
+  $('userTable').innerHTML = `<tr><th>DRIVER</th><th>EMAIL</th><th>STATUS</th><th>RANK</th><th>RACES</th><th>WINS</th><th>WALLET</th><th>JOINED</th><th>LAST SAVE</th></tr>
+    ${rows.map((u) => `<tr class="click" data-user="${u.id}">
+      <td><b>${esc(u.username)}</b></td><td>${esc(u.email)}</td>
+      <td>${u.banned ? '<span class="pill red">BANNED</span>' : u.online ? '<span class="pill green">ONLINE</span>' : u.sessions ? '<span class="pill gold">SIGNED IN</span>' : '<span class="pill">OFFLINE</span>'}</td>
+      <td>${esc(u.summary?.rank || '—')}</td><td>${num(u.summary?.races)}</td><td>${num(u.summary?.wins)}</td>
+      <td>${u.summary ? `${num(u.summary.wallet)} CR` : '—'}</td><td>${ago(u.createdAt)}</td><td>${ago(u.summary?.updatedAt)}</td></tr>`).join('')
+    || '<tr><td colspan="9" class="empty">No players match.</td></tr>'}`;
+  bindUserRows();
+}
+
+function exportCsv() {
+  const head = ['id', 'username', 'email', 'created', 'banned', 'rank', 'races', 'wins', 'wallet', 'cars', 'lastSave'];
+  const lines = [head.join(',')].concat(users.map((u) => [u.id, u.username, u.email, u.createdAt, u.banned, u.summary?.rank || '',
+    u.summary?.races || 0, u.summary?.wins || 0, u.summary?.wallet || 0, u.summary?.cars || 0, u.summary?.updatedAt || '']
+    .map((v) => `"${String(v).replace(/"/g, '""')}"`).join(',')));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' }));
+  a.download = `sunset-drift-players-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+}
+
+function bindUserRows() {
+  document.querySelectorAll('[data-user]').forEach((row) => row.addEventListener('click', () => openUser(row.dataset.user)));
+}
+
+async function openUser(id) {
+  const d = await api(`/api/admin/users/${id}`);
+  const u = d.user;
+  const s = d.summary || {};
+  $('drawer').innerHTML = `
+    <div class="toolbar" style="justify-content:space-between;margin:0"><h2>${esc(u.username)}</h2><button class="btn" id="close">CLOSE</button></div>
+    <div class="meta">${esc(u.email)} · joined ${new Date(u.createdAt).toLocaleString()} · ${esc(u.id)}
+      ${u.banned ? ' · <span class="pill red">BANNED</span>' : ''}</div>
+    <div class="detail-grid">
+      ${[['RANK', s.rank || '—'], ['WALLET', s.wallet != null ? `${num(s.wallet)} CR` : '—'], ['RACES', num(s.races)], ['WINS', num(s.wins)],
+         ['PODIUMS', num(s.podiums)], ['LAPS', num(s.laps)], ['CARS', num(s.cars)], ['ACHIEVEMENTS', num(s.achievements)], ['LAST SAVE', ago(d.updatedAt)]]
+        .map(([k, v]) => `<div><small>${k}</small>${esc(v)}</div>`).join('')}
+    </div>
+    <div class="card"><h2>CREDITS</h2>
+      <div class="toolbar" style="margin:0"><input type="number" id="amount" placeholder="Amount (negative to remove)" style="max-width:220px" />
+      <button class="btn primary" data-act="grant">APPLY</button></div>
+      <p class="meta">The player's game picks up the change on its next cloud sync.</p>
+    </div>
+    <div class="card"><h2>ACCOUNT</h2><div class="actions">
+      <button class="btn" data-act="kick">KICK FROM ONLINE</button>
+      <button class="btn" data-act="logout">SIGN OUT EVERYWHERE</button>
+      <button class="btn ${u.banned ? '' : 'danger'}" data-act="${u.banned ? 'unban' : 'ban'}">${u.banned ? 'UNBAN' : 'BAN'}</button>
+      <button class="btn danger" data-act="reset">RESET PROGRESS</button>
+      <button class="btn danger" data-act="delete">DELETE ACCOUNT</button>
+    </div></div>
+    <div class="card"><h2>CLOUD SAVE</h2>${d.save ? `<pre>${esc(JSON.stringify(d.save, null, 2))}</pre>` : '<p class="empty">No cloud save.</p>'}</div>`;
+  $('drawer').classList.remove('hidden');
+  $('drawerBg').classList.remove('hidden');
+  $('close').onclick = closeDrawer;
+  $('drawer').querySelectorAll('[data-act]').forEach((b) => b.addEventListener('click', () => userAction(u, b.dataset.act)));
+}
+
+function closeDrawer() {
+  $('drawer').classList.add('hidden');
+  $('drawerBg').classList.add('hidden');
+}
+$('drawerBg').addEventListener('click', closeDrawer);
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawer(); });
+
+async function userAction(u, act) {
+  const body = { action: act };
+  if (act === 'grant') body.amount = Number($('amount').value);
+  if (act === 'reset' && !confirm(`Erase all progress for ${u.username}?`)) return;
+  if (act === 'ban' && !confirm(`Ban ${u.username}? They are signed out and cannot sign in.`)) return;
+  if (act === 'delete') {
+    const typed = prompt(`Type ${u.username} to delete this account permanently.`);
+    if (typed !== u.username) return;
+    body.confirm = typed;
+  }
+  try {
+    await api(`/api/admin/users/${u.id}/action`, { method: 'POST', body: JSON.stringify(body) });
+    toast('Done');
+    if (act === 'delete') closeDrawer(); else openUser(u.id);
+    render(true);
+  } catch (err) { toast(err.message, true); }
+}
+
+async function renderOnline() {
+  const d = await api('/api/admin/rooms');
+  $('view').innerHTML = `<div class="kpis">${kpi('CONNECTED PLAYERS', num(d.players))}${kpi('ROOMS', num(d.rooms.length))}${kpi('RACING', num(d.rooms.filter((r) => r.state !== 'lobby').length))}</div>
+    ${d.rooms.length ? d.rooms.map((r) => `<div class="room">
+      <div class="room-head"><strong>${esc(r.code)}</strong>
+        <span class="meta">${r.public ? 'PUBLIC' : 'PRIVATE'} · ${esc(r.circuitId)} · ${r.laps} laps · ${esc(r.state.toUpperCase())} · ${r.players.length}/${r.size}</span>
+        <button class="btn danger" data-close="${esc(r.code)}">CLOSE ROOM</button></div>
+      <div class="table-wrap"><table><tr><th>DRIVER</th><th>CAR</th><th>STATUS</th><th></th></tr>
+        ${r.players.map((p) => `<tr><td><b>${esc(p.name)}</b>${p.host ? ' <span class="pill gold">HOST</span>' : ''}</td><td>${esc(p.carId)}</td>
+          <td>${p.ready ? '<span class="pill green">READY</span>' : '<span class="pill">WAITING</span>'}</td>
+          <td><button class="btn" data-kick="${esc(p.userId)}">KICK</button></td></tr>`).join('')}
+      </table></div></div>`).join('') : '<div class="card"><p class="empty">No online rooms right now.</p></div>'}`;
+  document.querySelectorAll('[data-close]').forEach((b) => b.addEventListener('click', async () => {
+    if (!confirm(`Close room ${b.dataset.close}?`)) return;
+    try { await api(`/api/admin/rooms/${b.dataset.close}/close`, { method: 'POST' }); toast('Room closed'); render(); } catch (err) { toast(err.message, true); }
+  }));
+  document.querySelectorAll('[data-kick]').forEach((b) => b.addEventListener('click', async () => {
+    try { await api(`/api/admin/users/${b.dataset.kick}/action`, { method: 'POST', body: JSON.stringify({ action: 'kick' }) }); toast('Player kicked'); render(); } catch (err) { toast(err.message, true); }
+  }));
+}
+
+async function renderSettings() {
+  const s = await api('/api/admin/settings');
+  $('view').innerHTML = `<div class="card" style="max-width:720px">
+    <h2>ANNOUNCEMENT</h2>
+    <label>Shown once to every player when they open the game (max 240 characters). Leave empty for none.
+      <textarea id="ann" rows="3" maxlength="240">${esc(s.announcement)}</textarea></label>
+    <div class="toolbar" style="margin-top:10px"><button class="btn primary" id="saveAnn">PUBLISH</button><button class="btn" id="clearAnn">CLEAR</button></div>
+    <h2 style="margin-top:18px">SWITCHES</h2>
+    <div class="toggle"><span><b>New sign-ups</b><small>Off: the game refuses to create new accounts.</small></span><div class="switch ${s.signupsOpen ? 'on' : ''}" data-key="signupsOpen"></div></div>
+    <div class="toggle"><span><b>Online play</b><small>Off: no new online connections (players already racing finish their race).</small></span><div class="switch ${s.onlineOpen ? 'on' : ''}" data-key="onlineOpen"></div></div>
+  </div>`;
+  const save = async (patch) => {
+    try { await api('/api/admin/settings', { method: 'POST', body: JSON.stringify(patch) }); toast('Saved'); renderSettings(); } catch (err) { toast(err.message, true); }
+  };
+  $('saveAnn').onclick = () => save({ announcement: $('ann').value });
+  $('clearAnn').onclick = () => save({ announcement: '' });
+  document.querySelectorAll('.switch').forEach((sw) => sw.addEventListener('click', () => save({ [sw.dataset.key]: !sw.classList.contains('on') })));
+}
+
+async function renderAudit() {
+  const { log } = await api('/api/admin/audit');
+  $('view').innerHTML = `<div class="card table-wrap">${log.length ? `<table><tr><th>WHEN</th><th>ACTION</th><th>DETAILS</th></tr>
+    ${log.map((e) => { const { at, action, ...rest } = e; return `<tr><td>${new Date(at).toLocaleString()}</td><td><b>${esc(action)}</b></td><td class="meta">${esc(JSON.stringify(rest))}</td></tr>`; }).join('')}
+  </table>` : '<p class="empty">No admin actions yet.</p>'}</div>`;
+}
+
+// Start: try the overview; a 401 shows the sign-in form.
+api('/api/admin/overview').then(showApp).catch((err) => showGate(/not set up/i.test(err.message) ? err.message : ''));
+</script>
+</body>
+</html>

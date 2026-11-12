@@ -8,6 +8,7 @@
 // Same HTTP/WebSocket API as server.mjs, so the browser code is unchanged.
 
 import { Lobby } from '../server/rooms.mjs';
+import { Admin, summarize } from './admin.js';
 
 const SESSION_COOKIE = 'sd_session';
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -23,6 +24,11 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
+    // The dashboard page itself is static (dist/admin.html); its data is
+    // behind the admin API.
+    if (url.pathname === '/admin' || url.pathname === '/admin/') {
+      return env.ASSETS.fetch(new Request(new URL('/admin.html', url), request));
+    }
     if (url.pathname === '/api' || url.pathname.startsWith('/api/')) {
       // Hashing and the lobby run inside the Durable Object (its CPU limit is
       // far above the free Worker's 10 ms).
@@ -103,6 +109,7 @@ export class GameServer {
     this.buckets = new Map();
     this.perIp = new Map();
     this.lobby = new Lobby();
+    this.admin = new Admin(this);
   }
 
   async fetch(request) {
@@ -138,7 +145,7 @@ export class GameServer {
       return null;
     }
     const user = await this.storage.get(`user:${session.userId}`);
-    return user ? publicUser(user) : null;
+    return user && !user.banned ? publicUser(user) : null;
   }
 
   async startSession(request, userId) {
@@ -155,7 +162,15 @@ export class GameServer {
     const isRead = method === 'GET' || method === 'HEAD';
 
     if (path === '/api/health') {
-      return json(200, { ok: true, service: 'sunset-drift', auth: true, multiplayer: true, host: 'cloudflare', time: new Date().toISOString() });
+      const settings = await this.admin.settings();
+      return json(200, {
+        ok: true, service: 'sunset-drift', auth: true, multiplayer: settings.onlineOpen, host: 'cloudflare',
+        announcement: settings.announcement || '', time: new Date().toISOString(),
+      });
+    }
+
+    if (path.startsWith('/api/admin/')) {
+      return this.admin.route(request, path, method, json, readBody, cookies(request));
     }
 
     if (path === '/api/auth/session') {
@@ -165,6 +180,7 @@ export class GameServer {
     if (path === '/api/auth/register') {
       if (method !== 'POST') return json(405, { error: 'Method not allowed.' }, { Allow: 'POST' });
       if (this.rateLimited(request)) return json(429, { error: 'Too many attempts. Wait a minute and try again.' }, { 'Retry-After': '60' });
+      if (!(await this.admin.settings()).signupsOpen) return json(403, { error: 'New sign-ups are paused right now. Try again later.' });
       const body = await readBody(request);
       const username = String(body.username || '').trim();
       const email = String(body.email || '').trim().toLowerCase();
@@ -218,6 +234,7 @@ export class GameServer {
       if (!safeEqual(await hashPassword(password, user.salt), user.passwordHash)) {
         return json(401, { error: 'Email or password is incorrect.' });
       }
+      if (user.banned) return json(403, { error: 'This account has been suspended.' });
       const cookie = await this.startSession(request, user.id);
       return json(200, { user: publicUser(user) }, { 'Set-Cookie': cookie });
     }
@@ -248,7 +265,10 @@ export class GameServer {
         return json(409, { error: 'Your cloud save changed on another device.', updatedAt: stored.updatedAt });
       }
       const updatedAt = new Date().toISOString();
-      await this.storage.put(`save:${user.id}`, { save: body.save, updatedAt });
+      await this.storage.put({
+        [`save:${user.id}`]: { save: body.save, updatedAt },
+        [`summary:${user.id}`]: summarize(body.save, updatedAt),
+      });
       return json(200, { ok: true, updatedAt });
     }
 
@@ -269,6 +289,7 @@ export class GameServer {
     }
     const user = await this.currentUser(request);
     if (!user) return new Response('Unauthorized', { status: 401 });
+    if (!(await this.admin.settings()).onlineOpen) return new Response('Online play is paused', { status: 503 });
     const ip = request.headers.get('CF-Connecting-IP') || 'local';
     if ((this.perIp.get(ip) || 0) >= MP_PER_IP) return new Response('Too Many Requests', { status: 429 });
 

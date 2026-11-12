@@ -12,3 +12,6 @@ test-results/
 !.env.example
 .vscode/
 .idea/
+
+# Local Cloudflare secrets
+.dev.vars
