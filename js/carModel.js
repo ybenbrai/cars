@@ -333,7 +333,7 @@ function grilleTexture(kind = 'mesh') {
   ctx.fillRect(0, 0, 256, 128);
 
   if (kind === 'slat') {
-    // Horizontal chrome slats, as used by Mercedes-AMG and the Golf GTI.
+    // Horizontal chrome slats for luxury saloons and hot hatches.
     for (let y = 8; y < 128; y += 13) {
       ctx.fillStyle = 'rgba(190,198,214,0.42)';
       ctx.fillRect(0, y, 256, 3);
@@ -464,8 +464,8 @@ export class CarModel {
     this.look = look;
     // Per-car lighting language: headlight architecture, DRL signature,
     // grille pattern and tail-lamp signature. The body styles still shape the
-    // openings, while these keep a Yaris looking like a Yaris and an
-    // Aventador looking like an Aventador.
+    // openings, while these keep a city hatch looking like a city hatch and a
+    // wedge hypercar looking like a wedge hypercar.
     this.design = {
       headlight: 'projector', drl: 'l-shape', grille: 'mesh', tail: 'clusters',
       ...(carDef.design || {}),
@@ -1202,7 +1202,7 @@ export class CarModel {
     const grille = (x, y, w, h, chrome = false) => {
       const kind = this.design.grille;
       if (kind === 'kidney' && Math.abs(x) < 0.001) {
-        // BMW twin-kidney: two tall upright panels with chrome surrounds.
+        // Twin upright grille panels with chrome surrounds.
         const gw = w * 0.44;
         for (const sx of [-1, 1]) {
           this.add(new THREE.Mesh(
@@ -1217,7 +1217,7 @@ export class CarModel {
         return;
       }
       if (kind === 'horseshoe') {
-        // Bugatti-style arched centre grille with a chrome spine.
+        // Arched centre grille with a chrome spine.
         const gw = w * 0.56;
         this.add(new THREE.Mesh(rbox(gw + 0.04, h + 0.04, 0.035, h * 0.5), this.chromeMat))
           .position.set(x, y, z + 0.008);

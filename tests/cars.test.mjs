@@ -86,8 +86,8 @@ test('every car carries real-world design cues for its lights and grille', () =>
   }
   // The roster is a set of real production cars, each named exactly once.
   assert.equal(names.size, CARS.length);
-  assert.ok(CARS.some((car) => /toyota yaris/i.test(car.name)));
-  assert.ok(CARS.some((car) => /bugatti chiron/i.test(car.name)));
+  assert.ok(CARS.some((car) => /koto mira/i.test(car.name)));
+  assert.ok(CARS.some((car) => /valmont nocturne/i.test(car.name)));
 });
 
 test('getCar falls back to the first car for unknown ids', () => {
@@ -164,5 +164,14 @@ test('cosmetic palettes use validated hex colours', () => {
   }
   for (const glow of UNDERGLOWS) {
     if (glow.hex) assert.match(glow.hex, HEX);
+  }
+});
+
+test('no real car brand names appear in the catalogue', () => {
+  const brands = /toyota|volkswagen|\bvw\b|honda|bmw|mercedes|\bamg\b|audi|subaru|\bford\b|porsche|range rover|land rover|dodge|mazda|mclaren|ferrari|lamborghini|bugatti|nissan|chevrolet|jeep/i;
+  for (const car of CARS) {
+    for (const text of [car.name, car.klass, car.tagline, car.description, ...(car.pros || []), ...(car.cons || [])]) {
+      assert.ok(!brands.test(text || ''), `${car.id}: ${text}`);
+    }
   }
 });

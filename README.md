@@ -109,21 +109,22 @@ pauses itself when the tab loses visibility.
 
 ## Cars
 
-The roster is made up of twenty real production cars, from the Toyota Yaris to
-the Bugatti Chiron. Each body is still generated at runtime, with a grille,
-head-lamp cluster, daytime-running signature and tail-lamp motif modelled on
-the real car.
+The roster is made up of twenty cars inspired by real production models but
+with invented names, from the Koto Mira to the Valmont Nocturne W16. No real
+brand names or logos are used. Each body is generated at runtime, with a
+grille, head-lamp cluster, daytime-running signature and tail-lamp motif that
+evoke the kind of car it is inspired by.
 
 | Car | Class | Strength | Trade-off |
 | --- | --- | --- | --- |
-| **TOYOTA YARIS** | City hatch | Light, cheap and endlessly willing | Out of breath on long straights |
-| **VW GOLF GTI** | Hot hatch | Huge grip for the money | Top end fades on long straights |
-| **HONDA CIVIC TYPE R** | Track hatch | Front-end grip that defies the layout | Firm ride on broken roads |
-| **BMW M3 COMPETITION** | Performance sedan | Enormous corner-exit traction | Feels heavy on the nose |
-| **TOYOTA GR SUPRA** | Sports coupe | Punchy turbo straight-six and neat balance | Tight cabin, muted steering feel |
-| **DODGE VIPER ACR** | Track supercar | Highest top end and the hardest-hitting nitro | Heavy nose, wide turning circle |
-| **SUBARU WRX STI** | Rally sedan | Biggest, most controllable drift angle | Low top speed, twitchy over bumps |
-| **BUGATTI CHIRON** | Hypercar | Devastating acceleration and top speed | Long, heavy and thirsty for braking room |
+| **KOTO MIRA** | City hatch | Light, cheap and endlessly willing | Out of breath on long straights |
+| **HALDEN SPRINT R** | Hot hatch | Huge grip for the money | Top end fades on long straights |
+| **TAKEDA ARROW TYPE-Z** | Track hatch | Front-end grip that defies the layout | Firm ride on broken roads |
+| **HALDEN R3 COMPETITION** | Performance sedan | Enormous corner-exit traction | Feels heavy on the nose |
+| **KOTO RONIN GT** | Sports coupe | Punchy turbo straight-six and neat balance | Tight cabin, muted steering feel |
+| **BRAXTON SERPENT TR** | Track supercar | Highest top end and the hardest-hitting nitro | Heavy nose, wide turning circle |
+| **TAKEDA KAZE WRS** | Rally sedan | Biggest, most controllable drift angle | Low top speed, twitchy over bumps |
+| **VALMONT NOCTURNE W16** | Hypercar | Devastating acceleration and top speed | Long, heavy and thirsty for braking room |
 
 Full stats, physics modifiers, scoring formulas and driving tips are in the
 [gameplay guide](docs/GAMEPLAY.md).
