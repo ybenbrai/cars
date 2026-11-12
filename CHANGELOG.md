@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Cloudflare backend: on the Cloudflare Workers deployment, accounts, cloud
+  saves and online races now work (Worker + one SQLite Durable Object, free
+  plan). The API matches the Node server, so the game code is unchanged.
 - FREE DRIFT: a solo, no-clock session on every street circuit, built around
   angle rather than lap times. The session pays a bonus from the banked drift
   score (capped at 3,600 CR); pause → END SESSION banks it at any time.

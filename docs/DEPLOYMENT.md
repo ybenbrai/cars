@@ -112,78 +112,46 @@ Build command: npm run build
 Output directory: dist
 ```
 
-### Cloudflare (Workers static assets)
+### Cloudflare (Workers + Durable Object, free plan)
 
-Cloudflare can host the whole static game on its free plan and redeploy on every
-push. The repository's `wrangler.jsonc` points Cloudflare at the prebuilt
-`dist/` folder:
+Cloudflare runs the whole game, including accounts, cloud saves and online
+races, on the Workers free plan. `wrangler.jsonc` serves the prebuilt `dist/`
+folder as static assets and routes `/api/*` to `worker/index.js`, which
+forwards every API call and WebSocket to one SQLite-backed Durable Object
+(`GameServer`):
 
-```jsonc
-{
-  "name": "sunset-drift",
-  "compatibility_date": "2026-11-12",
-  "assets": { "directory": "./dist" }
-}
-```
+- **Accounts:** PBKDF2-SHA256 (100,000 iterations) password hashes, opaque
+  HttpOnly `SameSite=Strict` session cookies, 30-day sessions.
+- **Cloud saves:** one record per account with the same optimistic-concurrency
+  rule as `server.mjs` (HTTP 409 when another device saved first).
+- **Online lobby:** `server/rooms.mjs` runs unchanged inside the object; its
+  WebSocket connections keep it alive while anyone is connected.
 
-No server code runs and no bindings are needed; Cloudflare only uploads the
-files. Free-plan limits that matter here: 500 builds per month (one at a time),
-up to 20,000 files per site and 25 MiB per file. This build is roughly 50 files
-and under 1 MB, so it fits comfortably.
+Hashing and the lobby run in the Durable Object rather than the Worker
+because the free Worker has a 10 ms CPU limit per request.
 
-#### Connect the GitHub repository (recommended, deploys on every push)
+The API is identical to `server.mjs`, so the browser code needs no changes.
+Accounts created on a self-hosted Node server do not carry over.
 
-1. Open **Cloudflare Dashboard → Workers & Pages → Create → Workers → Connect
-   to Git** (or **Pages → Connect to Git** if that flow is offered).
-2. Authorize GitHub and choose **`ybenbrai/cars`**.
-3. Project name: `sunset-drift`.
-4. Production branch: **`main`**.
-5. Framework preset: **None**.
-6. Build command: **`npm run check && npm test && npm run build`**
-   (or just `npm run build` if you do not want tests to block deploys).
-7. Build output directory: **`dist`**.
-8. Deploy command: **`npx wrangler deploy`** — the current dashboard requires
-   this field. It uploads `dist/` as a static-assets Worker using the repo's
-   `wrangler.jsonc`.
-9. Root directory: leave blank.
-10. Node version: the repo's `.nvmrc` (20) is detected automatically; add a
-    `NODE_VERSION = 20` environment variable only if the build image ignores it.
-11. Save and deploy.
+#### Connect the GitHub repository (deploys on every push)
 
-From then on, every push to `main` builds and publishes a new production
-deployment. Pushes to other branches create preview deployments with their own
-URLs.
+1. **Cloudflare Dashboard → Workers & Pages → Create → Workers → Connect to Git**.
+2. Choose **`ybenbrai/cars`**, project name `sunset-drift`, branch **`main`**.
+3. Build command: **`npm run check && npm test && npm run build`**.
+4. Deploy command: **`npx wrangler deploy`**. It bundles `worker/index.js`,
+   uploads `dist/` and creates the Durable Object on the first deploy
+   (migration `v1`).
+5. Save and deploy.
 
-The site is served at `https://sunset-drift.<account-subdomain>.workers.dev`.
-To use a custom domain, open the project → **Settings → Domains & Routes** and
-follow the DNS instructions. HTTPS is issued automatically.
+Every push to `main` then builds and publishes. Do **not** use
+`npx wrangler pages deploy`: Pages cannot run the Worker or Durable Object.
 
-Do **not** use `npx wrangler pages deploy` as the Deploy command in this flow:
-the build's API token is scoped to Workers, so the Pages API returns
-`Authentication error [code: 10000]`.
-
-#### Manual deploy (optional)
-
-For a one-off upload from your machine:
+#### Local test of the Cloudflare build
 
 ```bash
-npm run deploy          # npm run build && npx wrangler deploy
+npm run build
+npx wrangler dev        # http://localhost:8787, with a local Durable Object
 ```
-
-The first run asks you to log in to Cloudflare. This is useful for testing, but
-the Git integration above is what makes every push deploy automatically.
-
-#### What does not work on static hosting
-
-Cloudflare Pages serves static files only. It does not run `server.mjs`, so the
-account system and online multiplayer are unavailable there, exactly as on
-GitHub Pages; the game stays fully playable as a local guest with saves in
-`localStorage`. To keep accounts and online races, host the Node server
-separately (Render, Railway, Fly.io, a VPS) or port its API and WebSocket rooms
-to Cloudflare Workers/Durable Objects. That port is a separate project.
-
-The canonical, Open Graph, sitemap and robots URLs still point at the GitHub
-Pages address. Update those if the Cloudflare domain becomes the main one.
 
 ### Plain object storage / CDN
 

@@ -1,10 +1,21 @@
 {
-  // Cloudflare Workers static-assets deployment of the prebuilt game in dist/.
-  // `npx wrangler deploy` (the default Deploy command in Workers & Pages) uploads
-  // dist/ as-is; no server code runs. Build with `npm run build` first.
+  // Cloudflare Workers deployment: the prebuilt game in dist/ is served as
+  // static assets, and /api/* (accounts, cloud saves, online lobby) runs in
+  // worker/index.js backed by one SQLite Durable Object. All of this is
+  // available on the Workers free plan. Build with `npm run build` first.
   "name": "sunset-drift",
+  "main": "worker/index.js",
   "compatibility_date": "2026-11-12",
+  "compatibility_flags": ["nodejs_compat"],
   "assets": {
-    "directory": "./dist"
-  }
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "durable_objects": {
+    "bindings": [{ "name": "GAME", "class_name": "GameServer" }]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["GameServer"] }
+  ]
 }
