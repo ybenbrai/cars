@@ -256,3 +256,18 @@ test('practice-only venues are not online venues', () => {
   assert.equal(a.last('error').message, 'Unknown circuit.');
   assert.equal(h.lobby.rooms.get(room.code).circuitId, room.circuitId);
 });
+
+test('public room list shows open public lobbies only', async () => {
+  const { Lobby } = await import('../server/rooms.mjs');
+  const lobby = new Lobby({ setTimer: () => 0, clearTimer: () => {} });
+  const conn = (id) => ({ id, userId: `u${id}`, username: `P${id}`, sent: [], send(m) { this.sent.push(m); }, close() {} });
+  const a = conn('a'); const b = conn('b'); const c = conn('c');
+  [a, b, c].forEach((x) => lobby.connect(x));
+  lobby.handle(a, { type: 'create', public: true });
+  lobby.handle(b, { type: 'create', public: false });
+  lobby.handle(c, { type: 'list' });
+  const list = c.sent.filter((m) => m.type === 'rooms').pop().rooms;
+  assert.equal(list.length, 1);
+  assert.equal(list[0].players, 1);
+  assert.ok(list[0].host);
+});

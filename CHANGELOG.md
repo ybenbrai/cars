@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Online invites: rooms show an INVITE FRIENDS card with COPY CODE and
+  SHARE INVITE LINK (native share sheet on phones). Opening a link like
+  `/?room=ABCDE` jumps to ONLINE and joins the room after sign-in.
+- Open public rooms are listed in the ONLINE lobby (refreshed every few
+  seconds) with one-tap JOIN.
 - Cloudflare backend: on the Cloudflare Workers deployment, accounts, cloud
   saves and online races now work (Worker + one SQLite Durable Object, free
   plan). The API matches the Node server, so the game code is unchanged.

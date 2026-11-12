@@ -1951,3 +1951,23 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
 
 .upgrade-row { cursor: pointer; transition: background 0.15s; }
 .upgrade-row:hover, .upgrade-row:focus-visible { background: rgba(255, 122, 69, 0.06); outline: none; }
+
+/* Online invites and public rooms */
+.invite-card {
+  display: grid; gap: 8px; padding: 12px 14px; margin: 4px 0 12px;
+  border: 1px solid rgba(255, 196, 107, 0.45); background: rgba(255, 196, 107, 0.06);
+}
+.invite-card strong { font-family: var(--font-display); font-size: 13px; letter-spacing: 0.16em; color: var(--gold); }
+.invite-card span { font-size: 13px; color: var(--muted); line-height: 1.45; }
+.invite-card b { color: var(--ink); letter-spacing: 0.12em; }
+.invite-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.invite-actions .btn { flex: 1 1 140px; padding: 10px 12px; font-size: 12px; }
+.online-open { display: grid; gap: 6px; margin: 14px 0; }
+.open-room {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 10px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--line);
+}
+.open-room span { display: grid; gap: 2px; }
+.open-room b { font-family: var(--font-display); font-size: 13px; letter-spacing: 0.06em; }
+.open-room small { font-size: 12px; color: var(--muted); }
+.open-room .btn { padding: 8px 14px; font-size: 11.5px; }

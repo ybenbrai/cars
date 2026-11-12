@@ -111,6 +111,10 @@ export class OnlineClient {
         this.room = msg.room;
         this.emit('room', msg.room);
         break;
+      case 'rooms':
+        this.publicRooms = Array.isArray(msg.rooms) ? msg.rooms : [];
+        this.emit('rooms', this.publicRooms);
+        break;
       case 'pong':
         if (Number.isFinite(msg.t)) this.rtt = Date.now() - msg.t;
         break;
@@ -135,6 +139,7 @@ export class OnlineClient {
   }
 
   quickMatch() { return this.send({ type: 'quick' }); }
+  listRooms() { return this.send({ type: 'list' }); }
   createRoom(circuitId, isPublic = false) { return this.send({ type: 'create', circuitId, public: isPublic }); }
   joinRoom(code) { return this.send({ type: 'join', code }); }
   leaveRoom() { return this.send({ type: 'leave' }); }

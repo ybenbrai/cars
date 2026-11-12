@@ -241,6 +241,7 @@ async function adoptAccount() {
     ui.setAuthState(auth, store);
   }
   if (ui.tab === 'online') handleOnline('connect');
+  tryPendingRoom();
   return { ok: true };
 }
 
@@ -336,6 +337,7 @@ function enterGarage() {
   ui.setMuted(audio.muted);
   ui.renderGarage(store, auth);
   ui.setGarageBest(store.bestLapFor(store.data.circuits[0]) || store.bestLapFor(world?.circuit.id));
+  setTimeout(tryPendingRoom, 0);
 }
 
 function selectCar(carId) {
@@ -2050,9 +2052,46 @@ async function handleOnline(action, payload = {}) {
   else if (action === 'ready') online.setReady(payload.ready);
   else if (action === 'start') online.startRace();
   else if (action === 'config') online.configure(payload);
+  else if (action === 'list') online.listRooms();
 }
 
-online.on('status', () => ui.renderOnline(online, auth, store));
+// Invite links (?room=CODE): open the ONLINE tab and join once connected.
+let pendingRoom = (() => {
+  try {
+    const code = new URLSearchParams(location.search).get('room');
+    return code && /^[A-Za-z0-9]{5}$/.test(code) ? code.toUpperCase() : null;
+  } catch { return null; }
+})();
+if (pendingRoom) {
+  try { history.replaceState(null, '', location.pathname); } catch { /* ignore */ }
+}
+
+function tryPendingRoom() {
+  if (!pendingRoom || state !== 'garage') return;
+  if (ui.tab !== 'online') ui.setTab('online');
+  if (!auth.isAccount) {
+    ui.notice(`Sign in to join room ${pendingRoom}`, 'ok');
+    return;
+  }
+  if (online.connected && !online.room) {
+    online.joinRoom(pendingRoom);
+    pendingRoom = null;
+  }
+}
+
+// Keep the public room list fresh while the lobby screen is open.
+setInterval(() => {
+  if (ui.tab === 'online' && online.connected && !online.room && state === 'garage') online.listRooms();
+}, 6000);
+
+online.on('status', () => {
+  if (online.connected && !online.room) online.listRooms();
+  ui.renderOnline(online, auth, store);
+  tryPendingRoom();
+});
+online.on('rooms', () => {
+  if (!online.room) ui.renderOnline(online, auth, store);
+});
 online.on('room', () => ui.renderOnline(online, auth, store));
 online.on('error', (message) => ui.notice(message, 'error'));
 online.on('start', (msg) => startOnlineRace(msg));

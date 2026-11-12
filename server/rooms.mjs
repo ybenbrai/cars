@@ -104,6 +104,7 @@ export class Lobby {
       case 'state': return this.relayState(player, message);
       case 'finish': return this.finish(player, message);
       case 'forfeit': return this.forfeit(player);
+      case 'list': return conn.send({ type: 'rooms', rooms: this.publicRooms() });
       case 'ping': return conn.send({ type: 'pong', t: message.t });
       default: return undefined;
     }
@@ -381,6 +382,20 @@ export class Lobby {
       host: m.id === room.hostId,
       grid: m.grid,
     };
+  }
+
+  /** Open public rooms waiting in the lobby, fullest first (max 20). */
+  publicRooms() {
+    const out = [];
+    for (const room of this.rooms.values()) {
+      if (!room.isPublic || room.state !== 'lobby' || room.members.length >= ROOM_SIZE) continue;
+      const host = room.members.find((m) => m.id === room.hostId) || room.members[0];
+      out.push({
+        code: room.code, host: host?.name || '', circuitId: room.circuitId,
+        laps: room.laps, players: room.members.length, size: ROOM_SIZE,
+      });
+    }
+    return out.sort((a, b) => b.players - a.players).slice(0, 20);
   }
 
   snapshot(room) {

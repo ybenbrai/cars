@@ -430,6 +430,22 @@ export class UI {
           () => this.notice('Room code copied', 'ok'),
           () => {},
         );
+      } else if (action === 'share') {
+        const code = button.dataset.value;
+        const link = `${location.origin}${location.pathname}?room=${code}`;
+        const text = `Race me in Sunset Drift! Room ${code}`;
+        if (navigator.share) {
+          navigator.share({ title: 'Sunset Drift', text, url: link }).catch(() => {});
+        } else {
+          navigator.clipboard?.writeText(link).then(
+            () => this.notice('Invite link copied: send it to a friend', 'ok'),
+            () => this.notice(link, 'ok'),
+          );
+        }
+      } else if (action === 'joinlisted') {
+        this.cb.onOnline?.('join', { code: button.dataset.value });
+      } else if (action === 'refresh') {
+        this.cb.onOnline?.('list');
       } else {
         this.cb.onOnline?.(action);
       }
@@ -1293,6 +1309,14 @@ export class UI {
             <strong>PRIVATE ROOM</strong><span>Get a code to share with friends.</span>
           </button>
         </div>
+        <section class="online-open">
+          <div class="section-head"><span>OPEN PUBLIC ROOMS</span><button class="link-btn" data-online="refresh">REFRESH</button></div>
+          ${(client.publicRooms || []).length ? client.publicRooms.map((r) => `
+            <div class="open-room">
+              <span><b>${esc(r.host)}'s room</b><small>${esc(getCircuit(r.circuitId).name)} · ${r.laps} laps · ${r.players}/${r.size}</small></span>
+              <button class="btn ghost" data-online="joinlisted" data-value="${esc(r.code)}">JOIN</button>
+            </div>`).join('') : '<p class="custom-note">No public rooms right now. Start one with QUICK MATCH, or share a private room code.</p>'}
+        </section>
         <div class="online-join">
           <label class="section-head" for="onlineCode"><span>JOIN WITH A CODE</span></label>
           <div class="online-join-row">
@@ -1358,6 +1382,14 @@ export class UI {
           <button class="room-code" data-online="copy" data-value="${esc(room.code)}" title="Copy code">${esc(room.code)}</button></div>
         <button class="btn ghost" data-online="leave">LEAVE</button>
       </div>
+      ${!racing && room.players.length < room.size ? `<div class="invite-card">
+        <strong>INVITE FRIENDS</strong>
+        <span>Friends open the game, sign in, go to ONLINE and type the code <b>${esc(room.code)}</b> under JOIN WITH A CODE, or just open your invite link.${room.public ? ' This room is public, so anyone can also find it in OPEN PUBLIC ROOMS.' : ''}</span>
+        <div class="invite-actions">
+          <button class="btn ghost" data-online="copy" data-value="${esc(room.code)}">COPY CODE</button>
+          <button class="btn primary" data-online="share" data-value="${esc(room.code)}">SHARE INVITE LINK</button>
+        </div>
+      </div>` : ''}
       <div class="online-players">${players}${empty}</div>
       ${hostControls}
       ${primary}

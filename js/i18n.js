@@ -393,6 +393,13 @@ const T = {
   'Fastest: 80% resolution, no shadows or glow, shorter view distance.': ['Lo más rápido: 80 % de resolución, sin sombras ni brillo, menos distancia de visión.', 'Le plus rapide : 80 % de résolution, sans ombres ni halo, distance de vue réduite.', 'Mais rápido: 80% de resolução, sem sombras nem brilho, menor distância de visão.', 'Am schnellsten: 80 % Auflösung, keine Schatten oder Glow, kürzere Sichtweite.'],
   'Balanced: native resolution, soft shadows and glow.': ['Equilibrado: resolución nativa, sombras suaves y brillo.', 'Équilibré : résolution native, ombres douces et halo.', 'Equilibrado: resolução nativa, sombras suaves e brilho.', 'Ausgewogen: native Auflösung, weiche Schatten und Glow.'],
   'Best looking: full sharpness on high-DPI screens, detailed shadows.': ['Máxima calidad: nitidez completa en pantallas de alta densidad y sombras detalladas.', 'Le plus beau : netteté maximale sur écrans haute densité, ombres détaillées.', 'Melhor visual: nitidez total em telas de alta densidade, sombras detalhadas.', 'Am schönsten: volle Schärfe auf hochauflösenden Displays, detaillierte Schatten.'],
+
+  'INVITE FRIENDS': ['INVITAR AMIGOS', 'INVITER DES AMIS', 'CONVIDAR AMIGOS', 'FREUNDE EINLADEN'],
+  'COPY CODE': ['COPIAR CÓDIGO', 'COPIER LE CODE', 'COPIAR CÓDIGO', 'CODE KOPIEREN'],
+  'SHARE INVITE LINK': ['COMPARTIR ENLACE', 'PARTAGER LE LIEN', 'COMPARTILHAR LINK', 'EINLADUNGSLINK TEILEN'],
+  'OPEN PUBLIC ROOMS': ['SALAS PÚBLICAS ABIERTAS', 'SALONS PUBLICS OUVERTS', 'SALAS PÚBLICAS ABERTAS', 'OFFENE ÖFFENTLICHE RÄUME'],
+  REFRESH: ['ACTUALIZAR', 'ACTUALISER', 'ATUALIZAR', 'AKTUALISIEREN'],
+  JOIN: ['UNIRSE', 'REJOINDRE', 'ENTRAR', 'BEITRETEN'],
 };
 
 const INDEX = { es: 0, fr: 1, pt: 2, de: 3 };
