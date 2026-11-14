@@ -100,8 +100,10 @@ function loft(rings, zs, crease = 0.6) {
       if (flip) idx.push(c, b, a); else idx.push(c, a, b);
     }
   };
-  cap(0, false);
-  cap(rings.length - 1, true);
+  // Rings run counter-clockwise seen from +z: the rear cap (first ring) must
+  // face -z and the front cap +z, or they are culled and the body is hollow.
+  cap(0, true);
+  cap(rings.length - 1, false);
   const geo = new THREE.BufferGeometry();
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
   geo.setIndex(idx);
