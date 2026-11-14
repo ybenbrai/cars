@@ -144,7 +144,9 @@ function profileFor(def, fam) {
   const raise = b.cabinHeight * fam.beltRaise;
   const belt = Math.max(b.rideHeight + 0.33, r * 2 + 0.11) + raise;
   const glassH = b.cabinHeight - raise;
-  const floor = Math.max(0.1, b.rideHeight - 0.2);
+  // Real ground clearance: bumpers come down to ~12-16 cm on road cars.
+  const clearance = { suv: 0.26, offroad: 0.3, super: 0.11, hyper: 0.1, sports: 0.13, roadster: 0.13 }[def.body.style] ?? 0.15;
+  const floor = Math.min(b.rideHeight - 0.2, clearance);
   const noseY = Math.max(floor + 0.2, b.noseDrop - 0.04, belt - fam.hoodDrop - 0.1);
   const tailY = fam.cabinToTail ? belt - 0.02 : Math.max(b.tailHeight, belt - fam.tailDrop);
   const hoodTop = belt - 0.03;
@@ -191,7 +193,9 @@ function buildBody(model, def, fam, prof) {
       if (dz < archR) floor = Math.max(floor, r + Math.sqrt(archR * archR - dz * dz));
     }
     // Width: flared over the axles, tapered at both ends.
-    const endTaper = Math.min(1, 0.86 + Math.min(1, t / 0.07) * 0.14) * Math.min(1, 0.8 + Math.min(1, (1 - t) / 0.09) * 0.2);
+    // Corners round off at the very ends, but the body stays wider than the
+    // wheels so no tyre pokes out past the bumpers.
+    const endTaper = Math.min(1, 0.93 + Math.min(1, t / 0.05) * 0.07) * Math.min(1, 0.88 + Math.min(1, (1 - t) / 0.07) * 0.12);
     const w = (W / 2) * endTaper * (0.94 + fam.flare * flare) / (1 + fam.flare * 0.4);
     const center = prof.center(t);
     const archClear = (r + archR + 0.07) * wing;
@@ -200,9 +204,15 @@ function buildBody(model, def, fam, prof) {
     const mid = floor + (Math.min(top, center + 0.1) - floor) * 0.55;
     const skirt = Math.min(floor + 0.08, mid - 0.05);
     const shoulder = Math.max(mid + 0.05, top - 0.07);
+    // The arch is a notch at the outer edge only (where the wheel is); the
+    // middle of the body keeps its low floor, so bumpers and the underbody
+    // stay closed when seen from the front or back.
+    const base = prof.floor;
+    const inner = Math.max(0.12, w - 0.4);
     const half = [
-      [0, floor],
-      [w * 0.82, floor],
+      [0, base],
+      [inner, base],
+      [inner + 0.02, floor],
       [w * 0.93, floor + 0.01],
       [w * 0.95, skirt],
       [w, skirt + 0.03],
@@ -348,7 +358,7 @@ function buildCabin(model, def, fam, prof, info) {
     if (fam.spoiler === 'roof') {
       const rear = roofed[0];
       const lip = mesh(new THREE.BoxGeometry(rear.wt * 1.8, 0.025, 0.16), model.paintMat, g);
-      lip.position.set(0, rear.top + 0.01, rear.z - 0.1);
+      lip.position.set(0, rear.top + 0.01, rear.z - 0.02);
       lip.rotation.x = 0.12;
     }
   }
@@ -436,6 +446,14 @@ function buildFront(model, def, fam, info, g) {
     bar.position.set(0, faceY + 0.03, L / 2 + 0.012);
   }
   // Lower splitter and corner vents.
+  // Lower intake across the bumper and a front plate.
+  const lowY = nose.floor + Math.max(0.06, (nose.center - nose.floor) * 0.22);
+  const lower = mesh(new THREE.BoxGeometry(nose.w * 1.35, 0.08, 0.03), black, g, false);
+  lower.position.set(0, lowY, L / 2 - 0.004);
+  if (model.plateMat) {
+    const plate = mesh(new THREE.PlaneGeometry(0.42, 0.1), model.plateMat, g, false);
+    plate.position.set(0, lowY + 0.09, L / 2 + 0.006);
+  }
   // Splitter tucked under the nose, within the body's width there.
   const splitter = mesh(new THREE.BoxGeometry(nose.w * 1.7, 0.022, 0.16), model.carbonMat, g);
   splitter.position.set(0, nose.floor + 0.012, L / 2 - 0.1);
@@ -449,8 +467,18 @@ function buildRear(model, def, fam, info, g) {
   const tail = nearest(info, -L / 2 + 0.05);
   const ty = tail.center - 0.07;
   const tz = -L / 2 - 0.004;
-  const panelH = fam.tail === 'square' ? 0.24 : 0.16;
+  const panelH = fam.tail === 'square' ? 0.22 : 0.09;
   const panel = mesh(new THREE.BoxGeometry(tail.w * 1.84, panelH, 0.02), black, g, false);
+  // Rear plate in a recess, and a dark lower valance / diffuser band.
+  if (model.plateMat) {
+    const recess = mesh(new THREE.BoxGeometry(0.5, 0.15, 0.02), black, g, false);
+    recess.position.set(0, (tail.floor + ty) / 2 + 0.02, tz + 0.004);
+    const plate = mesh(new THREE.PlaneGeometry(0.44, 0.11), model.plateMat, g, false);
+    plate.rotation.y = Math.PI;
+    plate.position.set(0, (tail.floor + ty) / 2 + 0.02, tz - 0.008);
+  }
+  const valance = mesh(new THREE.BoxGeometry(tail.w * 1.7, 0.07, 0.04), black, g, false);
+  valance.position.set(0, tail.floor + 0.05, tz + 0.03);
   panel.position.set(0, ty - panelH * 0.25, tz + 0.002);
 
   const tw = tail.w; // the tail is narrower than the car's full width
@@ -489,7 +517,7 @@ function buildRear(model, def, fam, info, g) {
       fin.position.set(i * W * 0.1, tail.floor + 0.11, -L / 2 + 0.14);
     }
   }
-  const ey = tail.floor + 0.12;
+  const ey = tail.floor + 0.06;
   const pipes = fam.exhaust === 'hex' ? [[0, 0.075, 6]] : fam.exhaust === 'quad'
     ? [[-W * 0.3, 0.045, 16], [-W * 0.22, 0.045, 16], [W * 0.22, 0.045, 16], [W * 0.3, 0.045, 16]]
     : [[-W * 0.28, 0.05, 16], [W * 0.28, 0.05, 16]];
@@ -497,7 +525,7 @@ function buildRear(model, def, fam, info, g) {
   for (const [x, rad, seg] of pipes) {
     const pipe = mesh(new THREE.CylinderGeometry(rad, rad, 0.16, seg), model.chromeMat, g, false);
     pipe.rotation.x = Math.PI / 2;
-    pipe.position.set(x, fam.exhaust === 'hex' ? Math.max(ey, ty - 0.2) : ey, -L / 2 - 0.02);
+    pipe.position.set(x, fam.exhaust === 'hex' ? Math.max(ey, ty - 0.2) : ey, -L / 2 + 0.04);
     const bore = mesh(new THREE.CylinderGeometry(rad * 0.78, rad * 0.78, 0.17, seg), black, g, false);
     bore.rotation.x = Math.PI / 2;
     bore.position.copy(pipe.position);
@@ -536,17 +564,36 @@ function buildSides(model, def, fam, info, g) {
       scoop.position.set(sx * (st.w + 0.003), st.mid + 0.02, zs);
       scoop.rotation.x = 0.12;
     }
-    // Mirror on a short stalk near the base of the windscreen.
-    const mz = b.cabinZ + b.cabinLength / 2 - 0.12;
+    // Mirror mounted on the door at the base of the windscreen pillar.
+    const mz = b.cabinZ + b.cabinLength / 2 - 0.18;
     const ms = nearest(info, mz);
-    const mx = sx * Math.min(b.cabinWidth / 2, ms.w - 0.05);
-    const my = ms.center + (fam.roof === 'boxy' ? 0.2 : 0.14);
+    const mx = sx * Math.min(b.cabinWidth / 2 + 0.02, ms.w - 0.02);
+    const my = ms.center + 0.09;
+    const base = mesh(new THREE.BoxGeometry(0.05, 0.06, 0.12), black, g, false);
+    base.position.set(mx, my - 0.02, mz);
+    const arm = mesh(new THREE.BoxGeometry(0.1, 0.025, 0.05), black, g, false);
+    arm.position.set(mx + sx * 0.06, my, mz - 0.01);
     const m = mesh(new THREE.SphereGeometry(0.075, 16, 10), model.paintMat, g);
-    m.scale.set(1.3, 0.62, 0.9);
-    m.position.set(mx + sx * 0.14, my, mz);
-    const stalk = mesh(new THREE.BoxGeometry(0.14, 0.018, 0.04), black, g, false);
-    stalk.position.set(mx + sx * 0.06, my - 0.025, mz + 0.02);
-    stalk.rotation.z = sx * 0.3;
+    m.scale.set(1.25, 0.65, 0.85);
+    m.position.set(mx + sx * 0.14, my + 0.02, mz - 0.02);
+    const glass = mesh(new THREE.BoxGeometry(0.15, 0.07, 0.005), model.chromeMat, g, false);
+    glass.position.set(mx + sx * 0.14, my + 0.02, mz - 0.085);
+    // Window line: a dark belt trim along the cabin, a B-pillar and door shut lines.
+    if (fam.roof !== 'open') {
+      const z0 = b.cabinZ - b.cabinLength / 2 + 0.1;
+      const z1 = b.cabinZ + b.cabinLength / 2 - 0.1;
+      const bt = nearest(info, (z0 + z1) / 2);
+      const belt = mesh(new THREE.BoxGeometry(0.02, 0.02, z1 - z0), fam.lamps === 'bar' ? model.chromeMat : black, g, false);
+      belt.position.set(sx * Math.min(b.cabinWidth / 2 + 0.005, bt.w - 0.01), bt.center - 0.005, (z0 + z1) / 2);
+      const pz = b.cabinZ + (fam.roof === 'canopy' ? 0.1 : -0.05);
+      const pillar = mesh(new THREE.BoxGeometry(0.02, Math.max(0.15, b.cabinHeight * 0.7), 0.07), black, g, false);
+      pillar.position.set(sx * (b.cabinWidth / 2 - 0.01), nearest(info, pz).center + b.cabinHeight * 0.3, pz);
+      for (const dz of [z1 - 0.05, b.cabinZ - 0.05]) {
+        const ds = nearest(info, dz);
+        const seam = mesh(new THREE.BoxGeometry(0.006, Math.max(0.1, ds.center - ds.floor - 0.12), 0.006), black, g, false);
+        seam.position.set(sx * (ds.w + 0.001), (ds.center + ds.floor) / 2, dz);
+      }
+    }
     // Flush door handle on the side.
     const hz = b.cabinZ + 0.05;
     const hs = nearest(info, hz);
@@ -606,7 +653,10 @@ function mergeByMaterial(group) {
     if (!buckets.has(key)) buckets.set(key, { mat: o.material, shadow: false, geos: [] });
     const b = buckets.get(key);
     let geo = o.geometry.index ? o.geometry.toNonIndexed() : o.geometry.clone();
-    for (const name of Object.keys(geo.attributes)) if (name !== 'position' && name !== 'normal') geo.deleteAttribute(name);
+    // Textured materials (the licence plate) keep their UVs; everything else
+    // is flat-coloured, so only position and normal need to merge.
+    const keep = o.material.map ? ['position', 'normal', 'uv'] : ['position', 'normal'];
+    for (const name of Object.keys(geo.attributes)) if (!keep.includes(name)) geo.deleteAttribute(name);
     if (!geo.attributes.normal) geo.computeVertexNormals();
     geo.applyMatrix4(new THREE.Matrix4().multiplyMatrices(inv, o.matrixWorld));
     b.geos.push(geo);
@@ -654,7 +704,7 @@ export function attachModernBody(model, def) {
       const st = nearest(info, za);
       const built = buildWheel(model, def, fam, front);
       const pivot = new THREE.Group();
-      pivot.position.set(sx * Math.min(st.w - built.width / 2 - 0.02, W / 2 - built.width / 2), def.body.wheelRadius, za);
+      pivot.position.set(sx * Math.min(st.w - built.width / 2 - 0.05, W / 2 - built.width / 2 - 0.03), def.body.wheelRadius, za);
       model.root.add(pivot);
       const spin = new THREE.Group();
       pivot.add(spin);
