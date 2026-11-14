@@ -357,13 +357,43 @@ function buildCabin(model, def, fam, prof, info) {
         leds.position.set(0, last.top + 0.06, last.z - 0.012);
       }
     }
-    if (fam.spoiler === 'roof') {
+    // Windscreen (A) and rear (C) pillars tie the roof to the body.
+    const fr = roofed[roofed.length - 1];
+    const rr = roofed[0];
+    const stF = nearest(info, z1);
+    const stR = nearest(info, z0);
+    const wbF = Math.min(b.cabinWidth / 2, stF.w - 0.05);
+    const wbR = Math.min(b.cabinWidth / 2, stR.w - 0.05);
+    // (A canopy is a bubble of glass: no pillars on it.)
+    for (const sx of fam.roof === 'canopy' ? [] : [-1, 1]) {
+      strip(g, model.paintMat, [sx * wbF * 0.96, stF.center, z1 - 0.02], [sx * fr.wt * 0.96, fr.top + 0.005, fr.z], 0.05, 0.05);
+      strip(g, model.paintMat, [sx * wbR * 0.96, stR.center, z0 + 0.03], [sx * rr.wt * 0.96, rr.top + 0.005, rr.z], 0.08, 0.06);
+    }
+  }
+  // Interior: dashboard, two seats and a steering wheel behind the glass.
+  {
+    const zc = (z0 + z1) / 2;
+    const stM = nearest(info, zc);
+    const floorY = stM.center - 0.01;
+    const dash = mesh(new THREE.BoxGeometry(b.cabinWidth * 0.86, 0.1, 0.22), model.trimMat, g, false);
+    dash.position.set(0, prof.belt + 0.02, z1 - 0.22);
+    for (const sx of [-1, 1]) {
+      const seat = mesh(new THREE.BoxGeometry(0.3, 0.36, 0.08), model.trimMat, g, false);
+      seat.position.set(sx * b.cabinWidth * 0.22, floorY + 0.2, zc - 0.05);
+      seat.rotation.x = -0.18;
+      const head = mesh(new THREE.BoxGeometry(0.18, 0.1, 0.06), model.trimMat, g, false);
+      head.position.set(sx * b.cabinWidth * 0.22, floorY + 0.43, zc - 0.1);
+    }
+    const wheel = mesh(new THREE.TorusGeometry(0.1, 0.015, 6, 20), model.trimMat, g, false);
+    wheel.position.set(-b.cabinWidth * 0.22, prof.belt + 0.1, z1 - 0.36);
+    wheel.rotation.x = -0.4;
+  }
+  if (fam.roof !== 'open' && roofed.length > 2 && fam.spoiler === 'roof') {
       const rear = roofed[0];
       const lip = mesh(new THREE.BoxGeometry(rear.wt * 1.8, 0.025, 0.16), model.paintMat, g);
       lip.position.set(0, rear.top + 0.01, rear.z - 0.02);
       lip.rotation.x = 0.12;
     }
-  }
   return g;
 }
 
@@ -393,10 +423,10 @@ function buildFront(model, def, fam, info, g) {
       strip(g, model.drlMat, [x, lampY + 0.02, lampZ + 0.04], [x - sx * 0.13, lampY + 0.02, lampZ + 0.02], 0.022, 0.012);
       strip(g, model.drlMat, [x, lampY + 0.02, lampZ + 0.04], [x + sx * 0.04, lampY - 0.05, lampZ + 0.14], 0.022, 0.012);
     } else if (fam.lamps === 'slim') {
-      const housing = mesh(new THREE.BoxGeometry(0.36, 0.04, 0.2), model.projectorMat || black, g, false);
+      const housing = mesh(new THREE.BoxGeometry(0.44, 0.055, 0.22), model.projectorMat || black, g, false);
       housing.position.set(x, lampY, lampZ);
       housing.rotation.set(-0.12, sx * 0.28, 0);
-      const lens = mesh(new THREE.BoxGeometry(0.2, 0.024, 0.08), model.headMat, g, false);
+      const lens = mesh(new THREE.BoxGeometry(0.26, 0.032, 0.09), model.headMat, g, false);
       lens.position.set(x - sx * 0.03, lampY + 0.012, lampZ + 0.02);
       lens.rotation.y = sx * 0.28;
       strip(g, model.drlMat, [x - sx * 0.16, lampY + 0.03, lampZ + 0.08], [x + sx * 0.16, lampY + 0.03, lampZ - 0.08], 0.012, 0.012);
@@ -428,8 +458,18 @@ function buildFront(model, def, fam, info, g) {
   const faceY = (nose.floor + nose.center) / 2;
   const faceH = Math.max(0.08, nose.center - nose.floor - 0.12);
   if (fam.grille === 'mesh') {
-    const gr = mesh(new THREE.BoxGeometry(W * 0.42, faceH * 0.6, 0.03), black, g, false);
-    gr.position.set(0, faceY - faceH * 0.1, L / 2 - 0.005);
+    // Mesh grille: dark opening, slim slats and a bright top edge.
+    const gw = W * 0.44;
+    const gh = Math.min(0.16, faceH * 0.55);
+    const gy = faceY - faceH * 0.05;
+    const gr = mesh(new THREE.BoxGeometry(gw, gh, 0.03), black, g, false);
+    gr.position.set(0, gy, L / 2 - 0.005);
+    for (let i = 1; i < 4; i++) {
+      const slat = mesh(new THREE.BoxGeometry(gw * 0.94, 0.008, 0.01), model.discMat || model.chromeMat, g, false);
+      slat.position.set(0, gy - gh / 2 + (i * gh) / 4, L / 2 + 0.012);
+    }
+    const edge = mesh(new THREE.BoxGeometry(gw + 0.02, 0.012, 0.012), model.chromeMat, g, false);
+    edge.position.set(0, gy + gh / 2 + 0.004, L / 2 + 0.008);
   } else if (fam.grille === 'big') {
     const gw = W * 0.34;
     const gh = Math.min(0.26, faceH * 0.9);
@@ -450,11 +490,17 @@ function buildFront(model, def, fam, info, g) {
   // Lower splitter and corner vents.
   // Lower intake across the bumper and a front plate.
   const lowY = nose.floor + Math.max(0.06, (nose.center - nose.floor) * 0.22);
-  const lower = mesh(new THREE.BoxGeometry(nose.w * 1.35, 0.08, 0.03), black, g, false);
+  const lower = mesh(new THREE.BoxGeometry(nose.w * 0.9, 0.05, 0.03), black, g, false);
   lower.position.set(0, lowY, L / 2 - 0.004);
+  // Corner intakes either side of the lower bumper.
+  for (const sx of [-1, 1]) {
+    const vent = mesh(new THREE.BoxGeometry(0.2, 0.08, 0.03), black, g, false);
+    vent.position.set(sx * nose.w * 0.72, lowY + 0.03, L / 2 - 0.012);
+    vent.rotation.z = sx * 0.12;
+  }
   if (model.plateMat) {
     const plate = mesh(new THREE.PlaneGeometry(0.42, 0.1), model.plateMat, g, false);
-    plate.position.set(0, lowY + 0.09, L / 2 + 0.006);
+    plate.position.set(0, lowY + 0.08, L / 2 + 0.03);
   }
   // Splitter tucked under the nose, within the body's width there.
   const splitter = mesh(new THREE.BoxGeometry(nose.w * 1.7, 0.022, 0.16), model.carbonMat, g);
@@ -527,7 +573,7 @@ function buildRear(model, def, fam, info, g) {
   for (const [x, rad, seg] of pipes) {
     const pipe = mesh(new THREE.CylinderGeometry(rad, rad, 0.16, seg), model.chromeMat, g, false);
     pipe.rotation.x = Math.PI / 2;
-    pipe.position.set(x, fam.exhaust === 'hex' ? Math.max(ey, ty - 0.2) : ey, -L / 2 + 0.04);
+    pipe.position.set(x, fam.exhaust === 'hex' ? ey + 0.03 : ey, -L / 2 + 0.04);
     const bore = mesh(new THREE.CylinderGeometry(rad * 0.78, rad * 0.78, 0.17, seg), black, g, false);
     bore.rotation.x = Math.PI / 2;
     bore.position.copy(pipe.position);
@@ -608,36 +654,74 @@ function buildSides(model, def, fam, info, g) {
 
 const caliperMat = new THREE.MeshStandardMaterial({ color: 0xd8262f, metalness: 0.3, roughness: 0.4 });
 
+function taperedSpoke(len, rootW, tipW, depth) {
+  // A spoke along +y from the hub (y=0) to the rim (y=len), narrowing outward.
+  const geo = new THREE.BoxGeometry(depth, len, rootW, 1, 2, 1);
+  geo.translate(0, len / 2, 0);
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const k = pos.getY(i) / len;
+    pos.setZ(i, pos.getZ(i) * (1 - k * (1 - tipW / rootW)));
+    pos.setX(i, pos.getX(i) - k * k * 0.02); // dished: the rim end sits deeper
+  }
+  geo.computeVertexNormals();
+  return geo;
+}
+
 function buildWheel(model, def, fam, front) {
   const r = def.body.wheelRadius;
   const rugged = !!fam.clad;
-  const width = rugged ? 0.32 : front ? 0.26 : 0.31;
+  const width = rugged ? 0.32 : front ? 0.27 : 0.31;
   const g = new THREE.Group();
-  const rimR = r * (rugged ? 0.62 : 0.76);
+  const rimR = r * (rugged ? 0.64 : 0.74);
+  const hw = width / 2;
+  // Tyre: bead at the rim, bulging sidewall, rounded shoulders, flat tread.
   const prof = [
-    [rimR, -width / 2], [r * 0.93, -width / 2], [r, -width * 0.38], [r, width * 0.38], [r * 0.93, width / 2], [rimR, width / 2],
+    [rimR - 0.01, -hw * 0.86], [rimR + 0.015, -hw * 0.98], [r * 0.9, -hw], [r * 0.975, -hw * 0.9],
+    [r, -hw * 0.68], [r, hw * 0.68], [r * 0.975, hw * 0.9], [r * 0.9, hw], [rimR + 0.015, hw * 0.98], [rimR - 0.01, hw * 0.86],
   ].map(([x, y]) => new THREE.Vector2(x, y));
-  const tyre = new THREE.LatheGeometry(prof, 40);
+  const tyre = new THREE.LatheGeometry(prof, 48);
   tyre.rotateZ(Math.PI / 2);
   mesh(tyre, model.rubberMat, g);
-  const outer = width / 2 - 0.02;
-  const barrel = new THREE.CylinderGeometry(rimR, rimR, width * 0.9, 36, 1, true);
+  // Dark inner barrel gives the wheel depth behind the spokes.
+  const barrel = new THREE.CylinderGeometry(rimR - 0.005, rimR - 0.005, width * 0.86, 36, 1, true);
   barrel.rotateZ(Math.PI / 2);
-  mesh(barrel, model.rimMat, g, false);
-  const n = fam.spokes;
-  const thick = n <= 6 ? 0.055 : 0.03;
+  mesh(barrel, model.trimMat, g, false);
+  const outer = hw * 0.86;
+  // Polished rim lip.
+  const lip = mesh(new THREE.TorusGeometry(rimR - 0.006, 0.014, 6, 40), model.rimMat, g, false);
+  lip.rotation.y = Math.PI / 2;
+  lip.position.x = outer;
+  // Brake disc behind the spokes.
+  const disc = mesh(new THREE.CylinderGeometry(rimR * 0.8, rimR * 0.8, 0.025, 32), model.discMat || model.trimMat, g, false);
+  disc.rotation.z = Math.PI / 2;
+  disc.position.x = outer - 0.1;
+  // Spokes: twin spokes on sporty cars, chunky single ones on rugged ones.
+  const n = rugged ? 6 : fam.spokes >= 10 ? 5 : fam.spokes;
+  const twin = !rugged && fam.spokes >= 10;
+  const len = rimR - 0.07;
   for (let i = 0; i < n; i++) {
     const a = (i / n) * Math.PI * 2;
-    const spoke = mesh(new THREE.BoxGeometry(0.03, rimR * 0.92, thick), model.rimMat, g, false);
-    spoke.position.set(outer, Math.cos(a) * rimR * 0.48, Math.sin(a) * rimR * 0.48);
-    spoke.rotation.x = a;
+    for (const off of twin ? [-0.11, 0.11] : [0]) {
+      const spoke = mesh(taperedSpoke(len, rugged ? 0.09 : twin ? 0.05 : 0.075, rugged ? 0.07 : twin ? 0.035 : 0.045, 0.035), model.rimMat, g, false);
+      spoke.position.set(outer - 0.005, 0, 0);
+      spoke.rotation.x = a + off;
+      spoke.translateY(0.06);
+    }
   }
-  const hub = mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.04, 6), model.rimMat, g, false);
+  // Hub, centre cap and wheel nuts.
+  const hub = mesh(new THREE.CylinderGeometry(0.085, 0.095, 0.05, 24), model.rimMat, g, false);
   hub.rotation.z = Math.PI / 2;
-  hub.position.x = outer + 0.01;
-  const disc = mesh(new THREE.CylinderGeometry(rimR * 0.82, rimR * 0.82, 0.03, 32), model.chromeMat, g, false);
-  disc.rotation.z = Math.PI / 2;
-  disc.position.x = outer - 0.08;
+  hub.position.x = outer - 0.01;
+  const cap = mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.02, 20), model.trimMat, g, false);
+  cap.rotation.z = Math.PI / 2;
+  cap.position.x = outer + 0.022;
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2 + 0.3;
+    const nut = mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.02, 6), model.chromeMat, g, false);
+    nut.rotation.z = Math.PI / 2;
+    nut.position.set(outer + 0.018, Math.cos(a) * 0.058, Math.sin(a) * 0.058);
+  }
   return { g, width, rimR, outer };
 }
 
@@ -710,7 +794,9 @@ export function attachModernBody(model, def) {
       model.root.add(pivot);
       const spin = new THREE.Group();
       pivot.add(spin);
-      if (sx < 0) built.g.scale.x = -1; // outer face outward on both sides
+      // Turn (never mirror) the left wheels: a negative scale flips the
+      // triangles inside out once merged.
+      if (sx < 0) built.g.rotation.y = Math.PI;
       const holder = new THREE.Group();
       holder.add(built.g);
       spin.add(mergeByMaterial(holder));
