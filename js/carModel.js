@@ -563,9 +563,13 @@ export class CarModel {
       map: grilleTexture(this.design.grille), color: 0xffffff, metalness: 0.6, roughness: 0.42,
     });
     // Amber indicator material per side, shared by the corner lamps and the
-    // small amber segment inside each headlight cluster.
-    const makeSignal = () => new THREE.MeshStandardMaterial({
-      color: 0x5a3200, emissive: 0xff7a00, emissiveIntensity: 0.12, roughness: 0.3, toneMapped: false,
+    // small amber segment inside each headlight cluster. The lens stays visibly
+    // amber with the lights off so the indicator reads as a real lamp, not a
+    // dark hole; blinking lifts it to a strong glow.
+    const makeSignal = () => new THREE.MeshPhysicalMaterial({
+      color: 0xb85400, emissive: 0xff6200, emissiveIntensity: 0.32,
+      roughness: 0.22, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.08,
+      envMapIntensity: 1.3, toneMapped: false,
     });
     this.signalMats = { left: makeSignal(), right: makeSignal() };
     this.seamMat = new THREE.MeshBasicMaterial({
@@ -2432,7 +2436,7 @@ export class CarModel {
   /** Light one side's indicators (side: 'left' | 'right' | null). */
   setSignal(side, on) {
     for (const key of ['left', 'right']) {
-      this.signalMats[key].emissiveIntensity = on && key === side ? 2.4 : 0.12;
+      this.signalMats[key].emissiveIntensity = on && key === side ? 3.2 : 0.32;
     }
   }
 

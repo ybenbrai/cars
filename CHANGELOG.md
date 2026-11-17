@@ -254,6 +254,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Car surfaces and trim are smoother: softer shading across the lofted body
+  and roof, slimmer window pillars, and gently rounded headlight housings,
+  grilles, mirrors and bumper pieces so painted panels do not end in razor-cut
+  boxes.
 - Modern car polish: headlights now use dark glass lenses with a slim
   emitter and a visible projector instead of glowing white tubes; wedge
   hypercars get a thin Y-signature DRL and larger side intakes. Tail lamps
@@ -269,6 +273,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Turn indicators are visible again on every modern car: each front and rear
+  cluster now carries a proper amber lens ahead of the lamp, plus a side
+  repeater on the front flank and a larger mirror tip. The off lens stays
+  amber and the blink is brighter.
 - The daily reward popup could stay over a race that started right after
   entering the garage; it now closes and stays claimable in the garage.
 - Online races: the 3-2-1 countdown and race clock follow a shared

@@ -13,6 +13,7 @@
 // glass, rim and lamp materials are used so customisation and lights work.
 
 import * as THREE from 'three';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { toCreasedNormals, mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /* ───────────────────────── design families ───────────────────────── */
@@ -118,6 +119,13 @@ function mesh(geo, mat, parent, shadow = true) {
   m.receiveShadow = false;
   parent.add(m);
   return m;
+}
+
+/** A box with softened edges: small parts catch light like moulded pieces
+ * rather than like razor-cut cubes. Kept low-segment and only for parts that
+ * are large enough for the rounding to be visible. */
+function softBox(w, h, d, r = 0.012) {
+  return new RoundedBoxGeometry(w, h, d, 2, Math.min(r, Math.min(w, h, d) / 2.05));
 }
 
 /** A thin bar from a to b (car space; parent must have identity transform). */
@@ -239,7 +247,7 @@ function buildBody(model, def, fam, prof) {
     zs.push(z);
     info.push({ t, z, w, floor, center, fender, mid });
   }
-  mesh(loft(rings, zs, 0.62), model.paintMat, group);
+  mesh(loft(rings, zs, 0.78), model.paintMat, group);
 
   // Deep wheel wells (and black cladding on rugged cars).
   for (const za of axles) {
@@ -403,13 +411,13 @@ function buildCabin(model, def, fam, prof, info) {
     const rz = roofed.map((p) => p.z);
     if (fam.roof === 'canopy') {
       const spine = roofed.map((p) => mirror([[0, p.top + 0.002], [0.16, p.top - 0.004], [0.17, p.top + 0.008], [0.08, p.top + 0.014], [0, p.top + 0.016]]));
-      mesh(loft(spine, rz, 0.6), model.paintMat, g);
+      mesh(loft(spine, rz, 0.75), model.paintMat, g);
     } else {
       const roof = roofed.map((p) => mirror([
         [0, p.top + 0.001], [p.wt * 0.55, p.top + 0.006], [p.wt * 0.94, p.top + 0.001],
         [p.wt, p.top - 0.01], [p.wt * 1.02, p.top - 0.04],
       ]));
-      mesh(loft(roof, rz, 0.6), model.paintMat, g);
+      mesh(loft(roof, rz, 0.75), model.paintMat, g);
       const first = roofed[0];
       const last = roofed[roofed.length - 1];
       if (fam.rails) {
@@ -441,9 +449,11 @@ function buildCabin(model, def, fam, prof, info) {
     const wbF = Math.min(b.cabinWidth / 2, stF.w - 0.05);
     const wbR = Math.min(b.cabinWidth / 2, stR.w - 0.05);
     // (A canopy is a bubble of glass: no pillars on it.)
-    const pillarW = fam.roof === 'notch' ? 0.11 : fam.roof === 'hatch' || fam.roof === 'boxy' ? 0.095 : 0.065;
+    // Slim pillars read as glass with a frame; the old 75 mm A-pillars made
+    // every car look like it wore a painted roof rack.
+    const pillarW = fam.roof === 'notch' ? 0.095 : fam.roof === 'hatch' || fam.roof === 'boxy' ? 0.08 : 0.055;
     for (const sx of fam.roof === 'canopy' ? [] : [-1, 1]) {
-      strip(g, model.paintMat, [sx * wbF * 0.99, stF.center, z1 - 0.015], [sx * fr.wt * 0.98, fr.top + 0.004, fr.z], 0.075, 0.075);
+      strip(g, model.paintMat, [sx * wbF * 0.99, stF.center, z1 - 0.015], [sx * fr.wt * 0.98, fr.top + 0.004, fr.z], 0.058, 0.052);
       strip(g, model.paintMat, [sx * wbR * 0.99, stR.center, z0 + 0.02], [sx * rr.wt * 0.98, rr.top + 0.004, rr.z], pillarW, pillarW);
     }
   }
@@ -501,7 +511,7 @@ function buildFront(model, def, fam, info, g) {
   const lampX = nose.w * (upright ? 0.66 : 0.62);
 
   const housing = (x, w, h, y = lampY) => {
-    const bezel = mesh(new THREE.BoxGeometry(w, h, 0.018), model.projectorMat || black, g, false);
+    const bezel = mesh(softBox(w, h, 0.018, 0.008), model.projectorMat || black, g, false);
     bezel.position.set(x, y, fz);
     return bezel;
   };
@@ -517,6 +527,15 @@ function buildFront(model, def, fam, info, g) {
 
   for (const sx of [-1, 1]) {
     const x = sx * lampX;
+    const signalMat = model.signalMats[sx > 0 ? 'left' : 'right'];
+    // Amber lens on the outer end of each cluster, sitting ahead of the dark
+    // glass so the indicator is visible even when it is not flashing.
+    const indicator = (ix, iy, w = 0.1, h = 0.028) => {
+      const bezel = mesh(softBox(w + 0.016, h + 0.012, 0.012, 0.005), black, g, false);
+      bezel.position.set(ix, iy, fz + 0.021);
+      const lens = mesh(softBox(w, h, 0.014, 0.006), signalMat, g, false);
+      lens.position.set(ix, iy, fz + 0.031);
+    };
     if (fam.lamps === 'y') {
       housing(x, 0.5, 0.12, lampY + 0.005);
       // Projector inboard, then a thin Y-shaped LED signature: the Y is the
@@ -527,22 +546,22 @@ function buildFront(model, def, fam, info, g) {
       strip(g, model.drlMat, [x + sx * 0.07, lampY, fz + 0.02], [x + sx * 0.17, lampY - 0.042, fz + 0.02], 0.012, 0.01);
       const lens = mesh(new THREE.BoxGeometry(0.09, 0.02, 0.012), model.headMat, g, false);
       lens.position.set(x - sx * 0.06, lampY + 0.032, fz + 0.014);
+      indicator(x + sx * 0.205, lampY - 0.026, 0.085, 0.028);
     } else if (fam.lamps === 'slim') {
       housing(x, 0.52, 0.115);
       // Projector at the outer end, a dark glass lens inboard and a slim LED
       // brow along the top. A glowing white bar read as a fluorescent tube.
       projector(x + sx * 0.16, lampY - 0.008, 0.04);
-      const lens = mesh(new THREE.BoxGeometry(0.22, 0.042, 0.014), model.projectorMat || black, g, false);
+      const lens = mesh(softBox(0.22, 0.042, 0.014, 0.006), model.projectorMat || black, g, false);
       lens.position.set(x - sx * 0.1, lampY, fz + 0.014);
       const emit = mesh(new THREE.BoxGeometry(0.17, 0.011, 0.012), model.headMat, g, false);
       emit.position.set(x - sx * 0.1, lampY + 0.006, fz + 0.019);
       const brow = mesh(new THREE.BoxGeometry(0.48, 0.011, 0.012), model.drlMat, g, false);
       brow.position.set(x, lampY + 0.05, fz + 0.011);
-      const sig = mesh(new THREE.BoxGeometry(0.085, 0.018, 0.012), model.signalMats[sx > 0 ? 'left' : 'right'], g, false);
-      sig.position.set(x - sx * 0.21, lampY - 0.03, fz + 0.014);
+      indicator(x + sx * 0.205, lampY - 0.027, 0.095, 0.028);
     } else if (fam.lamps === 'bar') {
       housing(x, 0.42, 0.11, lampY);
-      const lens = mesh(new THREE.BoxGeometry(0.31, 0.05, 0.014), model.projectorMat || black, g, false);
+      const lens = mesh(softBox(0.31, 0.05, 0.014, 0.006), model.projectorMat || black, g, false);
       lens.position.set(x, lampY, fz + 0.014);
       const emit = mesh(new THREE.BoxGeometry(0.26, 0.012, 0.012), model.headMat, g, false);
       emit.position.set(x, lampY + 0.006, fz + 0.019);
@@ -550,14 +569,16 @@ function buildFront(model, def, fam, info, g) {
       drl.position.set(x, lampY + 0.042, fz + 0.016);
       const trim = mesh(new THREE.BoxGeometry(0.37, 0.007, 0.01), model.chromeMat, g, false);
       trim.position.set(x, lampY - 0.035, fz + 0.015);
+      indicator(x + sx * 0.16, lampY - 0.026, 0.08, 0.028);
     } else if (fam.lamps === 'square') {
       housing(x, 0.32, 0.18, lampY);
-      const lens = mesh(new THREE.BoxGeometry(0.22, 0.1, 0.014), model.projectorMat || black, g, false);
+      const lens = mesh(softBox(0.22, 0.1, 0.014, 0.006), model.projectorMat || black, g, false);
       lens.position.set(x, lampY, fz + 0.014);
       const emit = mesh(new THREE.BoxGeometry(0.16, 0.014, 0.012), model.headMat, g, false);
       emit.position.set(x, lampY + 0.02, fz + 0.019);
       const drl = mesh(new THREE.BoxGeometry(0.25, 0.014, 0.012), model.drlMat, g, false);
       drl.position.set(x, lampY - 0.072, fz + 0.016);
+      indicator(x + sx * 0.115, lampY - 0.055, 0.08, 0.03);
     } else {
       // Round lamp in a black bucket with a chrome rim.
       const bucket = mesh(new THREE.CylinderGeometry(0.115, 0.115, 0.03, 22), model.projectorMat || black, g, false);
@@ -567,16 +588,17 @@ function buildFront(model, def, fam, info, g) {
       ring.position.set(x, lampY, fz + 0.016);
       const head = mesh(new THREE.CircleGeometry(0.092, 24), model.headMat, g, false);
       head.position.set(x, lampY, fz + 0.018);
+      indicator(x + sx * 0.14, lampY - 0.028, 0.075, 0.028);
     }
-    // Corner marker: the upright cars get an amber side marker instead of a
-    // lens that wraps around the fender (a wrap read as a white slash).
-    if (fam.lamps === 'square' || fam.lamps === 'round') {
-      const wa = stationAt(info, L / 2 - 0.02).w;
-      const mark = mesh(new THREE.BoxGeometry(0.05, 0.05, 0.14), model.signalMats[sx > 0 ? 'left' : 'right'], g, false);
-      mark.position.set(sx * (wa * 0.985), lampY, L / 2 - 0.1);
-      const bezel = mesh(new THREE.BoxGeometry(0.02, 0.075, 0.17), black, g, false);
-      bezel.position.set(sx * (wa * 0.98), lampY, L / 2 - 0.09);
-    }
+    // Side repeater on the front flank: a real indicator is visible from the
+    // side at a junction, where a lens on the nose alone disappears.
+    const rz = L / 2 - 0.34;
+    const rs = nearest(info, rz);
+    const ry = rs.center + 0.025;
+    const rb = mesh(softBox(0.012, 0.042, 0.13, 0.006), black, g, false);
+    rb.position.set(sx * (rs.w - 0.002), ry, rz);
+    const repeater = mesh(softBox(0.016, 0.028, 0.11, 0.007), signalMat, g, false);
+    repeater.position.set(sx * (rs.w + 0.006), ry, rz);
   }
   // The lamps already carry their own LED signature; a full-width bar would
   // cut across the badge and read as a sticker.
@@ -592,7 +614,7 @@ function buildFront(model, def, fam, info, g) {
     const gw = W * 0.48;
     grilleH = Math.min(0.15, faceH * 0.34);
     grilleY = lampY - 0.115;
-    const gr = mesh(new THREE.BoxGeometry(gw, grilleH, 0.022), black, g, false);
+    const gr = mesh(softBox(gw, grilleH, 0.022, 0.008), black, g, false);
     gr.position.set(0, grilleY, fz - 0.004);
     for (let i = 1; i < 4; i++) {
       const slat = mesh(new THREE.BoxGeometry(gw * 0.96, 0.007, 0.01), model.discMat || model.chromeMat, g, false);
@@ -602,7 +624,7 @@ function buildFront(model, def, fam, info, g) {
     const gw = W * 0.32;
     grilleH = Math.min(0.24, faceH * 0.55);
     grilleY = lampY - 0.14;
-    const gr = mesh(new THREE.BoxGeometry(gw, grilleH, 0.022), black, g, false);
+    const gr = mesh(softBox(gw, grilleH, 0.022, 0.008), black, g, false);
     gr.position.set(0, grilleY, fz - 0.004);
     // Chrome picture-frame around the opening (a solid plate would cover it).
     const fw = gw + 0.05;
@@ -622,7 +644,7 @@ function buildFront(model, def, fam, info, g) {
   } else if (fam.grille === 'wide') {
     grilleH = Math.min(0.15, faceH * 0.4);
     grilleY = lampY - 0.115;
-    const gr = mesh(new THREE.BoxGeometry(W * 0.66, grilleH, 0.022), black, g, false);
+    const gr = mesh(softBox(W * 0.66, grilleH, 0.022, 0.008), black, g, false);
     gr.position.set(0, grilleY, fz - 0.004);
     for (let i = 0; i < 3; i++) {
       const bar = mesh(new THREE.BoxGeometry(W * 0.66, 0.009, 0.01), model.chromeMat, g, false);
@@ -664,7 +686,7 @@ function buildFront(model, def, fam, info, g) {
     }
   }
   // Splitter tucked under the nose, with dive planes on the aero cars.
-  const splitter = mesh(new THREE.BoxGeometry(nose.w * 1.8, 0.022, 0.18), model.carbonMat, g);
+  const splitter = mesh(softBox(nose.w * 1.8, 0.022, 0.18, 0.01), model.carbonMat, g);
   splitter.position.set(0, nose.floor + 0.014, L / 2 - 0.07);
   if (fam.diffuser) {
     for (const sx of [-1, 1]) {
@@ -709,7 +731,7 @@ function buildRear(model, def, fam, info, g) {
   // dark cluster backing behind each lamp so paint shows between the units
   // instead of one full-width black slab.
   if (fam.tail === 'bar') {
-    const panel = mesh(new THREE.BoxGeometry(tw * 1.86, 0.05, 0.018), black, g, false);
+    const panel = mesh(softBox(tw * 1.86, 0.05, 0.018, 0.008), black, g, false);
     panel.position.set(0, ty, tz);
   }
 
@@ -749,11 +771,17 @@ function buildRear(model, def, fam, info, g) {
     const wrap = mesh(new THREE.BoxGeometry(0.035, 0.05, 0.15), model.tailMat, g, false);
     wrap.position.set(sx * (tail.w - 0.006), ty, -L / 2 + 0.09);
     wrap.rotation.y = sx * 0.06;
-    const sig = mesh(new THREE.BoxGeometry(0.09, 0.022, 0.014), model.signalMats[sx > 0 ? 'left' : 'right'], g, false);
-    sig.position.set(sx * tw * 0.88, ty - (upright ? 0.15 : 0.05), tz - 0.009);
+    // The indicator sits below/outside the red lens and a little further out
+    // than the LEDs; buried at the same depth as the tail lens it vanished.
+    const sy = ty - (upright ? 0.15 : 0.055);
+    const sxPos = sx * tw * 0.88;
+    const sBezel = mesh(softBox(0.12, 0.04, 0.012, 0.005), black, g, false);
+    sBezel.position.set(sxPos, sy, tz - 0.018);
+    const sig = mesh(softBox(0.1, 0.03, 0.014, 0.006), model.signalMats[sx > 0 ? 'left' : 'right'], g, false);
+    sig.position.set(sxPos, sy, tz - 0.029);
   }
   if (fam.tail === 'bar') {
-    const bar = mesh(new THREE.BoxGeometry(tail.w * 1.82, 0.03, 0.014), model.tailMat, g, false);
+    const bar = mesh(softBox(tail.w * 1.82, 0.03, 0.014, 0.006), model.tailMat, g, false);
     bar.position.set(0, ty, tz - 0.008);
     const led = mesh(new THREE.BoxGeometry(tail.w * 1.76, 0.014, 0.01), model.tailLedMat, g, false);
     led.position.set(0, ty - 0.018, tz - 0.018);
@@ -774,7 +802,7 @@ function buildRear(model, def, fam, info, g) {
   const script = mesh(new THREE.BoxGeometry(0.16, 0.014, 0.006), model.chromeMat, g, false);
   script.position.set(tw * 0.42, ty + 0.075, tz - 0.01);
   // Dark valance across the lower bumper, with a pair of corner vents.
-  const valance = mesh(new THREE.BoxGeometry(tail.w * 1.82, 0.11, 0.03), black, g, false);
+  const valance = mesh(softBox(tail.w * 1.82, 0.11, 0.03, 0.012), black, g, false);
   valance.position.set(0, tail.floor + 0.06, tz);
   for (const sx of [-1, 1]) {
     const vent = mesh(new THREE.BoxGeometry(0.16, 0.045, 0.018), model.trimMat, g, false);
@@ -782,7 +810,7 @@ function buildRear(model, def, fam, info, g) {
   }
 
   if (fam.diffuser) {
-    const diffuser = mesh(new THREE.BoxGeometry(W * 0.7, 0.035, 0.34), model.carbonMat, g);
+    const diffuser = mesh(softBox(W * 0.7, 0.035, 0.34, 0.014), model.carbonMat, g);
     diffuser.position.set(0, tail.floor + 0.07, -L / 2 + 0.17);
     diffuser.rotation.x = -0.24;
     for (let i = -3; i <= 3; i++) {
@@ -1016,13 +1044,13 @@ function buildSides(model, def, fam, info, g, prof) {
     base.position.set(mx, my - 0.022, mz);
     const arm = mesh(new THREE.BoxGeometry(0.07, 0.024, 0.045), model.paintMat, g, false);
     arm.position.set(mx + sx * 0.045, my, mz - 0.008);
-    const cap = mesh(new THREE.BoxGeometry(0.13, 0.062, 0.088), model.paintMat, g, false);
+    const cap = mesh(softBox(0.13, 0.062, 0.088, 0.018), model.paintMat, g, false);
     cap.position.set(mx + sx * 0.1, my + 0.014, mz - 0.03);
     cap.rotation.y = -sx * 0.1;
     const glass = mesh(new THREE.BoxGeometry(0.112, 0.05, 0.005), model.reflectorMat, g, false);
     glass.position.set(mx + sx * 0.1, my + 0.014, mz - 0.075);
-    const tip = mesh(new THREE.BoxGeometry(0.012, 0.012, 0.05), model.signalMats[sx > 0 ? 'left' : 'right'], g, false);
-    tip.position.set(mx + sx * 0.165, my + 0.014, mz - 0.06);
+    const tip = mesh(softBox(0.018, 0.02, 0.065, 0.007), model.signalMats[sx > 0 ? 'left' : 'right'], g, false);
+    tip.position.set(mx + sx * 0.168, my + 0.014, mz - 0.06);
     // Window line: black belt trim, a chrome bead, pillars and shut lines.
     if (fam.roof !== 'open') {
       const zw0 = b.cabinZ - b.cabinLength / 2 + 0.08;
