@@ -809,7 +809,8 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
       finishTime: null,
       bestLap: null,
       lastLapStart: 0,
-      position: totalRacers,
+      // Grid order before the first standings update (countdown minimap).
+      position: entrant.slot + 1,
     };
     if (setup.conditions?.weather === 'rain') {
       // Wet tarmac: every car on the grid loses the same grip and braking.
@@ -1648,9 +1649,13 @@ function updateHud(dt) {
   if (race.mapAccum > 1 / 40) {
     race.mapAccum = 0;
     const dots = race.racers.map((r) => ({
-      pos: r.car.pos,
+      // Remote cars do not run the local interpolation step, so use their
+      // snapshot position; everyone else uses the smoothed render position.
+      pos: r.remote ? r.car.pos : (r.car.renderPos || r.car.pos),
       isPlayer: r.isPlayer,
       color: r.color,
+      position: r.position,
+      finished: r.finished,
     }));
     hud.drawMap(car, dots, race.nextGate ?? 1, race.time);
   }
@@ -1775,7 +1780,9 @@ function tick(now, ms) {
     audio.launch(launchRpm, revving, dt);
 
     hud.setBoost(race.player.car.boost);
-    hud.drawMap(race.player.car, race.racers.map((r) => ({ pos: r.car.pos, isPlayer: r.isPlayer, color: r.color })), 1, 0);
+    hud.drawMap(race.player.car, race.racers.map((r) => ({
+      pos: r.car.pos, isPlayer: r.isPlayer, color: r.color, position: r.position,
+    })), 1, 0);
   }
 
   if (state === 'racing') {

@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 const N = 1200;
 
@@ -351,9 +352,22 @@ export function createTrack(scene, circuit) {
   bannerBack.rotation.y = Math.PI;
   archGroup.add(bannerBack);
 
-  // ── checkpoint gates
+  // ── checkpoint gates: lit race arches with angled shoulders. The dark
+  // frame and the glowing strips are merged into one mesh each per gate, so
+  // each arch costs only two draw calls instead of five.
   const gates = [];
   const gateCount = circuit.gates || 8;
+  const gateFrameMat = new THREE.MeshStandardMaterial({
+    color: 0x14121c, emissive: palette.accent, emissiveIntensity: 0.12,
+    roughness: 0.35, metalness: 0.75,
+  });
+  const boxAt = (w, h, d, x, y, z, rz = 0) => {
+    const geo = new THREE.BoxGeometry(w, h, d);
+    const matrix = new THREE.Matrix4().makeRotationZ(rz);
+    matrix.setPosition(x, y, z);
+    geo.applyMatrix4(matrix);
+    return geo;
+  };
   for (let i = 0; i < gateCount; i++) {
     const t = i / gateCount;
     const idx = Math.round(t * N) % N;
@@ -367,21 +381,37 @@ export function createTrack(scene, circuit) {
     g.rotation.y = Math.atan2(s.tangent.x, s.tangent.z);
     group.add(g);
     if (i !== 0) {
-      const gw = halfWidth + 0.9;
+      const gw = halfWidth + 1.1;
+      const shoulder = 1.5;
+      const shoulderY = 4.65;
+      const topY = 5.9;
+      const shoulderLen = Math.hypot(shoulder, topY - shoulderY);
+      const shoulderAngle = Math.atan2(topY - shoulderY, shoulder);
+      const frameGeos = [];
+      const glowGeos = [];
       for (const sx of [-1, 1]) {
-        const post = new THREE.Mesh(new THREE.BoxGeometry(0.22, 5.1, 0.22), mat);
-        post.position.set(sx * gw, 2.55, 0);
-        post.castShadow = true;
-        g.add(post);
+        // Foot, upright pillar and angled shoulder up to the top bar.
+        frameGeos.push(boxAt(1.1, 0.34, 1.1, sx * gw, 0.17, 0));
+        frameGeos.push(boxAt(0.62, 4.5, 0.62, sx * gw, 2.45, 0));
+        frameGeos.push(boxAt(shoulderLen, 0.5, 0.62,
+          sx * (gw - shoulder / 2), (shoulderY + topY) / 2, 0, -sx * shoulderAngle));
+        // Light strips on both faces so the arch reads from either direction.
+        for (const sz of [-1, 1]) {
+          glowGeos.push(boxAt(0.16, 4.1, 0.18, sx * (gw - 0.36), 2.4, sz * 0.34));
+          glowGeos.push(boxAt(shoulderLen * 0.86, 0.14, 0.18,
+            sx * (gw - shoulder / 2), (shoulderY + topY) / 2, sz * 0.34, -sx * shoulderAngle));
+        }
       }
-      const beam = new THREE.Mesh(new THREE.BoxGeometry(gw * 2 + 0.2, 0.22, 0.22), mat);
-      beam.position.set(0, 5.1, 0);
-      g.add(beam);
-      for (const sx of [-1, 1]) {
-        const glow = new THREE.Mesh(new THREE.BoxGeometry(0.1, 4.4, 0.3), mat);
-        glow.position.set(sx * (gw - 0.02), 2.4, 0.06);
-        g.add(glow);
+      frameGeos.push(boxAt((gw - shoulder) * 2 + 0.6, 0.5, 0.62, 0, topY, 0));
+      for (const sz of [-1, 1]) {
+        glowGeos.push(boxAt((gw - shoulder) * 2, 0.16, 0.18, 0, topY - 0.34, sz * 0.34));
       }
+      const frame = new THREE.Mesh(mergeGeometries(frameGeos), gateFrameMat);
+      frame.castShadow = true;
+      g.add(frame);
+      g.add(new THREE.Mesh(mergeGeometries(glowGeos), mat));
+      for (const geo of frameGeos) geo.dispose();
+      for (const geo of glowGeos) geo.dispose();
     }
     gates.push({
       index: i, t, point: s.point.clone(), tangent: s.tangent.clone(),
@@ -544,13 +574,13 @@ export function createTrack(scene, circuit) {
       const active = gate.index === nextGate;
       if (gate.flash > 0) {
         gate.material.emissive.set(0x8dffb0);
-        gate.material.emissiveIntensity = 2 + gate.flash * 3;
+        gate.material.emissiveIntensity = 2.5 + gate.flash * 4;
       } else if (active) {
         gate.material.emissive.set(palette.accent);
-        gate.material.emissiveIntensity = 1.6 + Math.sin(elapsed * 5) * 1.1;
+        gate.material.emissiveIntensity = 2.2 + Math.sin(elapsed * 5) * 1.3;
       } else {
         gate.material.emissive.set(palette.marker);
-        gate.material.emissiveIntensity = gate.index === 0 ? 0.9 : 0.35;
+        gate.material.emissiveIntensity = gate.index === 0 ? 0.9 : 0.5;
       }
     }
     for (const pad of pads) {

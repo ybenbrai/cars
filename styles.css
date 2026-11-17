@@ -649,7 +649,7 @@ h1 em, h2 em {
 
 .map-block {
   position: absolute; right: 24px; top: 78px;
-  width: 156px;
+  width: 196px;
   background: rgba(10, 6, 18, 0.42);
   border: 1px solid var(--line);
   backdrop-filter: blur(12px);
@@ -1163,7 +1163,7 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   .garage-top { gap: 16px; }
   .garage-meta { gap: 16px; }
   .meta:nth-child(2) { display: none; }
-  .map-block { width: 132px; }
+  .map-block { width: 168px; }
   .hud-bottom { bottom: 14px; }
   .nitro { bottom: 48px; }
 }
@@ -1198,7 +1198,7 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   .hud-rental { top: 88px; padding: 5px 11px 6px; }
   .lap-block { padding: 8px 16px 9px; min-width: 170px; }
   .lap-time { font-size: 25px; }
-  .map-block { width: 104px; top: 70px; right: 12px; padding: 5px; }
+  .map-block { width: 140px; top: 70px; right: 12px; padding: 5px; }
   .score-block strong { font-size: 16px; }
   .hud-bottom { bottom: 6px; gap: 0; }
   .gauge { width: 150px; height: 150px; }
@@ -1233,7 +1233,7 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   .tab-lock { display: none; }
   .stage-label span { font-size: 22px; }
   .race-btn { padding: 12px 22px; font-size: 13.5px; }
-  .map-block { display: none; }
+  .map-block { width: 124px; top: 64px; right: 10px; padding: 5px; }
   .hud-actions .icon-btn { width: 32px; height: 32px; }
   .lap-block { min-width: 152px; padding: 7px 12px 8px; }
   .lap-time { font-size: 22px; }
@@ -1690,7 +1690,7 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   .hud-top { top: 8px; left: 10px; right: 10px; }
   .lap-block { min-width: 150px; padding: 6px 12px 7px; }
   .lap-time { font-size: 22px; }
-  .map-block { width: 94px; top: 56px; right: 10px; padding: 5px; }
+  .map-block { width: 120px; top: 56px; right: 10px; padding: 5px; }
   .score-block strong { font-size: 15px; }
   .hud-bottom { bottom: 4px; }
   .gauge { width: 128px; height: 128px; }

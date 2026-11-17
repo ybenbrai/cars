@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Minimap markers are now legible: numbered, outlined discs for rivals (with
+  their race position), a much larger player arrow, and a pulsing diamond for
+  the next checkpoint. The arrow now points in the direction of travel, and
+  the map is no longer hidden on narrow screens.
+- Checkpoints are now full-width glowing race arches with lit shoulders, a
+  stronger pulse for the next gate and a green flash when you pass. The frame
+  and light strips are merged into two meshes per gate.
 - Day and night are now clearly different: DAY lifts the sunset palettes into
   real daylight while NIGHT keeps the dark sky, so a dark city circuit no
   longer looks like midnight at noon. The sky no longer draws a bright sun

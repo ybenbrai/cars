@@ -395,8 +395,9 @@ export class HUD {
   }
 
   /**
-   * Draw the minimap. `racers` is a list of `{ pos, isPlayer, color }`; the
-   * player is always drawn last so they stay on top of the field.
+   * Draw the minimap. `racers` is a list of
+   * `{ pos, isPlayer, color, position, finished }`. Rivals are numbered discs,
+   * the player is a large arrow drawn last so it always sits on top.
    */
   drawMap(player, racers = [], nextGate, time) {
     if (!this.map || !this.track || !this.mapTransform) return;
@@ -405,62 +406,87 @@ export class HUD {
     ctx.clearRect(0, 0, 360, 360);
     if (this.mapBase) ctx.drawImage(this.mapBase, 0, 0);
 
+    // Checkpoints: a pulsing cyan diamond for the next one, small dots after.
     for (const gate of this.track.gates) {
       if (gate.index === 0) continue;
       const x = gate.point.x * scale + ox;
       const y = gate.point.z * scale + oy;
-      const active = gate.index === nextGate;
-      ctx.beginPath();
-      ctx.arc(x, y, active ? 5 : 3, 0, Math.PI * 2);
-      ctx.fillStyle = active ? '#5ce1e6' : 'rgba(255,246,236,0.32)';
-      ctx.shadowColor = active ? '#5ce1e6' : 'transparent';
-      ctx.shadowBlur = active ? 10 : 0;
-      ctx.fill();
-      ctx.shadowBlur = 0;
+      if (gate.index === nextGate) {
+        const pulse = 14 + (Math.sin((time || 0) * 5) * 0.5 + 0.5) * 8;
+        ctx.beginPath();
+        ctx.arc(x, y, pulse, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(92,225,230,0.5)';
+        ctx.lineWidth = 3;
+        ctx.stroke();
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(Math.PI / 4);
+        ctx.fillStyle = '#5ce1e6';
+        ctx.shadowColor = '#5ce1e6';
+        ctx.shadowBlur = 14;
+        ctx.fillRect(-6, -6, 12, 12);
+        ctx.restore();
+      } else {
+        ctx.beginPath();
+        ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(255,246,236,0.42)';
+        ctx.fill();
+      }
     }
 
+    // Rivals: paint-coloured discs with their race position, outlined so they
+    // read against both tarmac and scenery. Finished cars fade into the background.
     for (const racer of racers) {
       if (!racer || racer.isPlayer || !racer.pos) continue;
       const x = racer.pos.x * scale + ox;
       const y = racer.pos.z * scale + oy;
+      ctx.save();
+      ctx.globalAlpha = racer.finished ? 0.45 : 1;
       ctx.beginPath();
-      ctx.arc(x, y, 3.6, 0, Math.PI * 2);
-      ctx.fillStyle = racer.color || '#ff3d7f';
-      ctx.globalAlpha = 0.85;
+      ctx.arc(x, y, 15, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(4,5,12,0.9)';
       ctx.fill();
-      ctx.globalAlpha = 1;
+      ctx.lineWidth = 3.5;
+      ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x, y, 11.5, 0, Math.PI * 2);
+      ctx.fillStyle = racer.color || '#ff3d7f';
+      ctx.fill();
+      if (racer.position) {
+        ctx.font = 'bold 16px system-ui, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.lineWidth = 3;
+        ctx.strokeStyle = 'rgba(0,0,0,0.8)';
+        ctx.strokeText(String(racer.position), x, y + 1);
+        ctx.fillStyle = '#fff';
+        ctx.fillText(String(racer.position), x, y + 1);
+      }
+      ctx.restore();
     }
 
     if (!player) return;
     const px = player.pos.x * scale + ox;
     const py = player.pos.z * scale + oy;
+    // The arrow points along local +X, so atan2(z, x) maps it to world forward
+    // (canvas Y is world Z). The old atan2(x, z) made it point backwards.
     ctx.save();
     ctx.translate(px, py);
-    ctx.rotate(Math.atan2(player.forward.x, player.forward.z));
+    ctx.rotate(Math.atan2(player.forward.z, player.forward.x));
     ctx.beginPath();
-    ctx.moveTo(0, -10);
-    ctx.lineTo(6.5, 7);
-    ctx.lineTo(0, 4);
-    ctx.lineTo(-6.5, 7);
+    ctx.moveTo(21, 0);
+    ctx.lineTo(-15, 13);
+    ctx.lineTo(-8, 0);
+    ctx.lineTo(-15, -13);
     ctx.closePath();
-    ctx.fillStyle = '#ffc46b';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(3,4,10,0.9)';
+    ctx.stroke();
+    ctx.fillStyle = '#ffd166';
     ctx.shadowColor = '#ff7a45';
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 16;
     ctx.fill();
     ctx.restore();
-
-    if (nextGate != null) {
-      const gate = this.track.gates[nextGate];
-      if (gate) {
-        const gx = gate.point.x * scale + ox;
-        const gy = gate.point.z * scale + oy;
-        const pulse = 7 + (Math.sin((time || 0) * 5) * 0.5 + 0.5) * 6;
-        ctx.beginPath();
-        ctx.arc(gx, gy, pulse, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(92,225,230,0.55)';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-      }
-    }
   }
 }
