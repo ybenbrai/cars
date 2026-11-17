@@ -1916,7 +1916,7 @@ function tick(now, ms) {
   effects.update(dt);
   race.rain?.update(dt, camera);
   race.track.update(dt, race.nextGate ?? 1);
-  race.roamWorld?.update(dt);
+  race.roamWorld?.update(dt, race.player?.car);
   updateCamera(dt);
   composer.render();
   if (state === 'racing') {

@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Hitting a downtown building no longer crashes with
+  `wallNormal.set is not a function`; city collisions now write the same plain
+  `x`/`z` wall normal used by the race circuit.
+- Downtown buildings are kept clear of the sidewalks, and walkers only spawn on
+  reachable streets, so pedestrians no longer appear inside scenery or beyond
+  the city bounds.
 - Minimap markers are now legible: numbered, outlined discs for rivals (with
   their race position), a much larger player arrow, and a pulsing diamond for
   the next checkpoint. The arrow now points in the direction of travel, and
@@ -31,7 +37,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - City Roam: a free-drive mode on the whole Downtown grid with no laps,
   checkpoints or race walls. Adds live instanced traffic, cycling traffic
   lights, solid buildings and city bounds, and drift-only rewards like Free
-  Drift. Pedestrians are intentionally deferred.
+  Drift.
+- Downtown pedestrians: 90 instanced walkers stroll the sidewalks, avoid
+  buildings and the race road, and step aside and slow for a nearby player car.
+  Traffic now checks signals at every grid junction, yields in the player's lane
+  and enters the correct lane width after turns. Shared sidewalk and boulevard
+  helpers keep scenery, physics, traffic and the minimap in sync.
 - Shared city online: a CITY ROAM button joins one persistent `CITY` room with
   live car pose relays, late-join snapshots and clean join/leave — no countdown,
   results or ranked bookkeeping. Friends can also join with the `CITY` code.

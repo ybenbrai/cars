@@ -6,10 +6,22 @@ export const STREET_SPACING = 96;
 export const BOULEVARD_EVERY = 3;
 export const MINOR_WIDTH = 13;
 export const BOULEVARD_WIDTH = 24;
+export const SIDEWALK_WIDTH = 4;
 export const CITY_EXTENT = 1152;
 
 const isBoulevard = (k) => k % BOULEVARD_EVERY === 0;
 const widthFor = (k) => (isBoulevard(k) ? BOULEVARD_WIDTH : MINOR_WIDTH);
+
+/** Is this painted street line a wide boulevard? */
+export function isBoulevardLine(pos) {
+  return isBoulevard(Math.round(pos / STREET_SPACING));
+}
+
+/** The two sidewalk centre lines on either side of a street. */
+export function sidewalkCenters(street) {
+  const offset = street.width / 2 + SIDEWALK_WIDTH / 2;
+  return [street.pos - offset, street.pos + offset];
+}
 
 /**
  * Build the grid for a given half-size. Lines sit on multiples of

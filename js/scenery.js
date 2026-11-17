@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { CITY_EXTENT, CITY_GRID, nearestRoad } from './data/cityGrid.js';
+import { CITY_EXTENT, CITY_GRID, SIDEWALK_WIDTH, nearestRoad, sidewalkCenters } from './data/cityGrid.js';
 
 export const SUN_DIR = new THREE.Vector3(0.66, 0.19, 0.42).normalize();
 
@@ -735,7 +735,7 @@ export function populateScenery(scene, track, circuit) {
         const w = 20 + Math.random() * 34;
         const d = w * (0.6 + Math.random() * 0.7);
         // Keep towers off the painted streets, including the outer grid.
-        if (nearestRoad(x, z, CITY_GRID).edge < Math.max(w, d) * 0.5 + 3) continue;
+        if (nearestRoad(x, z, CITY_GRID).edge < Math.max(w, d) * 0.5 + SIDEWALK_WIDTH + 3) continue;
         skyline.push({ x, z, h, w, d, ry: Math.random() > 0.5 ? 0 : Math.PI / 2 });
         addCollider(x, z, w, d);
       }
@@ -755,7 +755,7 @@ export function populateScenery(scene, track, circuit) {
       const h = 14 + Math.random() * 58;
       const w = 12 + Math.random() * 20;
       const d = w * (0.72 + Math.random() * 0.7);
-      if (nearestRoad(s.x, s.z, CITY_GRID).edge < Math.max(w, d) * 0.5 + 3) return null;
+      if (nearestRoad(s.x, s.z, CITY_GRID).edge < Math.max(w, d) * 0.5 + SIDEWALK_WIDTH + 3) return null;
       addCollider(s.x, s.z, w, d);
       return {
         x: s.x, y: h / 2, z: s.z, scale: 1,
@@ -775,9 +775,9 @@ export function populateScenery(scene, track, circuit) {
       const half = s.width / 2;
       if (s.axis === 0) {
         gridRoads.push({ x: s.pos, z: 0, sx: s.width, sz: extent * 2, ry: 0 });
-        for (const sign of [-1, 1]) {
-          gridWalks.push({ x: s.pos + sign * (half + 2), z: 0, sx: 4, sz: extent * 2, ry: 0 });
-          gridCurbs.push({ x: s.pos + sign * (half + 0.25), z: 0, sx: 0.5, sz: extent * 2, ry: 0 });
+        for (const side of sidewalkCenters(s)) {
+          gridWalks.push({ x: side, z: 0, sx: SIDEWALK_WIDTH, sz: extent * 2, ry: 0 });
+          gridCurbs.push({ x: s.pos + Math.sign(side - s.pos) * (half + 0.25), z: 0, sx: 0.5, sz: extent * 2, ry: 0 });
         }
         for (let d = -extent + 14; d < extent; d += 30) {
           for (const off of (s.boulevard ? [-1.6, 1.6] : [0])) {
@@ -786,9 +786,9 @@ export function populateScenery(scene, track, circuit) {
         }
       } else {
         gridRoads.push({ x: 0, z: s.pos, sx: extent * 2, sz: s.width, ry: 0 });
-        for (const sign of [-1, 1]) {
-          gridWalks.push({ x: 0, z: s.pos + sign * (half + 2), sx: extent * 2, sz: 4, ry: 0 });
-          gridCurbs.push({ x: 0, z: s.pos + sign * (half + 0.25), sx: extent * 2, sz: 0.5, ry: 0 });
+        for (const side of sidewalkCenters(s)) {
+          gridWalks.push({ x: 0, z: side, sx: extent * 2, sz: SIDEWALK_WIDTH, ry: 0 });
+          gridCurbs.push({ x: 0, z: s.pos + Math.sign(side - s.pos) * (half + 0.25), sx: extent * 2, sz: 0.5, ry: 0 });
         }
         for (let d = -extent + 14; d < extent; d += 30) {
           for (const off of (s.boulevard ? [-1.6, 1.6] : [0])) {
@@ -885,7 +885,7 @@ export function populateScenery(scene, track, circuit) {
         const x = s.point.x + s.side.x * sign * off;
         const z = s.point.z + s.side.z * sign * off;
         if (track.distanceToTrack(x, z) < track.wallOffset + 4) continue;
-        if (nearestRoad(x, z, grid).edge < 10) continue;
+        if (nearestRoad(x, z, grid).edge < SIDEWALK_WIDTH + 8) continue;
         if (Math.hypot(x - standPos.x, z - standPos.z) < 34) continue;
         const w = 7 + Math.random() * 6;
         const d = 6 + Math.random() * 6;
@@ -942,7 +942,7 @@ export function populateScenery(scene, track, circuit) {
       const w = 6 + Math.random() * 7;
       const d = 5 + Math.random() * 6;
       // Keep the painted streets, pavements and crosswalks clear.
-      if (nearestRoad(s.x, s.z, grid).edge < Math.max(w, d) * 0.5 + 5) continue;
+      if (nearestRoad(s.x, s.z, grid).edge < Math.max(w, d) * 0.5 + SIDEWALK_WIDTH + 4) continue;
       addCollider(s.x, s.z, w, d);
       blockHouses.push({
         x: s.x, z: s.z, w, d,

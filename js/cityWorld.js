@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { CITY_GRID, nearestRoad } from './data/cityGrid.js';
+import { CITY_GRID, isBoulevardLine, nearestRoad, sidewalkCenters } from './data/cityGrid.js';
 
 // Free-roam city layer. The race track and its painted street grid already
 // exist; this adds the missing *simulation*: a drivable surface, solid
@@ -11,6 +11,8 @@ const GREEN_TIME = 5.8;
 const AMBER_TIME = 1.6;
 const TRAFFIC_COUNT = 18;
 const TRAFFIC_SPEED = 13;
+const PEDESTRIAN_COUNT = 90;
+const PEDESTRIAN_SPEED = 1.5;
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -49,6 +51,7 @@ export class CityWorld {
     this.elapsed = 0;
     this.traffic = [];
     this.buildTraffic();
+    this.buildPedestrians();
   }
 
   /** Nearest painted road centreline: dense grid or the race boulevard. */
@@ -111,7 +114,8 @@ export class CityWorld {
             car.vel.z -= 1.5 * vn * nz;
             car.impact = Math.max(car.impact, Math.abs(vn));
             car.wallHit = Math.max(car.wallHit, Math.abs(vn));
-            car.wallNormal.set(nx, 0, nz);
+            car.wallNormal.x = nx;
+            car.wallNormal.z = nz;
           }
         }
       }
@@ -214,7 +218,142 @@ export class CityWorld {
     for (const mesh of this.trafficMeshes) mesh.instanceMatrix.needsUpdate = true;
   }
 
-  update(dt) {
+  nearBuilding(x, z, margin) {
+    const cell = this.colliderCell;
+    const cx = Math.floor(x / cell);
+    const cz = Math.floor(z / cell);
+    for (let ix = cx - 1; ix <= cx + 1; ix++) {
+      for (let iz = cz - 1; iz <= cz + 1; iz++) {
+        const bucket = this.colliderBuckets.get(`${ix},${iz}`);
+        if (!bucket) continue;
+        for (const c of bucket) {
+          const dx = x - c.x;
+          const dz = z - c.z;
+          const min = c.r + margin;
+          if (dx * dx + dz * dz < min * min) return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /** Instanced walkers on the sidewalks. They dodge aside for nearby cars. */
+  buildPedestrians() {
+    const bodyGeo = new THREE.CapsuleGeometry(0.26, 0.82, 3, 6);
+    bodyGeo.translate(0, 0.7, 0);
+    const headGeo = new THREE.SphereGeometry(0.22, 7, 5);
+    headGeo.translate(0, 1.42, 0);
+    const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9 });
+    const headMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85 });
+    this.pedMeshes = [
+      new THREE.InstancedMesh(bodyGeo, bodyMat, PEDESTRIAN_COUNT),
+      new THREE.InstancedMesh(headGeo, headMat, PEDESTRIAN_COUNT),
+    ];
+    const shirts = [0xc94f4f, 0x3f6d9c, 0xd39b3f, 0x4f9c72, 0x7a5b9c, 0xd6d1c4, 0x2f3540];
+    const skins = [0xe8bd97, 0xc98c63, 0x8d5b3c, 0xf1cfa9, 0x6f432b];
+    const tint = new THREE.Color();
+    const maxK = Math.floor(this.extent / this.grid.spacing);
+    // The outermost road is clamped by the city bounds, so walk on the
+    // sidewalks of streets the player can actually reach.
+    const walkable = this.grid.streets.filter((s) => Math.abs(s.pos) <= this.extent - 16);
+    this.pedestrians = [];
+    for (let i = 0; i < PEDESTRIAN_COUNT; i++) {
+      let street, lane, k, pos, x, z;
+      for (let attempt = 0; attempt < 40; attempt++) {
+        street = walkable[Math.floor(Math.random() * walkable.length)];
+        lane = sidewalkCenters(street)[Math.random() < 0.5 ? 0 : 1];
+        k = Math.floor(Math.random() * 2 * maxK) - maxK;
+        pos = (k + 0.12 + Math.random() * 0.76) * this.grid.spacing;
+        x = street.axis === 1 ? pos : lane;
+        z = street.axis === 1 ? lane : pos;
+        if (this.track.distanceToTrack(x, z) < this.track.halfWidth + 3) continue;
+        if (!this.nearBuilding(x, z, 1.5)) break;
+      }
+      this.pedestrians.push({
+        // A walker along a horizontal street travels on X, and vice versa.
+        axis: 1 - street.axis,
+        line: street.pos,
+        lane,
+        pos,
+        min: (k + 0.1) * this.grid.spacing,
+        max: (k + 0.9) * this.grid.spacing,
+        dir: Math.random() < 0.5 ? -1 : 1,
+        speed: PEDESTRIAN_SPEED * (0.7 + Math.random() * 0.6),
+        phase: Math.random() * Math.PI * 2,
+        dodge: 0,
+        x: 0, z: 0, heading: 0,
+      });
+      this.pedMeshes[0].setColorAt(i, tint.set(shirts[i % shirts.length]));
+      this.pedMeshes[1].setColorAt(i, tint.set(skins[i % skins.length]));
+    }
+    for (const mesh of this.pedMeshes) {
+      mesh.instanceColor.needsUpdate = true;
+      mesh.castShadow = false;
+      mesh.receiveShadow = true;
+      mesh.frustumCulled = false;
+      this.group.add(mesh);
+    }
+    this.syncPedestrians();
+  }
+
+  pedestrianPose(p) {
+    // Dodge away from the road, never into it.
+    const cross = p.lane + Math.sign(p.lane - p.line) * p.dodge;
+    return p.axis === 0
+      ? { x: p.pos, z: cross, heading: p.dir > 0 ? Math.PI / 2 : -Math.PI / 2 }
+      : { x: cross, z: p.pos, heading: p.dir > 0 ? 0 : Math.PI };
+  }
+
+  syncPedestrians() {
+    for (let i = 0; i < this.pedestrians.length; i++) {
+      const p = this.pedestrians[i];
+      const pose = this.pedestrianPose(p);
+      p.x = pose.x;
+      p.z = pose.z;
+      p.heading = pose.heading;
+      const bob = Math.sin(this.elapsed * p.speed * 3 + p.phase) * 0.045;
+      this.dummy.position.set(pose.x, bob, pose.z);
+      this.dummy.rotation.set(0, pose.heading, 0);
+      this.dummy.scale.setScalar(1);
+      this.dummy.updateMatrix();
+      for (const mesh of this.pedMeshes) mesh.setMatrixAt(i, this.dummy.matrix);
+    }
+    for (const mesh of this.pedMeshes) mesh.instanceMatrix.needsUpdate = true;
+  }
+
+  updatePedestrians(dt, player) {
+    for (const p of this.pedestrians) {
+      let pace = 1;
+      if (player?.pos) {
+        const dx = player.pos.x - p.x;
+        const dz = player.pos.z - p.z;
+        const d2 = dx * dx + dz * dz;
+        if (d2 < 100 && d2 > 0.01) {
+          p.dodge = Math.max(p.dodge, (1 - Math.sqrt(d2) / 10) * 1.8);
+          pace = 0.15;
+        }
+      }
+      p.dodge = Math.max(0, p.dodge - dt * 1.6);
+      p.pos += p.dir * p.speed * pace * dt;
+      if (p.pos > p.max) { p.pos = p.max; p.dir = -1; }
+      if (p.pos < p.min) { p.pos = p.min; p.dir = 1; }
+    }
+    this.syncPedestrians();
+  }
+
+  /** Is the next downtown junction showing red for this traffic car? */
+  gridLightAhead(t) {
+    const spacing = this.grid.spacing;
+    const next = t.dir > 0
+      ? (Math.floor(t.pos / spacing) + 1) * spacing
+      : (Math.ceil(t.pos / spacing) - 1) * spacing;
+    const ahead = (next - t.pos) * t.dir;
+    if (ahead <= 0 || ahead > 26) return false;
+    const group = ((Math.round(next / spacing) + (t.axis === 0 ? 0 : 1)) % 2 + 2) % 2;
+    return !this.isGreen(group);
+  }
+
+  update(dt, player) {
     this.elapsed += dt;
     for (let g = 0; g < this.lightSets.length; g++) {
       const set = this.lightSets[g];
@@ -227,17 +366,35 @@ export class CityWorld {
 
     for (const t of this.traffic) {
       let target = TRAFFIC_SPEED;
-      // Stop for a red light at a junction ahead on this road.
-      for (const j of this.junctions) {
-        const ahead = t.axis === 0
-          ? (j.x - t.pos) * t.dir
-          : (j.z - t.pos) * t.dir;
-        if (ahead <= 0 || ahead > 30) continue;
-        const across = t.axis === 0 ? Math.abs(j.z - t.z) : Math.abs(j.x - t.x);
-        if (across > 16) continue;
-        if (!this.isGreen(j.group)) target = 0;
-        break;
+      // Signals on the race loop and at every downtown junction.
+      let red = this.gridLightAhead(t);
+      if (!red) {
+        for (const j of this.junctions) {
+          const ahead = t.axis === 0
+            ? (j.x - t.pos) * t.dir
+            : (j.z - t.pos) * t.dir;
+          if (ahead <= 0 || ahead > 30) continue;
+          const across = t.axis === 0 ? Math.abs(j.z - t.z) : Math.abs(j.x - t.x);
+          if (across > 16) continue;
+          red = !this.isGreen(j.group);
+          break;
+        }
       }
+      if (red) target = 0;
+
+      // Yield when the player is ahead in the same lane.
+      if (player?.pos) {
+        const ahead = t.axis === 0
+          ? (player.pos.x - t.pos) * t.dir
+          : (player.pos.z - t.pos) * t.dir;
+        const across = t.axis === 0
+          ? Math.abs(player.pos.z - (t.line + t.lane))
+          : Math.abs(player.pos.x - (t.line + t.lane));
+        if (ahead > 0 && ahead < 24 && across < 4.5) {
+          target = Math.min(target, Math.max(0, (ahead - 7) * 1.6));
+        }
+      }
+
       // Keep a gap to the next car travelling the same way on this street.
       for (const other of this.traffic) {
         if (other === t || other.axis !== t.axis || other.dir !== t.dir) continue;
@@ -258,7 +415,7 @@ export class CityWorld {
         if (Math.abs(cross) <= this.extent) {
           t.axis = 1 - t.axis;
           t.line = cross;
-          t.lane = Math.random() < 0.5 ? -3.4 : 3.4;
+          t.lane = (Math.random() < 0.5 ? -1 : 1) * (isBoulevardLine(cross) ? 4.8 : 3.4);
           t.dir = Math.random() < 0.5 ? -1 : 1;
           t.speed *= 0.6;
         }
@@ -267,10 +424,11 @@ export class CityWorld {
       if (t.pos < -this.extent) t.pos = this.extent;
     }
     this.syncTraffic();
+    this.updatePedestrians(dt, player);
   }
 
   dispose() {
-    for (const mesh of this.trafficMeshes) {
+    for (const mesh of this.trafficMeshes.concat(this.pedMeshes)) {
       mesh.geometry.dispose();
       mesh.material.dispose();
     }
