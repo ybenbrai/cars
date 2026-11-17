@@ -568,7 +568,10 @@ export class CarModel {
       color: 0x5a3200, emissive: 0xff7a00, emissiveIntensity: 0.12, roughness: 0.3, toneMapped: false,
     });
     this.signalMats = { left: makeSignal(), right: makeSignal() };
-    this.seamMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0e, side: THREE.DoubleSide });
+    this.seamMat = new THREE.MeshBasicMaterial({
+      color: 0x0a0a0e, side: THREE.DoubleSide,
+      polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
+    });
     this.plateTex = plateTexture(look.plate);
     this.plateMat = new THREE.MeshStandardMaterial({
       map: this.plateTex,

@@ -254,6 +254,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Modern car polish: headlights now use dark glass lenses with a slim
+  emitter and a visible projector instead of glowing white tubes; wedge
+  hypercars get a thin Y-signature DRL and larger side intakes. Tail lamps
+  are tapered clusters that follow the rear quarters, the light-bar garnish
+  is thinner, and the lower bumper has a recessed plate and air dam. Wheel
+  wells are tightened and closed at the inboard end so the tyre fills the
+  arch, with larger rim faces and a thin arch seal.
 - Mobile race HUD: the nitro panel is now a borderless top-left overlay,
   the old refill hint is gone and camera/pause stay in the top action row.
   Brake and gas are large pedal-shaped pads in the bottom-right; the handbrake

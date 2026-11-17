@@ -2442,6 +2442,7 @@ window.__sunsetDrift = {
   get camera() { return camera; },
   get ui() { return ui; },
   get hud() { return hud; },
+  get garage() { return garage; },
   startRace,
   enterGarage,
   save: () => store?.toJSON(),
