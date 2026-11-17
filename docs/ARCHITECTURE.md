@@ -179,10 +179,12 @@ projected back inside and the outward velocity component is reflected and
 damped. The nearest-point scan is linear over the sampled centerline; with a few
 hundred samples this is cheap and completely stable.
 
-City Roam swaps that single corridor for `CityWorld.constrain(car)`. The city
-surface query picks the nearest painted grid line (or race boulevard sample) and
-marks off-road from its half-width; building colliders, the 18 traffic cars and
-an outer extent push the car out and reflect inbound velocity. Traffic itself is
+City Roam swaps that single corridor for `CityWorld.constrain(car)`. A shared
+grid definition (`js/data/cityGrid.js`) feeds the painted streets, the surface
+query, traffic lanes and the roam minimap: 96 m blocks with boulevards every
+third line. The whole downtown is drivable, so no off-road penalty is applied;
+bucketed building colliders, the 18 traffic cars and an outer extent push the
+car out and reflect inbound velocity. Traffic itself is
 instanced (three meshes for bodies, cabins and lamps) and updated each frame with
 signal-aware target speeds, gap keeping and random turns at junctions. Signals
 are materials whose `emissiveIntensity` is driven from a 14-second clock split

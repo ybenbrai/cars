@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { CITY_EXTENT, CITY_GRID, nearestRoad } from './data/cityGrid.js';
 
 export const SUN_DIR = new THREE.Vector3(0.66, 0.19, 0.42).normalize();
 
@@ -733,6 +734,8 @@ export function populateScenery(scene, track, circuit) {
         const h = 34 + Math.random() * 165;
         const w = 20 + Math.random() * 34;
         const d = w * (0.6 + Math.random() * 0.7);
+        // Keep towers off the painted streets, including the outer grid.
+        if (nearestRoad(x, z, CITY_GRID).edge < Math.max(w, d) * 0.5 + 3) continue;
         skyline.push({ x, z, h, w, d, ry: Math.random() > 0.5 ? 0 : Math.PI / 2 });
         addCollider(x, z, w, d);
       }
@@ -752,6 +755,7 @@ export function populateScenery(scene, track, circuit) {
       const h = 14 + Math.random() * 58;
       const w = 12 + Math.random() * 20;
       const d = w * (0.72 + Math.random() * 0.7);
+      if (nearestRoad(s.x, s.z, CITY_GRID).edge < Math.max(w, d) * 0.5 + 3) return null;
       addCollider(s.x, s.z, w, d);
       return {
         x: s.x, y: h / 2, z: s.z, scale: 1,
@@ -760,42 +764,99 @@ export function populateScenery(scene, track, circuit) {
       };
     }, [0x7a7f94, 0x8a7d88, 0x6d7386, 0x91857c]);
 
-    // ── city street grid stretching out to the horizon
-    const extent = trackRadius + 480;
-    const block = 170;
+    // ── dense downtown street grid stretching to the city limits
+    const extent = CITY_EXTENT;
+    const grid = CITY_GRID;
     const gridRoads = [];
     const gridWalks = [];
+    const gridCurbs = [];
     const gridDashes = [];
-    for (let k = -Math.ceil(extent / block); k <= Math.ceil(extent / block); k++) {
-      const p = k * block;
-      gridRoads.push({ x: p, z: 0, sx: 11, sz: extent * 2 });
-      gridRoads.push({ x: 0, z: p, sx: extent * 2, sz: 11 });
-      for (const off of [-6.6, 6.6]) {
-        gridWalks.push({ x: p + off, z: 0, sx: 2, sz: extent * 2 });
-        gridWalks.push({ x: 0, z: p + off, sx: extent * 2, sz: 2 });
-      }
-      for (let d = -extent + 9; d < extent; d += 24) {
-        gridDashes.push({ x: p, z: d, sx: 0.3, sz: 6 });
-        gridDashes.push({ x: d, z: p, sx: 6, sz: 0.3 });
+    for (const s of grid.streets) {
+      const half = s.width / 2;
+      if (s.axis === 0) {
+        gridRoads.push({ x: s.pos, z: 0, sx: s.width, sz: extent * 2, ry: 0 });
+        for (const sign of [-1, 1]) {
+          gridWalks.push({ x: s.pos + sign * (half + 2), z: 0, sx: 4, sz: extent * 2, ry: 0 });
+          gridCurbs.push({ x: s.pos + sign * (half + 0.25), z: 0, sx: 0.5, sz: extent * 2, ry: 0 });
+        }
+        for (let d = -extent + 14; d < extent; d += 30) {
+          for (const off of (s.boulevard ? [-1.6, 1.6] : [0])) {
+            gridDashes.push({ x: s.pos + off, z: d, sx: 0.34, sz: 7, ry: 0 });
+          }
+        }
+      } else {
+        gridRoads.push({ x: 0, z: s.pos, sx: extent * 2, sz: s.width, ry: 0 });
+        for (const sign of [-1, 1]) {
+          gridWalks.push({ x: 0, z: s.pos + sign * (half + 2), sx: extent * 2, sz: 4, ry: 0 });
+          gridCurbs.push({ x: 0, z: s.pos + sign * (half + 0.25), sx: extent * 2, sz: 0.5, ry: 0 });
+        }
+        for (let d = -extent + 14; d < extent; d += 30) {
+          for (const off of (s.boulevard ? [-1.6, 1.6] : [0])) {
+            gridDashes.push({ x: d, z: s.pos + off, sx: 7, sz: 0.34, ry: 0 });
+          }
+        }
       }
     }
     instanced(
       new THREE.BoxGeometry(1, 1, 1),
-      new THREE.MeshStandardMaterial({ color: 0x1a1b22, roughness: 0.96, metalness: 0.02 }),
+      new THREE.MeshStandardMaterial({ color: 0x252733, roughness: 0.97, metalness: 0.02 }),
       gridRoads.length,
-      reader(gridRoads.map((r) => ({ x: r.x, y: -0.035, z: r.z, sx: r.sx, sy: 0.03, sz: r.sz, ry: 0 }))),
+      reader(gridRoads.map((r) => ({ ...r, y: -0.04, sy: 0.04 }))),
     );
     instanced(
       new THREE.BoxGeometry(1, 1, 1),
-      new THREE.MeshStandardMaterial({ color: 0x52525f, roughness: 0.94 }),
+      new THREE.MeshStandardMaterial({ color: 0x606473, roughness: 0.92 }),
       gridWalks.length,
-      reader(gridWalks.map((w) => ({ x: w.x, y: -0.028, z: w.z, sx: w.sx, sy: 0.028, sz: w.sz, ry: 0 }))),
+      reader(gridWalks.map((w) => ({ ...w, y: -0.026, sy: 0.026 }))),
     );
     instanced(
       new THREE.BoxGeometry(1, 1, 1),
-      new THREE.MeshStandardMaterial({ color: 0xb9b3c8, roughness: 0.7 }),
+      new THREE.MeshStandardMaterial({ color: 0xa6a2b4, roughness: 0.7 }),
+      gridCurbs.length,
+      reader(gridCurbs.map((c) => ({ ...c, y: -0.012, sy: 0.012 }))),
+    );
+    instanced(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: 0xcac4b4, roughness: 0.65 }),
       gridDashes.length,
-      reader(gridDashes.map((d) => ({ x: d.x, y: -0.015, z: d.z, sx: d.sx, sy: 0.008, sz: d.sz, ry: 0 }))),
+      reader(gridDashes.map((d) => ({ ...d, y: -0.008, sy: 0.008 }))),
+    );
+
+    // Zebra crossings wherever a boulevard meets a street, so intersections
+    // read as city junctions instead of bare asphalt overlaps.
+    const crosswalks = [];
+    for (const v of grid.vertical) {
+      for (const h of grid.horizontal) {
+        if (!v.boulevard && !h.boulevard) continue;
+        if (v.boulevard) {
+          const stripes = Math.max(5, Math.round(v.width / 2.6));
+          const step = v.width / stripes;
+          for (let i = 0; i < stripes; i++) {
+            crosswalks.push({
+              x: v.pos - v.width / 2 + (i + 0.5) * step,
+              z: h.pos - h.width / 2 - 2.6,
+              sx: Math.min(1.4, step * 0.55), sy: 0.012, sz: 3.2, ry: 0,
+            });
+          }
+        }
+        if (h.boulevard) {
+          const stripes = Math.max(5, Math.round(h.width / 2.6));
+          const step = h.width / stripes;
+          for (let i = 0; i < stripes; i++) {
+            crosswalks.push({
+              x: v.pos - v.width / 2 - 2.6,
+              z: h.pos - h.width / 2 + (i + 0.5) * step,
+              sx: 3.2, sy: 0.012, sz: Math.min(1.4, step * 0.55), ry: 0,
+            });
+          }
+        }
+      }
+    }
+    instanced(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshStandardMaterial({ color: 0xded8e8, roughness: 0.7 }),
+      crosswalks.length,
+      reader(crosswalks.map((c) => ({ ...c, y: 0.014 }))),
     );
 
     // ── junction positions (used by houses, lights, crossings and side streets)
@@ -824,6 +885,7 @@ export function populateScenery(scene, track, circuit) {
         const x = s.point.x + s.side.x * sign * off;
         const z = s.point.z + s.side.z * sign * off;
         if (track.distanceToTrack(x, z) < track.wallOffset + 4) continue;
+        if (nearestRoad(x, z, grid).edge < 10) continue;
         if (Math.hypot(x - standPos.x, z - standPos.z) < 34) continue;
         const w = 7 + Math.random() * 6;
         const d = 6 + Math.random() * 6;
@@ -874,17 +936,13 @@ export function populateScenery(scene, track, circuit) {
 
     // ── residential blocks filling the grid between the boulevards
     const blockHouses = [];
-    for (let attempt = 0; attempt < 900 && blockHouses.length < 260; attempt++) {
-      const s = spot(52, 70, trackRadius + 430);
+    for (let attempt = 0; attempt < 1500 && blockHouses.length < 420; attempt++) {
+      const s = spot(40, 70, extent - 40);
       if (!s) continue;
-      // Keep the painted grid streets and their pavements clear.
-      const nearGrid = (v) => {
-        const m = ((v % block) + block) % block;
-        return Math.min(m, block - m) < 15;
-      };
-      if (nearGrid(s.x) || nearGrid(s.z)) continue;
       const w = 6 + Math.random() * 7;
       const d = 5 + Math.random() * 6;
+      // Keep the painted streets, pavements and crosswalks clear.
+      if (nearestRoad(s.x, s.z, grid).edge < Math.max(w, d) * 0.5 + 5) continue;
       addCollider(s.x, s.z, w, d);
       blockHouses.push({
         x: s.x, z: s.z, w, d,
@@ -1056,7 +1114,7 @@ export function populateScenery(scene, track, circuit) {
       colliders: cityColliders,
       lights: lightMats,
       junctions: junctionSpots,
-      block,
+      grid,
       extent,
     };
   }

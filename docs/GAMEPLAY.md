@@ -168,8 +168,9 @@ time; `RESTART SESSION` resets the run.
 
 ## City Roam
 
-City Roam is a free-drive session on **Downtown Run** with no laps, no checkpoints and no finish line. The closed race corridor is replaced by a `CityWorld`: the whole downtown grid is drivable, including painted side streets and the race boulevard. Buildings, the outer city bounds and other cars are solid; off-road is decided by distance to the nearest road rather than a single loop.
+City Roam is a free-drive session on **Downtown Run** with no laps, no checkpoints and no finish line. The closed race corridor is replaced by a `CityWorld`: the whole downtown street grid is drivable, from narrow side streets to wide boulevards, plus the race boulevard. Buildings, the outer city bounds and other cars are solid; there is no off-road speed penalty, so cutting across a block never slows the car. The minimap shows the full street grid, with live traffic dots, instead of the race circuit.
 
+- **Street grid.** One shared definition feeds the painted roads, traffic lanes, building placement and minimap: 96 m blocks, boulevards every third street, sidewalks, curbs, lane markings and zebra crossings at boulevard junctions.
 - **Live traffic.** 18 instanced cars follow the grid, obey the signals, keep a gap to the car ahead, brake for red lights and turn at random junctions.
 - **Working signals.** Junctions run a 14-second green → amber → red cycle, split into two alternating phase sets so adjacent blocks differ. Traffic stops on red.
 - **No countdown, no gates.** Roam launches straight into driving. Checkpoints, lap timing, wrong-way warnings and the ghost are all disabled. Press `R` to reset to the nearest road.

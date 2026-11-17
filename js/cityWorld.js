@@ -1,11 +1,11 @@
 import * as THREE from 'three';
+import { CITY_GRID, nearestRoad } from './data/cityGrid.js';
 
 // Free-roam city layer. The race track and its painted street grid already
 // exist; this adds the missing *simulation*: a drivable surface, solid
 // buildings, cycling signals and traffic. Everything is procedural and
 // instanced so it stays cheap on a phone.
 
-const GRID_HALF = 5.5;
 const SIGNAL_CYCLE = 14;
 const GREEN_TIME = 5.8;
 const AMBER_TIME = 1.6;
@@ -18,8 +18,8 @@ export class CityWorld {
   constructor(scene, track, city) {
     this.scene = scene;
     this.track = track;
-    this.block = city?.block || 170;
-    this.extent = city?.extent || 1200;
+    this.grid = city?.grid || CITY_GRID;
+    this.extent = this.grid.extent;
     this.colliders = city?.colliders || [];
     this.lightSets = city?.lights?.sets || [];
     this.junctions = [];
@@ -33,6 +33,16 @@ export class CityWorld {
       x: s.point.x, z: s.point.z, tx: s.tangent.x, tz: s.tangent.z,
     }));
 
+    // Only test the handful of buildings around the car, not the whole city.
+    this.colliderCell = 64;
+    this.colliderBuckets = new Map();
+    for (const c of this.colliders) {
+      const key = `${Math.floor(c.x / this.colliderCell)},${Math.floor(c.z / this.colliderCell)}`;
+      let bucket = this.colliderBuckets.get(key);
+      if (!bucket) this.colliderBuckets.set(key, bucket = []);
+      bucket.push(c);
+    }
+
     this.group = new THREE.Group();
     this.group.name = 'city-world';
     scene.add(this.group);
@@ -41,34 +51,22 @@ export class CityWorld {
     this.buildTraffic();
   }
 
-  /** Nearest drivable road centreline: painted grid or the race boulevard. */
+  /** Nearest painted road centreline: dense grid or the race boulevard. */
   surface(x, z) {
-    const k = Math.round(x / this.block);
-    let best = Infinity;
-    let px = x;
-    let pz = z;
-    let tx = 1;
-    let tz = 0;
-    let halfWidth = GRID_HALF;
-    for (let n = k - 1; n <= k + 1; n++) {
-      const line = n * this.block;
-      if (Math.abs(line) > this.extent) continue;
-      let d = Math.abs(x - line);
-      if (d < best) { best = d; px = line; pz = z; tx = 0; tz = 1; halfWidth = GRID_HALF; }
-      d = Math.abs(z - line);
-      if (d < best) { best = d; px = x; pz = line; tx = 1; tz = 0; halfWidth = GRID_HALF; }
-    }
+    const near = nearestRoad(x, z, this.grid);
+    let { dist, x: px, z: pz, tx, tz, halfWidth } = near;
+    // The race loop is a boulevard too; prefer it where it runs closer.
     for (const p of this.loopPoints) {
       const dx = x - p.x;
       const dz = z - p.z;
       const d2 = dx * dx + dz * dz;
-      if (d2 < best * best) {
-        best = Math.sqrt(d2);
+      if (d2 < dist * dist) {
+        dist = Math.sqrt(d2);
         px = p.x; pz = p.z; tx = p.tx; tz = p.tz;
         halfWidth = this.track.halfWidth;
       }
     }
-    return { dist: best, x: px, z: pz, tx, tz, halfWidth };
+    return { dist, x: px, z: pz, tx, tz, halfWidth };
   }
 
   isGreen(group) {
@@ -84,26 +82,38 @@ export class CityWorld {
 
   /** Replace the closed-loop wall clamp with city bounds and solid buildings. */
   constrain(car) {
-    const surface = this.surface(car.pos.x, car.pos.z);
-    car.offroad = surface.dist > surface.halfWidth + 0.8;
+    // The entire downtown is drivable. A racing-style off-road penalty here
+    // made the car crawl in the blocks between the old, sparse grid lines.
+    car.offroad = false;
 
-    for (const c of this.colliders) {
-      const dx = car.pos.x - c.x;
-      const dz = car.pos.z - c.z;
-      const min = c.r + 1.2;
-      const d2 = dx * dx + dz * dz;
-      if (d2 >= min * min) continue;
-      const d = Math.max(0.001, Math.sqrt(d2));
-      const nx = dx / d;
-      const nz = dz / d;
-      car.pos.set(c.x + nx * min, 0, c.z + nz * min);
-      const vn = car.vel.x * nx + car.vel.z * nz;
-      if (vn < 0) {
-        car.vel.x -= 1.5 * vn * nx;
-        car.vel.z -= 1.5 * vn * nz;
-        car.impact = Math.max(car.impact, Math.abs(vn));
-        car.wallHit = Math.max(car.wallHit, Math.abs(vn));
-        car.wallNormal.set(nx, 0, nz);
+    // Buildings are bucketed, so a physics step only checks the nine cells
+    // around the car rather than every footprint in the city.
+    const cell = this.colliderCell;
+    const cx = Math.floor(car.pos.x / cell);
+    const cz = Math.floor(car.pos.z / cell);
+    for (let ix = cx - 1; ix <= cx + 1; ix++) {
+      for (let iz = cz - 1; iz <= cz + 1; iz++) {
+        const bucket = this.colliderBuckets.get(`${ix},${iz}`);
+        if (!bucket) continue;
+        for (const c of bucket) {
+          const dx = car.pos.x - c.x;
+          const dz = car.pos.z - c.z;
+          const min = c.r + 1.2;
+          const d2 = dx * dx + dz * dz;
+          if (d2 >= min * min) continue;
+          const d = Math.max(0.001, Math.sqrt(d2));
+          const nx = dx / d;
+          const nz = dz / d;
+          car.pos.set(c.x + nx * min, 0, c.z + nz * min);
+          const vn = car.vel.x * nx + car.vel.z * nz;
+          if (vn < 0) {
+            car.vel.x -= 1.5 * vn * nx;
+            car.vel.z -= 1.5 * vn * nz;
+            car.impact = Math.max(car.impact, Math.abs(vn));
+            car.wallHit = Math.max(car.wallHit, Math.abs(vn));
+            car.wallNormal.set(nx, 0, nz);
+          }
+        }
       }
     }
 
@@ -158,12 +168,13 @@ export class CityWorld {
     ];
     const colors = [0xd8d9de, 0x2c3d63, 0x8f2530, 0x255b45, 0xc8a13a, 0x4a4a55, 0xe4e0d2];
     const tint = new THREE.Color();
+    const lines = this.grid.boulevardLines;
     for (let i = 0; i < TRAFFIC_COUNT; i++) {
       this.trafficMeshes[0].setColorAt(i, tint.set(colors[i % colors.length]));
       const axis = i % 2;
-      const line = (Math.floor(i / 2) - 4) * this.block * 1.5;
+      const line = lines[Math.floor(i / 2) % lines.length];
       this.traffic.push({
-        axis, line, lane: i % 4 < 2 ? -3.1 : 3.1,
+        axis, line, lane: i % 4 < 2 ? -4.8 : 4.8,
         pos: ((i * 317) % (this.extent * 2)) - this.extent,
         dir: i % 3 === 0 ? -1 : 1,
         speed: TRAFFIC_SPEED * (0.75 + (i % 5) * 0.07),
@@ -240,13 +251,14 @@ export class CityWorld {
       t.pos += t.dir * t.speed * dt;
 
       // Turn at painted grid intersections.
-      if (Math.floor(before / this.block) !== Math.floor(t.pos / this.block)
-        && Math.random() < 0.32) {
-        const cross = Math.round(t.pos / this.block) * this.block;
+      const spacing = this.grid.spacing;
+      if (Math.floor(before / spacing) !== Math.floor(t.pos / spacing)
+        && Math.random() < 0.18) {
+        const cross = Math.round(t.pos / spacing) * spacing;
         if (Math.abs(cross) <= this.extent) {
           t.axis = 1 - t.axis;
           t.line = cross;
-          t.lane = Math.random() < 0.5 ? -3.1 : 3.1;
+          t.lane = Math.random() < 0.5 ? -3.4 : 3.4;
           t.dir = Math.random() < 0.5 ? -1 : 1;
           t.speed *= 0.6;
         }

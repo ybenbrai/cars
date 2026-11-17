@@ -1678,7 +1678,7 @@ function updateHud(dt) {
       position: r.position,
       finished: r.finished,
     }));
-    hud.drawMap(car, dots, race.nextGate ?? 1, race.time);
+    hud.drawMap(car, dots, race.nextGate ?? 1, race.time, race.roamWorld?.traffic);
   }
 }
 
@@ -1803,7 +1803,7 @@ function tick(now, ms) {
     hud.setBoost(race.player.car.boost);
     hud.drawMap(race.player.car, race.racers.map((r) => ({
       pos: r.car.pos, isPlayer: r.isPlayer, color: r.color, position: r.position,
-    })), 1, 0);
+    })), 1, 0, race.roamWorld?.traffic);
   }
 
   if (state === 'racing') {

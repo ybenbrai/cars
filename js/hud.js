@@ -1,3 +1,5 @@
+import { CITY_EXTENT, CITY_GRID } from './data/cityGrid.js';
+
 const pad2 = (n) => String(n).padStart(2, '0');
 
 export function fmtTime(seconds) {
@@ -77,6 +79,8 @@ export class HUD {
       this.el.lapNum.textContent = '∞';
       this.el.lapDim.textContent = 'FREE ROAM';
     }
+    // The roam map is a street grid, not the closed race circuit.
+    this.buildMapBase();
   }
 
   /** Show or hide the practice rental badge (`{ circuit, fee }` or null). */
@@ -193,12 +197,18 @@ export class HUD {
 
 
   buildMapBase() {
-    if (!this.map || !this.track) return;
+    if (!this.map) return;
     const size = 360;
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     const ctx = canvas.getContext('2d');
+    if (this.roam) {
+      this.buildRoamMapBase(ctx, size);
+      this.mapBase = canvas;
+      return;
+    }
+    if (!this.track) return;
     ctx.fillStyle = 'rgba(8, 5, 14, 0.55)';
     ctx.fillRect(0, 0, size, size);
     const pts = this.track.samples;
@@ -244,6 +254,56 @@ export class HUD {
     ctx.restore();
 
     this.mapBase = canvas;
+  }
+
+  /** Static roam minimap: the whole downtown street grid, not the race loop. */
+  buildRoamMapBase(ctx, size) {
+    const extent = CITY_EXTENT;
+    const scale = (size * 0.94) / (extent * 2);
+    const ox = size / 2;
+    const oy = size / 2;
+    this.mapTransform = { scale, ox, oy };
+
+    ctx.fillStyle = 'rgba(9, 12, 20, 0.94)';
+    ctx.fillRect(0, 0, size, size);
+
+    const lines = CITY_GRID.vertical.map((s) => s.pos);
+    for (let i = 0; i < lines.length - 1; i++) {
+      const x0 = lines[i] * scale + ox + 0.7;
+      const x1 = lines[i + 1] * scale + ox - 0.7;
+      for (let j = 0; j < lines.length - 1; j++) {
+        const y0 = lines[j] * scale + oy + 0.7;
+        const y1 = lines[j + 1] * scale + oy - 0.7;
+        ctx.fillStyle = (i + j) % 2 ? 'rgba(42, 47, 62, 0.55)' : 'rgba(32, 37, 50, 0.55)';
+        ctx.fillRect(x0, y0, Math.max(0, x1 - x0), Math.max(0, y1 - y0));
+      }
+    }
+
+    ctx.lineCap = 'butt';
+    for (const s of CITY_GRID.streets) {
+      const w = Math.max(1.2, s.width * scale);
+      ctx.beginPath();
+      if (s.axis === 0) {
+        const x = s.pos * scale + ox;
+        ctx.moveTo(x, oy - extent * scale);
+        ctx.lineTo(x, oy + extent * scale);
+      } else {
+        const y = s.pos * scale + oy;
+        ctx.moveTo(ox - extent * scale, y);
+        ctx.lineTo(ox + extent * scale, y);
+      }
+      ctx.strokeStyle = 'rgba(3, 5, 11, 0.9)';
+      ctx.lineWidth = w + 1.6;
+      ctx.stroke();
+      ctx.strokeStyle = s.boulevard ? 'rgba(150, 158, 180, 0.78)' : 'rgba(101, 110, 132, 0.68)';
+      ctx.lineWidth = w;
+      ctx.stroke();
+      if (s.boulevard) {
+        ctx.strokeStyle = 'rgba(226, 214, 184, 0.32)';
+        ctx.lineWidth = 0.8;
+        ctx.stroke();
+      }
+    }
   }
 
   setDriver(name, modeLabel = '') {
@@ -410,7 +470,7 @@ export class HUD {
    * `{ pos, isPlayer, color, position, finished }`. Rivals are numbered discs,
    * the player is a large arrow drawn last so it always sits on top.
    */
-  drawMap(player, racers = [], nextGate, time) {
+  drawMap(player, racers = [], nextGate, time, traffic = null) {
     if (!this.map || !this.track || !this.mapTransform) return;
     const ctx = this.map;
     const { scale, ox, oy } = this.mapTransform;
@@ -445,6 +505,14 @@ export class HUD {
           ctx.fillStyle = 'rgba(255,246,236,0.42)';
           ctx.fill();
         }
+      }
+    }
+
+    // Free roam: tiny traffic dots make the street grid feel alive.
+    if (this.roam && traffic) {
+      ctx.fillStyle = 'rgba(126, 205, 255, 0.8)';
+      for (const t of traffic) {
+        ctx.fillRect(t.x * scale + ox - 1.5, t.z * scale + oy - 1.5, 3, 3);
       }
     }
 
