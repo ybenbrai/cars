@@ -187,10 +187,13 @@ penalty is applied; bucketed building colliders, the 18 traffic cars and an
 outer extent push the car out and reflect inbound velocity. Traffic itself is
 instanced (three meshes for bodies, cabins and lamps) and updated each frame
 with signal-aware target speeds at every grid junction, gap keeping, yielding to
-the player and random turns into the correct lane width. Visible signal heads on
-the race boulevard are materials whose `emissiveIntensity` is driven from a
+the player and random turns into the correct lane width. `turnDirection()`
+decides which side's indicator pair to blink for 1.8 seconds after a turn; the
+pairs are two more instanced meshes so indicators cost no extra draw calls per
+car. Visible signal heads on the race boulevard and at every painted grid
+crossing are instanced materials whose `emissiveIntensity` is driven from a
 14-second clock split into two alternating phase sets; the same phase drives
-traffic at the unmarked grid crossings.
+traffic and waiting pedestrians.
 
 Walkers reuse the same grid: `sidewalkCenters()` places 90 pedestrians on the
 pavement, and `nearBuilding()` checks the bucketed colliders plus the race road

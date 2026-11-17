@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import {
   CITY_GRID,
   SIDEWALK_WIDTH,
@@ -8,6 +9,7 @@ import {
   roadWidthAt,
   sidewalkCenters,
   signalGroup,
+  turnDirection,
 } from './data/cityGrid.js';
 
 // Free-roam city layer. The race track and its painted street grid already
@@ -202,6 +204,21 @@ export class CityWorld {
       new THREE.InstancedMesh(cabinGeo, cabinMat, TRAFFIC_COUNT),
       new THREE.InstancedMesh(lampGeo, lampMat, TRAFFIC_COUNT),
     ];
+    const indicatorGeo = (side) => {
+      const front = new THREE.BoxGeometry(0.24, 0.12, 0.08);
+      front.translate(side * 0.82, 0.42, 1.95);
+      const rear = new THREE.BoxGeometry(0.24, 0.12, 0.08);
+      rear.translate(side * 0.82, 0.42, -1.95);
+      return mergeGeometries([front, rear]);
+    };
+    const indicatorMat = () => new THREE.MeshStandardMaterial({
+      color: 0x3a2406, emissive: 0xffa028, emissiveIntensity: 2.6, roughness: 0.4,
+    });
+    // Index 0 is the left pair, index 1 the right pair.
+    this.indicatorMeshes = [
+      new THREE.InstancedMesh(indicatorGeo(1), indicatorMat(), TRAFFIC_COUNT),
+      new THREE.InstancedMesh(indicatorGeo(-1), indicatorMat(), TRAFFIC_COUNT),
+    ];
     const colors = [0xd8d9de, 0x2c3d63, 0x8f2530, 0x255b45, 0xc8a13a, 0x4a4a55, 0xe4e0d2];
     const tint = new THREE.Color();
     const lines = this.grid.boulevardLines;
@@ -214,11 +231,12 @@ export class CityWorld {
         pos: ((i * 317) % (this.extent * 2)) - this.extent,
         dir: i % 3 === 0 ? -1 : 1,
         speed: TRAFFIC_SPEED * (0.75 + (i % 5) * 0.07),
+        turn: 0, turnTimer: 0,
         x: 0, z: 0, heading: 0,
       });
     }
     this.trafficMeshes[0].instanceColor.needsUpdate = true;
-    for (const mesh of this.trafficMeshes) {
+    for (const mesh of this.trafficMeshes.concat(this.indicatorMeshes)) {
       mesh.castShadow = false;
       mesh.receiveShadow = true;
       mesh.frustumCulled = false;
@@ -246,8 +264,18 @@ export class CityWorld {
       this.dummy.scale.setScalar(1);
       this.dummy.updateMatrix();
       for (const mesh of this.trafficMeshes) mesh.setMatrixAt(i, this.dummy.matrix);
+
+      const blink = Math.sin(this.elapsed * 11) > 0;
+      for (let side = 0; side < this.indicatorMeshes.length; side++) {
+        const active = t.turnTimer > 0 && t.turn === (side === 0 ? -1 : 1) && blink;
+        this.dummy.scale.setScalar(active ? 1 : 0.0001);
+        this.dummy.updateMatrix();
+        this.indicatorMeshes[side].setMatrixAt(i, this.dummy.matrix);
+      }
     }
-    for (const mesh of this.trafficMeshes) mesh.instanceMatrix.needsUpdate = true;
+    for (const mesh of this.trafficMeshes.concat(this.indicatorMeshes)) {
+      mesh.instanceMatrix.needsUpdate = true;
+    }
   }
 
   nearBuilding(x, z, margin) {
@@ -427,6 +455,10 @@ export class CityWorld {
     }
 
     for (const t of this.traffic) {
+      if (t.turnTimer > 0) {
+        t.turnTimer -= dt;
+        if (t.turnTimer <= 0) t.turn = 0;
+      }
       let target = TRAFFIC_SPEED;
       // Signals on the race loop and at every downtown junction.
       let red = this.gridLightAhead(t);
@@ -475,10 +507,14 @@ export class CityWorld {
         && Math.random() < 0.18) {
         const cross = Math.round(t.pos / spacing) * spacing;
         if (Math.abs(cross) <= this.extent) {
+          const fromAxis = t.axis;
+          const fromDir = t.dir;
           t.axis = 1 - t.axis;
           t.line = cross;
           t.lane = (Math.random() < 0.5 ? -1 : 1) * (isBoulevardLine(cross) ? 4.8 : 3.4);
           t.dir = Math.random() < 0.5 ? -1 : 1;
+          t.turn = turnDirection(fromAxis, fromDir, t.axis, t.dir);
+          t.turnTimer = 1.8;
           t.speed *= 0.6;
         }
       }
@@ -490,7 +526,7 @@ export class CityWorld {
   }
 
   dispose() {
-    for (const mesh of this.trafficMeshes.concat(this.pedMeshes)) {
+    for (const mesh of this.trafficMeshes.concat(this.indicatorMeshes, this.pedMeshes)) {
       mesh.geometry.dispose();
       mesh.material.dispose();
     }

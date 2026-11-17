@@ -1,6 +1,15 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { CITY_EXTENT, CITY_GRID, SIDEWALK_WIDTH, nearestRoad, sidewalkCenters } from './data/cityGrid.js';
+import {
+  CITY_EXTENT,
+  CITY_GRID,
+  SIDEWALK_WIDTH,
+  isBoulevardLine,
+  nearestRoad,
+  roadWidthAt,
+  sidewalkCenters,
+  signalGroup,
+} from './data/cityGrid.js';
 
 export const SUN_DIR = new THREE.Vector3(0.66, 0.19, 0.42).normalize();
 
@@ -1031,6 +1040,35 @@ export function populateScenery(scene, track, circuit) {
     addLights(junctionSpots.filter((_, i) => Math.floor(i / 2) % 2 === 0), lightMats.sets[0]);
     addLights(junctionSpots.filter((_, i) => Math.floor(i / 2) % 2 === 1), lightMats.sets[1]);
 
+    // The same phase sets drive signal heads at every painted grid crossing.
+    // Each junction gets one head per approach direction, placed on the right
+    // kerb and facing the traffic that has to obey it.
+    const gridSpots = [[], []];
+    for (const vertical of grid.vertical) {
+      for (const horizontal of grid.horizontal) {
+        const x = vertical.pos;
+        const z = horizontal.pos;
+        if (Math.abs(x) > extent - 8 || Math.abs(z) > extent - 8) continue;
+        if (!isBoulevardLine(x) && !isBoulevardLine(z)) continue;
+        const hx = roadWidthAt(x) / 2;
+        const hz = roadWidthAt(z) / 2;
+        for (const dir of [-1, 1]) {
+          gridSpots[signalGroup(0, x)].push({
+            x: x - dir * (hx + 1.5),
+            z: z + dir * (hz + 0.8),
+            ry: dir > 0 ? Math.PI / 2 : -Math.PI / 2,
+          });
+          gridSpots[signalGroup(1, z)].push({
+            x: x - dir * (hx + 0.8),
+            z: z - dir * (hz + 1.5),
+            ry: dir > 0 ? 0 : Math.PI,
+          });
+        }
+      }
+    }
+    addLights(gridSpots[0], lightMats.sets[0]);
+    addLights(gridSpots[1], lightMats.sets[1]);
+
     // Zebra crossings just before each junction, painted over the tarmac.
     const crossings = [];
     for (const s of junctions) {
@@ -1114,6 +1152,7 @@ export function populateScenery(scene, track, circuit) {
       colliders: cityColliders,
       lights: lightMats,
       junctions: junctionSpots,
+      gridSignals: gridSpots[0].length + gridSpots[1].length,
       grid,
       extent,
     };

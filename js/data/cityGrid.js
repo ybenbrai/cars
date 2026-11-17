@@ -44,6 +44,15 @@ export function signalGroup(axis, junctionPos) {
   return ((k + (axis === 0 ? 0 : 1)) % 2 + 2) % 2;
 }
 
+/** Which way a car turns when it swaps travel axis: +1 right, -1 left. */
+export function turnDirection(fromAxis, fromDir, toAxis, toDir) {
+  const fx = fromAxis === 0 ? fromDir : 0;
+  const fz = fromAxis === 1 ? fromDir : 0;
+  const tx = toAxis === 0 ? toDir : 0;
+  const tz = toAxis === 1 ? toDir : 0;
+  return fx * tz - fz * tx > 0 ? 1 : -1;
+}
+
 /**
  * Build the grid for a given half-size. Lines sit on multiples of
  * STREET_SPACING; every third one is a wide boulevard. The same numbers are

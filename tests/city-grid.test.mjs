@@ -13,6 +13,7 @@ import {
   roadWidthAt,
   sidewalkCenters,
   signalGroup,
+  turnDirection,
 } from '../js/data/cityGrid.js';
 
 test('the downtown grid mixes narrow streets with wider boulevards', () => {
@@ -68,4 +69,11 @@ test('perpendicular signal groups alternate at a junction', () => {
   assert.equal(signalGroup(0, 96), 1);
   assert.equal(signalGroup(1, 96), 0);
   assert.equal(signalGroup(0, -96), 1);
+});
+
+test('turn direction follows the car heading, not the world axis', () => {
+  assert.equal(turnDirection(0, 1, 1, 1), 1);
+  assert.equal(turnDirection(0, 1, 1, -1), -1);
+  assert.equal(turnDirection(1, 1, 0, 1), -1);
+  assert.equal(turnDirection(1, 1, 0, -1), 1);
 });

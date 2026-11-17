@@ -45,8 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   painted. Clipping a walker now nudges the car and makes the walker stumble
   aside instead of passing through it.
 - Traffic now checks signals at every grid junction, yields in the player's lane
-  and enters the correct lane width after turns. Shared sidewalk and boulevard
-  helpers keep scenery, physics, traffic and the minimap in sync.
+  and enters the correct lane width after turns. Traffic cars blink the correct
+  indicator after turning, and instanced signal heads now mark every painted
+  boulevard crossing as well as the race boulevard, all driven by the same
+  signal phase. Shared sidewalk and boulevard helpers keep scenery, physics,
+  traffic and the minimap in sync.
 - Shared city online: a CITY ROAM button joins one persistent `CITY` room with
   live car pose relays, late-join snapshots and clean join/leave — no countdown,
   results or ranked bookkeeping. Friends can also join with the `CITY` code.
