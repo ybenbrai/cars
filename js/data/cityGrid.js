@@ -23,6 +23,27 @@ export function sidewalkCenters(street) {
   return [street.pos - offset, street.pos + offset];
 }
 
+/** Road width of the street crossing at a junction on this coordinate. */
+export function roadWidthAt(pos) {
+  return isBoulevardLine(pos) ? BOULEVARD_WIDTH : MINOR_WIDTH;
+}
+
+/** Coordinate of the next grid junction ahead along a travel axis. */
+export function nextJunction(pos, dir, spacing = STREET_SPACING) {
+  const k = dir > 0 ? Math.floor(pos / spacing) + 1 : Math.ceil(pos / spacing) - 1;
+  return k * spacing;
+}
+
+/**
+ * Signal phase set for traffic or walkers travelling along `axis` at a
+ * junction. Perpendicular directions get opposite sets, so cross traffic never
+ * has green at the same time.
+ */
+export function signalGroup(axis, junctionPos) {
+  const k = Math.round(junctionPos / STREET_SPACING);
+  return ((k + (axis === 0 ? 0 : 1)) % 2 + 2) % 2;
+}
+
 /**
  * Build the grid for a given half-size. Lines sit on multiples of
  * STREET_SPACING; every third one is a wide boulevard. The same numbers are

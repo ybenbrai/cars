@@ -9,7 +9,10 @@ import {
   SIDEWALK_WIDTH,
   isBoulevardLine,
   nearestRoad,
+  nextJunction,
+  roadWidthAt,
   sidewalkCenters,
+  signalGroup,
 } from '../js/data/cityGrid.js';
 
 test('the downtown grid mixes narrow streets with wider boulevards', () => {
@@ -47,4 +50,22 @@ test('sidewalks sit flush with both sides of the road', () => {
     assert.ok(left < street.pos && right > street.pos);
     assert.equal(right - left, street.width + SIDEWALK_WIDTH);
   }
+});
+
+test('crossing junctions know their road width and next stop', () => {
+  assert.equal(roadWidthAt(0), BOULEVARD_WIDTH);
+  assert.equal(roadWidthAt(288), BOULEVARD_WIDTH);
+  assert.equal(roadWidthAt(-288), BOULEVARD_WIDTH);
+  assert.equal(roadWidthAt(96), MINOR_WIDTH);
+  assert.equal(nextJunction(20, 1), 96);
+  assert.equal(nextJunction(20, -1), 0);
+  assert.equal(nextJunction(-110, -1), -192);
+});
+
+test('perpendicular signal groups alternate at a junction', () => {
+  assert.equal(signalGroup(0, 0), 0);
+  assert.equal(signalGroup(1, 0), 1);
+  assert.equal(signalGroup(0, 96), 1);
+  assert.equal(signalGroup(1, 96), 0);
+  assert.equal(signalGroup(0, -96), 1);
 });

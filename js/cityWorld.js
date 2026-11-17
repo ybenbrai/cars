@@ -1,5 +1,14 @@
 import * as THREE from 'three';
-import { CITY_GRID, isBoulevardLine, nearestRoad, sidewalkCenters } from './data/cityGrid.js';
+import {
+  CITY_GRID,
+  SIDEWALK_WIDTH,
+  isBoulevardLine,
+  nearestRoad,
+  nextJunction,
+  roadWidthAt,
+  sidewalkCenters,
+  signalGroup,
+} from './data/cityGrid.js';
 
 // Free-roam city layer. The race track and its painted street grid already
 // exist; this adds the missing *simulation*: a drivable surface, solid
@@ -141,6 +150,29 @@ export class CityWorld {
       }
     }
 
+    // Walkers are soft obstacles: they dodge first, but clipping one nudges the
+    // car and makes the walker stumble aside rather than passing through it.
+    for (const p of this.pedestrians) {
+      const dx = car.pos.x - p.x;
+      const dz = car.pos.z - p.z;
+      const min = 1.25;
+      const d2 = dx * dx + dz * dz;
+      if (d2 >= min * min) continue;
+      const d = Math.max(0.001, Math.sqrt(d2));
+      const nx = dx / d;
+      const nz = dz / d;
+      car.pos.set(p.x + nx * min, 0, p.z + nz * min);
+      const vn = car.vel.x * nx + car.vel.z * nz;
+      if (vn < 0) {
+        car.vel.x -= 0.3 * vn * nx;
+        car.vel.z -= 0.3 * vn * nz;
+        car.impact = Math.max(car.impact, Math.abs(vn) * 0.15);
+        car.wallHit = Math.max(car.wallHit, Math.abs(vn) * 0.1);
+        p.stumble = 1;
+        p.dodge = Math.max(p.dodge, 1.5);
+      }
+    }
+
     const limit = this.extent - 12;
     if (Math.abs(car.pos.x) > limit) {
       car.pos.x = Math.sign(car.pos.x) * limit;
@@ -252,10 +284,11 @@ export class CityWorld {
     const shirts = [0xc94f4f, 0x3f6d9c, 0xd39b3f, 0x4f9c72, 0x7a5b9c, 0xd6d1c4, 0x2f3540];
     const skins = [0xe8bd97, 0xc98c63, 0x8d5b3c, 0xf1cfa9, 0x6f432b];
     const tint = new THREE.Color();
-    const maxK = Math.floor(this.extent / this.grid.spacing);
     // The outermost road is clamped by the city bounds, so walk on the
     // sidewalks of streets the player can actually reach.
     const walkable = this.grid.streets.filter((s) => Math.abs(s.pos) <= this.extent - 16);
+    const walkLimit = this.extent - 20;
+    const maxK = Math.floor(walkLimit / this.grid.spacing);
     this.pedestrians = [];
     for (let i = 0; i < PEDESTRIAN_COUNT; i++) {
       let street, lane, k, pos, x, z;
@@ -275,12 +308,13 @@ export class CityWorld {
         line: street.pos,
         lane,
         pos,
-        min: (k + 0.1) * this.grid.spacing,
-        max: (k + 0.9) * this.grid.spacing,
+        min: -walkLimit,
+        max: walkLimit,
         dir: Math.random() < 0.5 ? -1 : 1,
         speed: PEDESTRIAN_SPEED * (0.7 + Math.random() * 0.6),
         phase: Math.random() * Math.PI * 2,
         dodge: 0,
+        stumble: 0,
         x: 0, z: 0, heading: 0,
       });
       this.pedMeshes[0].setColorAt(i, tint.set(shirts[i % shirts.length]));
@@ -294,6 +328,19 @@ export class CityWorld {
       this.group.add(mesh);
     }
     this.syncPedestrians();
+  }
+
+  /** Next junction this walker will reach, with its crosswalk limits. */
+  crossingAhead(p) {
+    const next = nextJunction(p.pos, p.dir, this.grid.spacing);
+    const half = roadWidthAt(next) / 2 + SIDEWALK_WIDTH / 2 + 1;
+    return {
+      next,
+      near: next - p.dir * half,
+      far: next + p.dir * half,
+      painted: isBoulevardLine(p.line) || isBoulevardLine(next),
+      green: this.isGreen(signalGroup(p.axis, next)),
+    };
   }
 
   pedestrianPose(p) {
@@ -313,7 +360,11 @@ export class CityWorld {
       p.heading = pose.heading;
       const bob = Math.sin(this.elapsed * p.speed * 3 + p.phase) * 0.045;
       this.dummy.position.set(pose.x, bob, pose.z);
-      this.dummy.rotation.set(0, pose.heading, 0);
+      this.dummy.rotation.set(
+        -p.stumble * (0.25 + Math.sin(this.elapsed * 18 + p.phase) * 0.08),
+        pose.heading,
+        Math.sin(this.elapsed * 14 + p.phase) * 0.2 * p.stumble,
+      );
       this.dummy.scale.setScalar(1);
       this.dummy.updateMatrix();
       for (const mesh of this.pedMeshes) mesh.setMatrixAt(i, this.dummy.matrix);
@@ -334,7 +385,22 @@ export class CityWorld {
         }
       }
       p.dodge = Math.max(0, p.dodge - dt * 1.6);
-      p.pos += p.dir * p.speed * pace * dt;
+      p.stumble = Math.max(0, p.stumble - dt * 1.6);
+
+      // Stop at the kerb for a red crosswalk, and turn around where there is
+      // no painted crossing. Once on the crossing a walker keeps going, even
+      // if the light changes while it is halfway across.
+      const cross = this.crossingAhead(p);
+      const toKerb = (cross.near - p.pos) * p.dir;
+      let nextPos = p.pos + p.dir * p.speed * pace * dt;
+      if (toKerb > 0 && toKerb < 24 && (!cross.painted || !cross.green)) {
+        const stop = cross.near - p.dir * 0.2;
+        if ((nextPos - stop) * p.dir >= 0) {
+          nextPos = stop;
+          if (!cross.painted) p.dir *= -1;
+        }
+      }
+      p.pos = nextPos;
       if (p.pos > p.max) { p.pos = p.max; p.dir = -1; }
       if (p.pos < p.min) { p.pos = p.min; p.dir = 1; }
     }
@@ -343,14 +409,10 @@ export class CityWorld {
 
   /** Is the next downtown junction showing red for this traffic car? */
   gridLightAhead(t) {
-    const spacing = this.grid.spacing;
-    const next = t.dir > 0
-      ? (Math.floor(t.pos / spacing) + 1) * spacing
-      : (Math.ceil(t.pos / spacing) - 1) * spacing;
+    const next = nextJunction(t.pos, t.dir, this.grid.spacing);
     const ahead = (next - t.pos) * t.dir;
     if (ahead <= 0 || ahead > 26) return false;
-    const group = ((Math.round(next / spacing) + (t.axis === 0 ? 0 : 1)) % 2 + 2) % 2;
-    return !this.isGreen(group);
+    return !this.isGreen(signalGroup(t.axis, next));
   }
 
   update(dt, player) {

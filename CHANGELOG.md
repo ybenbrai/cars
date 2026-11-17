@@ -40,7 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   Drift.
 - Downtown pedestrians: 90 instanced walkers stroll the sidewalks, avoid
   buildings and the race road, and step aside and slow for a nearby player car.
-  Traffic now checks signals at every grid junction, yields in the player's lane
+  They wait at boulevard crosswalks until their direction has green, keep
+  crossing if it changes mid-crossing and turn back where no crossing is
+  painted. Clipping a walker now nudges the car and makes the walker stumble
+  aside instead of passing through it.
+- Traffic now checks signals at every grid junction, yields in the player's lane
   and enters the correct lane width after turns. Shared sidewalk and boulevard
   helpers keep scenery, physics, traffic and the minimap in sync.
 - Shared city online: a CITY ROAM button joins one persistent `CITY` room with

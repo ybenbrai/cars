@@ -195,11 +195,15 @@ traffic at the unmarked grid crossings.
 Walkers reuse the same grid: `sidewalkCenters()` places 90 pedestrians on the
 pavement, and `nearBuilding()` checks the bucketed colliders plus the race road
 so they do not spawn inside scenery. Two instanced meshes (capsule body and
-sphere head, tinted per instance) follow a simple walk/bounce timer along each
-sidewalk. `update(dt, player)` moves them and nudges them away from the road
-when the player is within 10 m; `syncPedestrians()` writes one transform per
-walker into both instance matrices. All of it is procedural and mobile-friendly;
-no new assets are loaded.
+sphere head, tinted per instance) follow a simple walk timer along each
+sidewalk. `nextJunction()`, `roadWidthAt()` and `signalGroup()` from
+`cityGrid.js` tell a walker where the next kerb is, how wide the cross street is
+and whether its direction has green. Walkers wait at boulevard crossings,
+continue once committed, and reverse at bare minor junctions.
+`update(dt, player)` moves them, nudges them away from the road within 10 m and
+decays a stumble set by `constrain()` when the player clips one.
+`syncPedestrians()` writes one transform per walker into both instance matrices.
+All of it is procedural and mobile-friendly; no new assets are loaded.
 
 ## Track generation
 
