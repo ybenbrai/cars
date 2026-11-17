@@ -512,9 +512,9 @@ export class CarModel {
     this.carbonMat = new THREE.MeshStandardMaterial({ color: CARBON, metalness: 0.45, roughness: 0.38 });
     this.chromeMat = new THREE.MeshStandardMaterial({ color: 0xc9cfda, metalness: 1, roughness: 0.16 });
     this.glassMat = new THREE.MeshPhysicalMaterial({
-      color: 0x1b2b40, metalness: 0.55, roughness: 0.045,
-      clearcoat: 1, clearcoatRoughness: 0.04,
-      transparent: true, opacity: 0.74, envMapIntensity: 1.9,
+      color: 0x293b52, metalness: 0.3, roughness: 0.055,
+      clearcoat: 1, clearcoatRoughness: 0.03,
+      transparent: true, opacity: 0.62, envMapIntensity: 2.4,
     });
     this.headMat = new THREE.MeshPhysicalMaterial({
       color: 0xfff8e8, emissive: 0xffe9bd, emissiveIntensity: 2.0,
@@ -2355,6 +2355,10 @@ export class CarModel {
     this.glassMat.color.set(tint.color);
     this.glassMat.opacity = tint.opacity;
     this.glassMat.metalness = tint.metalness;
+    this.glassMat.roughness = 0.05;
+    this.glassMat.clearcoat = 1;
+    this.glassMat.clearcoatRoughness = 0.03;
+    this.glassMat.envMapIntensity = 2.2;
 
     for (const [id, groups] of this.rimStyleGroups) {
       const visible = id === look.rimStyle;

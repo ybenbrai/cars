@@ -27,9 +27,9 @@ import { toCreasedNormals, mergeGeometries } from 'three/addons/utils/BufferGeom
 export const FAMILIES = {
   hatch: { cabinToTail: true, beltRaise: 0.26, hoodDrop: 0.2, tailDrop: 0.04, hood: 1.8, flare: 0.04, wing: 0.05, roof: 'hatch', lamps: 'slim', grille: 'mesh', tail: 'split', spoiler: 'roof', exhaust: 'twin', spokes: 5 },
   sedan: { beltRaise: 0.36, hoodDrop: 0.18, tailDrop: 0.06, hood: 2.6, flare: 0.035, wing: 0.04, roof: 'notch', lamps: 'bar', grille: 'big', tail: 'bar', spoiler: 'none', exhaust: 'quad', spokes: 5 },
-  sports: { beltRaise: 0.12, hoodDrop: 0.26, tailDrop: 0.08, hood: 1.4, flare: 0.06, wing: 0.06, roof: 'fast', lamps: 'slim', grille: 'mesh', tail: 'split', spoiler: 'duck', exhaust: 'twin', spokes: 10 },
+  sports: { beltRaise: 0.26, hoodDrop: 0.26, tailDrop: 0.22, hood: 1.4, flare: 0.06, wing: 0.06, roof: 'fast', lamps: 'slim', grille: 'mesh', tail: 'split', spoiler: 'duck', exhaust: 'twin', spokes: 10 },
   roadster: { beltRaise: 0.1, hoodDrop: 0.2, tailDrop: 0.06, hood: 1.6, flare: 0.05, wing: 0.05, roof: 'open', lamps: 'round', grille: 'mesh', tail: 'split', spoiler: 'duck', exhaust: 'twin', spokes: 5 },
-  gt: { beltRaise: 0.14, hoodDrop: 0.24, tailDrop: 0.08, hood: 2.0, flare: 0.06, wing: 0.06, roof: 'fast', lamps: 'slim', grille: 'mesh', tail: 'bar', spoiler: 'duck', exhaust: 'quad', spokes: 10 },
+  gt: { beltRaise: 0.24, hoodDrop: 0.24, tailDrop: 0.2, hood: 2.0, flare: 0.06, wing: 0.06, roof: 'fast', lamps: 'slim', grille: 'mesh', tail: 'bar', spoiler: 'duck', exhaust: 'quad', spokes: 10 },
   muscle: { beltRaise: 0.26, hoodDrop: 0.12, tailDrop: 0.06, hood: 3.0, flare: 0.07, wing: 0.05, roof: 'fast', lamps: 'square', grille: 'wide', tail: 'triple', spoiler: 'duck', exhaust: 'twin', spokes: 5 },
   super: { beltRaise: 0.02, hoodDrop: 0.36, tailDrop: 0.12, hood: 1.15, flare: 0.08, wing: 0.08, roof: 'canopy', lamps: 'slim', grille: 'none', tail: 'bar', spoiler: 'duck', exhaust: 'quad', spokes: 10, scoops: true, diffuser: true },
   hyper: { beltRaise: 0, hoodDrop: 0.42, tailDrop: 0.16, hood: 1.0, flare: 0.09, wing: 0.1, roof: 'canopy', lamps: 'y', grille: 'none', tail: 'y', spoiler: 'big', exhaust: 'hex', spokes: 10, scoops: true, diffuser: true },
@@ -153,7 +153,9 @@ function profileFor(def, fam) {
   // cars get tall flanks and a sensible amount of glass.
   const raise = b.cabinHeight * fam.beltRaise;
   const belt = Math.max(b.rideHeight + 0.33, r * 2 + 0.11) + raise;
-  const glassH = b.cabinHeight - raise;
+  // A lower roofline: production coupes sit around 1.25-1.35 m, while the raw
+  // cabin dimensions made every car look like a tall bubble.
+  const glassH = (b.cabinHeight - raise) * 0.82;
   // Real ground clearance: bumpers come down to ~12-16 cm on road cars.
   const clearance = { suv: 0.26, offroad: 0.3, super: 0.11, hyper: 0.1, sports: 0.13, roadster: 0.13 }[def.body.style] ?? 0.15;
   const floor = Math.min(b.rideHeight - 0.2, clearance);
@@ -203,6 +205,10 @@ function buildBody(model, def, fam, prof) {
       if (dz < archR) floor = Math.max(floor, r + Math.sqrt(archR * archR - dz * dz));
     }
     const end = Math.min(t, 1 - t);
+    // Round the bumper corners in plan and elevation. A flat cap across the
+    // full height reads as a slab; easing the top down and the sides in over
+    // the last few centimetres gives the nose and tail a real bumper shape.
+    const endRound = (1 - smooth(Math.min(1, end / 0.055))) ** 1.5;
     // Bumper roll-under: the underside lifts over the last few centimetres so
     // the nose and tail end in a rounded bumper instead of a letterbox cut
     // from a slab.
@@ -211,8 +217,11 @@ function buildBody(model, def, fam, prof) {
     // Width: flared over the axles, tapered at both ends.
     // Corners round off at the very ends, but the body stays wider than the
     // wheels so no tyre pokes out past the bumpers.
-    const endTaper = Math.min(1, 0.9 + Math.min(1, t / 0.06) * 0.1) * Math.min(1, 0.8 + Math.min(1, (1 - t) / 0.09) * 0.2);
-    const w = (W / 2) * endTaper * (0.94 + fam.flare * flare) / (1 + fam.flare * 0.4);
+    // The bumper stays almost full width; only the last few centimetres roll
+    // in. Earlier cars tapered over ~40 cm, which pinched the nose and pushed
+    // the lights into the middle of a narrow face.
+    const endTaper = Math.min(1, 0.965 + Math.min(1, t / 0.03) * 0.035) * Math.min(1, 0.95 + Math.min(1, (1 - t) / 0.045) * 0.05);
+    const w = (W / 2) * endTaper * (1 - endRound * 0.03) * (0.94 + fam.flare * flare) / (1 + fam.flare * 0.4);
     const center = prof.center(t);
     const archClear = (r + archR + 0.05) * wing;
     const fender = Math.max(center + 0.02, center + fam.wing * wing, archClear, Math.min(wingTop, center + fam.wing + 0.06) * (wing > 0.5 ? 1 : 0));
@@ -229,25 +238,32 @@ function buildBody(model, def, fam, prof) {
     // stay closed when seen from the front or back.
     const base = prof.floor;
     const inner = Math.max(0.12, w - 0.4);
+    // A continuous, curved section: the flank swells gently to a rounded
+    // shoulder and rolls over into the bonnet instead of ending in a hard
+    // slab edge. Extra points keep the silhouette smooth at speed and under
+    // the studio highlights.
     const half = [
       [0, base],
       [inner, base],
-      [inner + 0.02, floor],
-      [w * 0.93, floor + 0.01],
-      [w * 0.95, skirt],
-      [w, skirt + 0.03],
-      [w, mid],
-      [w * 0.985, shoulder],
-      [w * 0.86, fender],
-      [w * 0.62, (fender + center) / 2 + 0.01],
-      [w * 0.36, center + 0.008],
+      [inner + 0.025, floor - 0.006],
+      [w * 0.72, floor],
+      [w * 0.9, floor + 0.012],
+      [w * 0.965, floor + 0.045],
+      [w, skirt + 0.02],
+      [w * 1.003, mid],
+      [w * 0.995, mid + (shoulder - mid) * 0.5],
+      [w * 0.965, shoulder - 0.015],
+      [w * 0.9, shoulder + (fender - shoulder) * 0.5],
+      [w * 0.82, fender - 0.01],
+      [w * 0.6, (fender + center) / 2 + 0.006],
+      [w * 0.32, center + 0.004],
       [0, center],
     ];
     rings.push(mirror(half));
     zs.push(z);
     info.push({ t, z, w, floor, center, fender, mid });
   }
-  mesh(loft(rings, zs, 0.78), model.paintMat, group);
+  mesh(loft(rings, zs, 1.08), model.paintMat, group);
 
   // Deep wheel wells (and black cladding on rugged cars).
   for (const za of axles) {
@@ -301,7 +317,12 @@ function buildBody(model, def, fam, prof) {
     for (const za of axles) {
       const st = nearest(info, za);
       for (const sx of [-1, 1]) {
-        const seal = mesh(new THREE.TorusGeometry(archR + 0.004, 0.006, 6, 30, Math.PI), model.trimMat, group, false);
+        // A painted lip rolls over the edge of the opening; the thin dark seal
+        // just inboard of it reads as the gap between wing and wheel.
+        const lip = mesh(new THREE.TorusGeometry(archR + 0.012, 0.02, 8, 30, Math.PI), model.paintMat, group, false);
+        lip.rotation.y = Math.PI / 2;
+        lip.position.set(sx * (st.w * 0.965), r, za);
+        const seal = mesh(new THREE.TorusGeometry(archR - 0.006, 0.007, 6, 30, Math.PI), model.trimMat, group, false);
         seal.rotation.y = Math.PI / 2;
         seal.position.set(sx * (st.w * 0.9), r, za);
       }
@@ -414,8 +435,8 @@ function buildCabin(model, def, fam, prof, info) {
       mesh(loft(spine, rz, 0.75), model.paintMat, g);
     } else {
       const roof = roofed.map((p) => mirror([
-        [0, p.top + 0.001], [p.wt * 0.55, p.top + 0.006], [p.wt * 0.94, p.top + 0.001],
-        [p.wt, p.top - 0.01], [p.wt * 1.02, p.top - 0.04],
+        [0, p.top + 0.004], [p.wt * 0.35, p.top + 0.012], [p.wt * 0.7, p.top + 0.009],
+        [p.wt * 0.93, p.top - 0.002], [p.wt, p.top - 0.02], [p.wt * 1.03, p.top - 0.06],
       ]));
       mesh(loft(roof, rz, 0.75), model.paintMat, g);
       const first = roofed[0];
@@ -433,28 +454,16 @@ function buildCabin(model, def, fam, prof, info) {
         leds.position.set(0, last.top + 0.06, last.z - 0.012);
       }
     }
-    // Chrome gutter along the roof edge: the detail that stops a roof from
-    // looking like a painted blob.
-    const wtR = Math.min(...roofed.map((p) => p.wt));
-    for (const sx of [-1, 1]) {
-      const gutter = mesh(new THREE.BoxGeometry(0.012, 0.012, roofed[roofed.length - 1].z - roofed[0].z), model.chromeMat, g, false);
-      gutter.position.set(sx * (wtR * 0.97), roofed[0].top - 0.018, (roofed[0].z + roofed[roofed.length - 1].z) / 2);
-    }
-    // Windscreen (A) and rear (C) pillars tie the roof to the body. Wide,
-    // painted C-pillars are what separate a coupe from a glass bubble.
-    const fr = roofed[roofed.length - 1];
+    // Painted C-pillars tie the roof to the body and keep the greenhouse from
+    // reading as a glass bubble. There is deliberately no separate A-pillar
+    // bar: a box strip framed the windscreen but its far end showed above the
+    // roof, so the painted roof edge and dark glass define the screen instead.
     const rr = roofed[0];
-    const stF = nearest(info, z1);
     const stR = nearest(info, z0);
-    const wbF = Math.min(b.cabinWidth / 2, stF.w - 0.05);
     const wbR = Math.min(b.cabinWidth / 2, stR.w - 0.05);
-    // (A canopy is a bubble of glass: no pillars on it.)
-    // Slim pillars read as glass with a frame; the old 75 mm A-pillars made
-    // every car look like it wore a painted roof rack.
     const pillarW = fam.roof === 'notch' ? 0.095 : fam.roof === 'hatch' || fam.roof === 'boxy' ? 0.08 : 0.055;
     for (const sx of fam.roof === 'canopy' ? [] : [-1, 1]) {
-      strip(g, model.paintMat, [sx * wbF * 0.99, stF.center, z1 - 0.015], [sx * fr.wt * 0.98, fr.top + 0.004, fr.z], 0.058, 0.052);
-      strip(g, model.paintMat, [sx * wbR * 0.99, stR.center, z0 + 0.02], [sx * rr.wt * 0.98, rr.top + 0.004, rr.z], pillarW, pillarW);
+      strip(g, model.paintMat, [sx * wbR * 0.99, stR.center, z0 + 0.02], [sx * rr.wt * 0.98, rr.top - 0.01, rr.z], pillarW, pillarW);
     }
   }
   // Interior: dashboard, two seats and a steering wheel behind the glass. The
@@ -471,7 +480,7 @@ function buildCabin(model, def, fam, prof, info) {
       back.position.set(sx * b.cabinWidth * 0.22, prof.belt + 0.1, zc - 0.25);
       back.rotation.x = -0.2;
       const head = mesh(new THREE.BoxGeometry(0.19, 0.12, 0.08), model.trimMat, g, false);
-      head.position.set(sx * b.cabinWidth * 0.22, prof.belt + 0.32, zc - 0.29);
+      head.position.set(sx * b.cabinWidth * 0.22, prof.belt + prof.glassH * 0.82, zc - 0.29);
     }
     const wheel = mesh(new THREE.TorusGeometry(0.1, 0.015, 6, 20), model.trimMat, g, false);
     wheel.position.set(-b.cabinWidth * 0.22, prof.belt + 0.03, z1 - 0.4);
@@ -508,7 +517,7 @@ function buildFront(model, def, fam, info, g) {
   const fz = L / 2 + 0.002;
   const upright = fam.lamps === 'bar' || fam.lamps === 'square' || fam.lamps === 'round';
   const lampY = upright ? nose.center - 0.13 : nose.center - 0.1;
-  const lampX = nose.w * (upright ? 0.66 : 0.62);
+  const lampX = nose.w * (upright ? 0.7 : 0.68);
 
   const housing = (x, w, h, y = lampY) => {
     const bezel = mesh(softBox(w, h, 0.018, 0.008), model.projectorMat || black, g, false);
@@ -592,13 +601,27 @@ function buildFront(model, def, fam, info, g) {
     }
     // Side repeater on the front flank: a real indicator is visible from the
     // side at a junction, where a lens on the nose alone disappears.
-    const rz = L / 2 - 0.34;
+    const rz = L / 2 - 0.42;
     const rs = nearest(info, rz);
-    const ry = rs.center + 0.025;
+    const ry = rs.center - 0.055;
     const rb = mesh(softBox(0.012, 0.042, 0.13, 0.006), black, g, false);
     rb.position.set(sx * (rs.w - 0.002), ry, rz);
     const repeater = mesh(softBox(0.016, 0.028, 0.11, 0.007), signalMat, g, false);
     repeater.position.set(sx * (rs.w + 0.006), ry, rz);
+  }
+  // Wraparound corner lenses. A single flat panel on the nose makes a car look
+  // like a cardboard box; these follow the rounded front corners so the light
+  // units read as three-dimensional clusters from every view.
+  for (const sx of [-1, 1]) {
+    const wx = sx * nose.w * 0.97;
+    const wz = L / 2 - 0.025;
+    const wy = lampY + 0.02;
+    const wrap = mesh(softBox(0.2, 0.09, 0.024, 0.012), model.projectorMat || black, g, false);
+    wrap.position.set(wx, wy, wz);
+    wrap.rotation.y = sx * 0.6;
+    const drl = mesh(new THREE.BoxGeometry(0.16, 0.01, 0.01), model.drlMat, g, false);
+    drl.position.set(wx + sx * 0.006, wy + 0.018, wz + 0.016);
+    drl.rotation.y = sx * 0.6;
   }
   // The lamps already carry their own LED signature; a full-width bar would
   // cut across the badge and read as a sticker.
@@ -739,10 +762,10 @@ function buildRear(model, def, fam, info, g) {
     const inner = sx * tw * 0.3;
     const outer = sx * tw * (upright ? 0.84 : 0.74);
     const oy = upright ? ty - 0.035 : ty + 0.012;
-    const oTop = upright ? oy + 0.1 : oy + 0.042;
-    const oBot = upright ? oy - 0.1 : oy - 0.03;
-    const iTop = upright ? oy + 0.07 : oy + 0.024;
-    const iBot = upright ? oy - 0.07 : oy - 0.014;
+    const oTop = upright ? oy + 0.1 : oy + 0.06;
+    const oBot = upright ? oy - 0.1 : oy - 0.05;
+    const iTop = upright ? oy + 0.07 : oy + 0.038;
+    const iBot = upright ? oy - 0.07 : oy - 0.026;
     // Dark cluster backing, barely larger than the lens.
     rearPlate(g, black, [[inner, iBot - 0.014], [inner, iTop + 0.014], [outer + sx * 0.03, oTop + 0.018], [outer + sx * 0.03, oBot - 0.018]], tz - 0.002);
     if (fam.tail === 'y') {
@@ -767,10 +790,14 @@ function buildRear(model, def, fam, info, g) {
       const led = mesh(new THREE.BoxGeometry(0.1, 0.018, 0.01), model.tailLedMat, g, false);
       led.position.set(outer - sx * 0.055, oBot + 0.03, tz - 0.018);
     }
-    // Wrap-around segment on the rear quarter, aligned with the lamp.
-    const wrap = mesh(new THREE.BoxGeometry(0.035, 0.05, 0.15), model.tailMat, g, false);
-    wrap.position.set(sx * (tail.w - 0.006), ty, -L / 2 + 0.09);
-    wrap.rotation.y = sx * 0.06;
+    // Tail lamp wraps onto the rear quarter: from a three-quarter view this is
+    // what makes the cluster look moulded into the body rather than stuck on.
+    const wrap = mesh(softBox(0.06, 0.085, 0.24, 0.014), model.tailMat, g, false);
+    wrap.position.set(sx * (tail.w - 0.01), ty + 0.006, -L / 2 + 0.1);
+    wrap.rotation.y = sx * 0.16;
+    const wrapLed = mesh(new THREE.BoxGeometry(0.02, 0.026, 0.2), model.tailLedMat, g, false);
+    wrapLed.position.set(sx * (tail.w + 0.018), ty + 0.01, -L / 2 + 0.1);
+    wrapLed.rotation.y = sx * 0.16;
     // The indicator sits below/outside the red lens and a little further out
     // than the LEDs; buried at the same depth as the tail lens it vanished.
     const sy = ty - (upright ? 0.15 : 0.055);
@@ -1038,19 +1065,19 @@ function buildSides(model, def, fam, info, g, prof) {
     // Mirror: black base, painted shell, glass facing the driver.
     const mz = b.cabinZ + b.cabinLength / 2 - 0.24;
     const ms = nearest(info, mz);
-    const mx = sx * Math.min(b.cabinWidth / 2 + 0.005, ms.w - 0.025);
-    const my = ms.center + 0.025;
-    const base = mesh(new THREE.BoxGeometry(0.05, 0.05, 0.1), black, g, false);
-    base.position.set(mx, my - 0.022, mz);
-    const arm = mesh(new THREE.BoxGeometry(0.07, 0.024, 0.045), model.paintMat, g, false);
-    arm.position.set(mx + sx * 0.045, my, mz - 0.008);
-    const cap = mesh(softBox(0.13, 0.062, 0.088, 0.018), model.paintMat, g, false);
-    cap.position.set(mx + sx * 0.1, my + 0.014, mz - 0.03);
-    cap.rotation.y = -sx * 0.1;
-    const glass = mesh(new THREE.BoxGeometry(0.112, 0.05, 0.005), model.reflectorMat, g, false);
-    glass.position.set(mx + sx * 0.1, my + 0.014, mz - 0.075);
-    const tip = mesh(softBox(0.018, 0.02, 0.065, 0.007), model.signalMats[sx > 0 ? 'left' : 'right'], g, false);
-    tip.position.set(mx + sx * 0.168, my + 0.014, mz - 0.06);
+    const mx = sx * Math.min(b.cabinWidth / 2 + 0.005, ms.w - 0.04);
+    const my = ms.center + 0.02;
+    const base = mesh(new THREE.BoxGeometry(0.045, 0.045, 0.085), black, g, false);
+    base.position.set(mx, my - 0.02, mz);
+    const arm = mesh(new THREE.BoxGeometry(0.05, 0.022, 0.04), model.paintMat, g, false);
+    arm.position.set(mx + sx * 0.032, my, mz - 0.008);
+    const cap = mesh(softBox(0.105, 0.055, 0.078, 0.018), model.paintMat, g, false);
+    cap.position.set(mx + sx * 0.078, my + 0.012, mz - 0.03);
+    cap.rotation.y = -sx * 0.12;
+    const glass = mesh(new THREE.BoxGeometry(0.09, 0.045, 0.005), model.reflectorMat, g, false);
+    glass.position.set(mx + sx * 0.078, my + 0.012, mz - 0.071);
+    const tip = mesh(softBox(0.016, 0.018, 0.055, 0.007), model.signalMats[sx > 0 ? 'left' : 'right'], g, false);
+    tip.position.set(mx + sx * 0.132, my + 0.012, mz - 0.058);
     // Window line: black belt trim, a chrome bead, pillars and shut lines.
     if (fam.roof !== 'open') {
       const zw0 = b.cabinZ - b.cabinLength / 2 + 0.08;
@@ -1158,9 +1185,9 @@ function taperedSpoke(len, rootW, tipW, depth) {
 function buildWheel(model, def, fam, front) {
   const r = def.body.wheelRadius;
   const rugged = !!fam.clad;
-  const width = rugged ? 0.32 : front ? 0.27 : 0.31;
+  const width = rugged ? 0.32 : front ? 0.28 : 0.32;
   const g = new THREE.Group();
-  const rimR = r * (rugged ? 0.7 : 0.78);
+  const rimR = r * (rugged ? 0.74 : 0.84);
   const hw = width / 2;
   // Tyre: bead at the rim, bulging sidewall, rounded shoulders, flat tread.
   const prof = [
@@ -1170,6 +1197,14 @@ function buildWheel(model, def, fam, front) {
   const tyre = new THREE.LatheGeometry(prof, 48);
   tyre.rotateZ(Math.PI / 2);
   mesh(tyre, model.rubberMat, g);
+  // A subtle raised sidewall ridge catches the light and gives the tyre a
+  // moulded profile instead of a single smooth lathed surface.
+  const wall = mesh(new THREE.TorusGeometry(r * 0.93, 0.012, 6, 44), model.rubberMat, g, false);
+  wall.rotation.y = Math.PI / 2;
+  wall.position.x = hw * 0.94;
+  const wallIn = mesh(new THREE.TorusGeometry(r * 0.93, 0.012, 6, 44), model.rubberMat, g, false);
+  wallIn.rotation.y = Math.PI / 2;
+  wallIn.position.x = -hw * 0.94;
   // Dark inner barrel gives the wheel depth behind the spokes.
   const barrel = new THREE.CylinderGeometry(rimR - 0.005, rimR - 0.005, width * 0.86, 36, 1, true);
   barrel.rotateZ(Math.PI / 2);

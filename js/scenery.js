@@ -9,8 +9,8 @@ function color(hex) {
   return new THREE.Color(hex);
 }
 
-function equirectEnv(renderer, palette) {
-  const key = `${palette.skyHorizon}-${palette.skyLow}-${palette.sunGlow}`;
+function equirectEnv(renderer, palette, studio = false) {
+  const key = `${palette.skyHorizon}-${palette.skyLow}-${palette.sunGlow}-${studio}`;
   if (envCache.has(key)) return envCache.get(key);
 
   const canvas = document.createElement('canvas');
@@ -42,6 +42,24 @@ function equirectEnv(renderer, palette) {
   ctx.fillStyle = fill;
   ctx.fillRect(0, 0, 1024, 512);
 
+  if (studio) {
+    // Softbox strips give car paint long, clean highlights. A plain sunset
+    // gradient only produces a broad wash, which makes panels look like plastic.
+    const strip = (x, y, w, h, alpha) => {
+      const g = ctx.createLinearGradient(x, y, x, y + h);
+      g.addColorStop(0, 'rgba(255,255,255,0)');
+      g.addColorStop(0.35, `rgba(255,246,232,${alpha})`);
+      g.addColorStop(0.65, `rgba(255,246,232,${alpha})`);
+      g.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(x, y, w, h);
+    };
+    strip(140, 74, 210, 44, 0.85);
+    strip(410, 116, 520, 30, 0.55);
+    strip(80, 196, 360, 24, 0.4);
+    strip(620, 214, 330, 20, 0.32);
+  }
+
   const tex = new THREE.CanvasTexture(canvas);
   tex.mapping = THREE.EquirectangularReflectionMapping;
   tex.colorSpace = THREE.SRGBColorSpace;
@@ -56,8 +74,8 @@ function equirectEnv(renderer, palette) {
 export function createEnvironmentMap(renderer, palette = {
   skyTop: '#120d26', skyMid: '#43204a', skyLow: '#b9505a', skyHorizon: '#ff9a5f',
   sun: '#fff3d6', sunGlow: '#ff7a46',
-}) {
-  return equirectEnv(renderer, palette);
+}, studio = false) {
+  return equirectEnv(renderer, palette, studio);
 }
 
 function skyMesh(palette) {

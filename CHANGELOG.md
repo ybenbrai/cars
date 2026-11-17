@@ -254,6 +254,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Deeper procedural car realism pass: lower, rounder body sections with a
+  continuous curved shoulder, lower rooflines, smoother greenhouses, larger
+  wheels with moulded sidewall ridges, painted arch lips, wraparound lamps,
+  darker glass and studio softbox reflections in the garage. Factory cars no
+  longer wear bolt-on wings or stripes; both remain available in the workshop.
 - Car surfaces and trim are smoother: softer shading across the lofted body
   and roof, slimmer window pillars, and gently rounded headlight housings,
   grilles, mirrors and bumper pieces so painted panels do not end in razor-cut
@@ -273,6 +278,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Removed the thin strip that floated above the roof in close views of the
+  sports coupes: it was the far end of a separate A-pillar bar, so the painted
+  roof edge and dark glass now define the windscreen instead.
 - Turn indicators are visible again on every modern car: each front and rear
   cluster now carries a proper amber lens ahead of the lamp, plus a side
   repeater on the front flank and a larger mirror tip. The off lens stays

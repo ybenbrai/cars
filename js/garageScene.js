@@ -75,7 +75,7 @@ export class GarageScene {
     container.appendChild(this.renderer.domElement);
 
     this.scene = new THREE.Scene();
-    this.scene.environment = createEnvironmentMap(this.renderer);
+    this.scene.environment = createEnvironmentMap(this.renderer, undefined, true);
     if ('environmentIntensity' in this.scene) this.scene.environmentIntensity = 0.85;
 
     this.camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);

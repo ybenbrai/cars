@@ -624,10 +624,10 @@ export const STRIPE_COLORS = [
 ];
 
 export const TINTS = [
-  { id: 'clear', label: 'Clear', color: '#2a3547', opacity: 0.5, metalness: 0.6 },
-  { id: 'light', label: 'Light', color: '#151d2b', opacity: 0.72, metalness: 0.8 },
-  { id: 'dark', label: 'Dark', color: '#070a12', opacity: 0.94, metalness: 0.9 },
-  { id: 'mirror', label: 'Mirror', color: '#3a4252', opacity: 0.98, metalness: 1.0 },
+  { id: 'clear', label: 'Clear', color: '#344357', opacity: 0.66, metalness: 0.5 },
+  { id: 'light', label: 'Light', color: '#162232', opacity: 0.86, metalness: 0.7 },
+  { id: 'dark', label: 'Dark', color: '#0b1220', opacity: 0.9, metalness: 0.8 },
+  { id: 'mirror', label: 'Mirror', color: '#424b5c', opacity: 0.97, metalness: 1.0 },
 ];
 
 export const UNDERGLOWS = [
@@ -667,11 +667,9 @@ export function defaultLook(car) {
     finish: car.look?.finish ?? 'gloss',
     rim: RIM_COLORS[0].hex,
     rimStyle: 'spoke',
-    spoiler: car.look?.spoiler ?? (car.category === 'hyper' || car.category === 'super' ? 'big'
-      : car.category === 'sports' && car.body?.style !== 'roadster' ? 'gt'
-        : 'lip'),
-    // Factory cars are clean; stripes stay available in the workshop but are
-    // not applied to a stock car.
+    // Factory cars are clean: the bolt-on wings stay available in the workshop
+    // but aren't fitted from the factory. Only exotic hyper/supers carry one.
+    spoiler: car.look?.spoiler ?? (car.category === 'hyper' || car.category === 'super' ? 'big' : 'none'),
     stripe: car.look?.stripe ?? 'none',
     stripeColor: STRIPE_COLORS[0].hex,
     tint: car.look?.tint ?? 'light',
