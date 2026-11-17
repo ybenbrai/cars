@@ -512,6 +512,10 @@ function changeSetting(key, value, { live = false } = {}) {
       race.player.car.model.setSignal(null, false);
       race.player.car.model.cockpit?.setSignal(null, false);
     }
+  } else if (key === 'autoNitro') {
+    store.data.settings.autoNitro = value !== 'off';
+    // Start each fresh burst from a full latch when the driver re-enables it.
+    if (race) race.autoNitroReady = true;
   }
   store.save();
   ui.renderSettings();
@@ -1817,14 +1821,22 @@ function tick(now, ms) {
     race.impactCooldown -= dt;
 
     race.physicsAcc += dt;
+    const autoNitro = store?.data.settings.autoNitro === true;
     let steps = 0;
     while (race.physicsAcc >= FIXED && steps < 32 && state === 'racing') {
+      if (autoNitro) {
+        // Hysteresis: cut the feed when the bottle is spent, and don't resume
+        // until it has rebuilt enough for a useful burst. Otherwise the 0.5
+        // charge gate would strobe nitro on and off several times a second.
+        if (race.player.car.boost < 1) race.autoNitroReady = false;
+        else if (race.player.car.boost >= 6) race.autoNitroReady = true;
+      }
       const playerInput = {
         gas: input.gas,
         brake: input.brake,
         steer: input.steer,
         handbrake: input.handbrake,
-        boost: input.boost,
+        boost: input.boost || (autoNitro && race.autoNitroReady !== false),
       };
       race.player.car.update(FIXED, playerInput, race.track, race.roamWorld);
       for (const racer of race.ai) {

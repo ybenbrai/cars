@@ -26,6 +26,21 @@ test('new saves start with the starter car and starting money', () => {
   assert.deepEqual(store.data.ownedCars, [CARS.find((c) => c.starter).id]);
 });
 
+test('auto nitro defaults to off and survives a save round-trip', () => {
+  const store = freshStore();
+  assert.equal(store.data.settings.autoNitro, false);
+
+  // Older saves without the field get the default backfilled on import.
+  const legacy = store.toJSON();
+  delete legacy.settings.autoNitro;
+  store.import(legacy);
+  assert.equal(store.data.settings.autoNitro, false);
+
+  store.data.settings.autoNitro = true;
+  store.import(store.toJSON());
+  assert.equal(store.data.settings.autoNitro, true);
+});
+
 test('buying a car spends credits and equips it; overspending is refused', () => {
   const store = freshStore();
   const cheap = CARS.find((c) => !c.starter && c.unlockRank === 0 && c.price <= STARTING_MONEY);

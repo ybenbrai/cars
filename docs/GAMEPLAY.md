@@ -29,6 +29,11 @@ major feature, not a hidden progression system.
 | Steer | `A` `D` / `←` `→` | Left stick | ◀ ▶ |
 | Handbrake | `Space` | LB / RB | Handbrake lever |
 | Nitro | `Shift` | B | N2O circle (also accelerates) |
+
+Turn **AUTO NITRO** on in settings and nitro fires itself whenever the bottle
+has charge — no key needed. It holds off once the bottle is spent until enough
+charge has rebuilt, so the flames do not flicker; manual nitro still works
+alongside it.
 | Cycle camera (near chase, far chase, bumper, cockpit) | `C` | Y | ◉ |
 | Look back | Hold `B` | — | — |
 | Pause / resume | `Esc` / `P` | Start | ❚❚ |

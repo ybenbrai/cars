@@ -537,6 +537,12 @@ export class UI {
     if (name !== 'custom') this.cb.onTuneFocus?.(null);
     this.tab = name;
     document.querySelectorAll('.tab').forEach((tab) => tab.classList.toggle('active', tab.dataset.tab === name));
+    // In the short-landscape strip the active tab can be scrolled out of view.
+    const tabs = document.querySelector('.tabs');
+    if (tabs && tabs.scrollWidth > tabs.clientWidth + 1) {
+      document.querySelector(`.tab[data-tab="${name}"]`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    }
     document.querySelectorAll('.tab-pane').forEach((pane) => {
       pane.classList.toggle('active', pane.id === `tab-${name}`);
     });
@@ -1326,6 +1332,7 @@ export class UI {
     $('pauseSettings').innerHTML = row('GRAPHICS', 'quality', settings.quality || 'auto', [
       ['auto', 'AUTO'], ['high', 'HIGH'], ['medium', 'MED'], ['low', 'LOW'],
     ]) + row('TURN SIGNALS', 'signals', settings.signals === false ? 'off' : 'on', [['on', 'ON'], ['off', 'OFF']])
+      + row('AUTO NITRO', 'autoNitro', settings.autoNitro ? 'on' : 'off', [['on', 'ON'], ['off', 'OFF']])
       + `<p class="custom-note quality-note">${(QUALITY_LEVELS.find((q) => q.id === (settings.quality === 'auto' || !settings.quality ? 'high' : settings.quality)) || {}).note || ''}${
         !settings.quality || settings.quality === 'auto' ? ' AUTO picks the level for your device.' : ''}</p>`
       + row('LANGUAGE', 'lang', currentLanguage(), LANGUAGES.map((l) => [l.id, l.label]))

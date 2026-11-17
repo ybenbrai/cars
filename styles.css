@@ -297,17 +297,17 @@ h1 em, h2 em {
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
 }
+/* Six tabs never scroll: a 3x2 grid keeps every section visible at once. */
 .tabs {
-  display: flex; gap: 2px; padding: 0 26px; flex-shrink: 0;
-  overflow-x: auto; scrollbar-width: none;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 2px; padding: 0 18px 4px; flex-shrink: 0;
 }
-.tabs::-webkit-scrollbar { display: none; }
 .tab {
-  position: relative; flex-shrink: 0; white-space: nowrap;
+  position: relative; min-width: 0; white-space: nowrap;
   background: none; border: 0; border-bottom: 2px solid transparent;
-  padding: 12px 14px 14px;
+  padding: 10px 4px 12px; text-align: center;
   font-family: var(--font-display);
-  font-size: 13px; font-weight: 700; letter-spacing: 0.16em;
+  font-size: 12px; font-weight: 700; letter-spacing: 0.1em;
   color: var(--faint); cursor: pointer; transition: 0.2s;
 }
 .tab:hover { color: var(--ink); }
@@ -1190,7 +1190,7 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   .stage-stats { display: none; }
   .race-btn { right: 18px; bottom: 16px; padding: 14px 28px; font-size: 14.5px; }
   .tabs { padding: 0 18px; }
-  .tab { font-size: 12px; padding: 10px 10px 12px; }
+  .tab { font-size: 12px; padding: 10px 4px 12px; }
   .tab-pane { padding: 14px 18px 20px; }
   .car-card { padding: 13px 14px 12px; }
   .custom-actions { padding-bottom: 10px; }
@@ -1230,7 +1230,10 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   .garage-top .brand.small { display: none; }
   .driver-chip { padding: 7px 9px; }
   .driver-edit { display: none; }
-  .garage-body { grid-template-rows: 34vh 1fr; }
+  /* Two tab rows cost height, so give some back from the 3D stage. */
+  .garage-body { grid-template-rows: 30vh 1fr; }
+  .tabs { gap: 4px; padding: 8px 12px 10px; }
+  .tab { min-height: 42px; padding: 9px 4px; font-size: clamp(11px, 3.2vw, 12px); letter-spacing: 0.08em; }
   .car-stats { grid-template-columns: 1fr 1fr; gap: 6px 10px; }
   .stat-label { width: 46px; }
   .tab-lock { display: none; }
@@ -1775,8 +1778,15 @@ body.touch-ui .hud-actions .icon-btn { width: 40px; height: 40px; font-size: 15p
   }
   .garage-panel { grid-row: 1; grid-column: 1; border-right: 1px solid var(--line); padding-top: 0; }
   .garage-stage { grid-row: 1; grid-column: 2; border-bottom: 0; }
-  .tabs { padding: 0 12px; }
-  .tab { font-size: 11px; padding: 9px 8px 10px; }
+  /* Height is too scarce for two rows here: keep one swipeable strip, but
+     show a scrollbar so the extra tabs are discoverable. */
+  .tabs {
+    display: flex; overflow-x: auto; scrollbar-width: thin;
+    scroll-snap-type: x proximity; padding: 0 12px;
+  }
+  .tabs::-webkit-scrollbar { display: block; height: 4px; }
+  .tabs::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.22); }
+  .tab { flex-shrink: 0; font-size: 11px; padding: 9px 8px 10px; scroll-snap-align: center; }
   .tab-pane { padding: 10px 12px 14px; }
   .start-dock { bottom: -14px; margin: 0 -12px -14px; padding: 10px 12px 12px; }
   .start-dock .btn { padding: 11px 16px; font-size: 12.5px; }

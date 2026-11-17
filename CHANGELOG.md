@@ -34,6 +34,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Auto Nitro setting: leaving it ON fires nitro automatically whenever the
+  bottle has charge, with hysteresis so a spent bottle waits for a useful
+  refill instead of strobing on and off. The manual N2O key still works too.
+- Garage menu: the six section tabs now form a 3×2 grid so all of them are
+  visible without scrolling; short landscape screens keep a swipeable strip
+  with a visible scrollbar, and the active tab is scrolled into view.
 - City Roam: a free-drive mode on the whole Downtown grid with no laps,
   checkpoints or race walls. Adds live instanced traffic, cycling traffic
   lights, solid buildings and city bounds, and drift-only rewards like Free
