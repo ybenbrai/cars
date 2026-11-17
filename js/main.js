@@ -589,8 +589,12 @@ function resolveRaceConfig(config = {}) {
   const solo = mode.id === 'time-trial' || isFreeRunMode(mode.id);
   const opponents = solo ? 0 : clamp(Math.round(config.opponents ?? event?.opponents ?? 3), 1, 7);
   const laps = solo ? (isFreeRunMode(mode.id) ? Infinity : 3) : (config.laps || event?.laps || circuit.laps || 3);
-  // Career and daily events run in their own (default) conditions.
-  const conditions = normalizeConditions(event || config.dailyChallenge ? {} : config);
+  // Career and daily events use the conditions written into the event (day /
+  // clear when it has none). Quick races use the TIME OF DAY and WEATHER picks.
+  const eventConditions = event?.conditions || config.dailyChallenge?.conditions || {};
+  const conditions = event || config.dailyChallenge
+    ? normalizeConditions(eventConditions)
+    : normalizeConditions(config);
   return {
     mode: mode.id,
     modeLabel: mode.label,

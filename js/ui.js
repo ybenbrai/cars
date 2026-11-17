@@ -962,6 +962,7 @@ export class UI {
       ${rental ? `<div class="summary-row"><span>TRACK RENTAL</span><strong>${formatCredits(rental)} CR · per session</strong></div>` : ''}
       <div class="summary-row"><span>CAR</span><strong>${car.name}</strong></div>
       <div class="summary-row"><span>RACE</span><strong>${laps} · ${opponents} · ${aiMode ? diff.label : 'No rivals'}</strong></div>
+      <div class="summary-row"><span>CONDITIONS</span><strong>${this.raceConfig.time.toUpperCase()} · ${this.raceConfig.weather.toUpperCase()}</strong></div>
       <div class="summary-row"><span>PAYOUT</span><strong>${freePayout ? 'Drift score only' : `Base ${formatCredits(basePurse({ mode: mode.id, circuit, laps: mode.id === 'time-trial' ? 3 : circuit.laps }))} CR`}</strong></div>`;
   }
 

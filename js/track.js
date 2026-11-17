@@ -222,8 +222,10 @@ export function createTrack(scene, circuit) {
   const roadPeriod = length / Math.max(1, Math.round(length / (circuit.runway ? 26 : 11)));
   const roadMat = new THREE.MeshStandardMaterial({
     map: asphaltTexture(palette),
-    roughness: 0.93,
-    metalness: 0.04,
+    // Wet tarmac is glossy and picks up the sky in its reflections; dry tarmac
+    // stays matte. `wet` is set by paletteFor() for rain conditions.
+    roughness: palette.wet ? 0.34 : 0.93,
+    metalness: palette.wet ? 0.18 : 0.04,
     color: 0xffffff,
   });
   const road = new THREE.Mesh(

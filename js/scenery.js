@@ -10,7 +10,7 @@ function color(hex) {
 }
 
 function equirectEnv(renderer, palette, studio = false) {
-  const key = `${palette.skyHorizon}-${palette.skyLow}-${palette.sunGlow}-${studio}`;
+  const key = `${palette.skyHorizon}-${palette.skyLow}-${palette.sunGlow}-${palette.sun}-${studio}-${!!palette.night}`;
   if (envCache.has(key)) return envCache.get(key);
 
   const canvas = document.createElement('canvas');
@@ -31,8 +31,14 @@ function equirectEnv(renderer, palette, studio = false) {
   const sun = ctx.createRadialGradient(690, 300, 4, 690, 300, 130);
   sun.addColorStop(0, palette.sun);
   sun.addColorStop(0.12, palette.sunGlow);
-  sun.addColorStop(0.5, 'rgba(255,120,70,0.28)');
-  sun.addColorStop(1, 'rgba(255,120,70,0)');
+  if (palette.night) {
+    // No warm sunset light in the reflections after dark.
+    sun.addColorStop(0.5, 'rgba(90,120,180,0.14)');
+    sun.addColorStop(1, 'rgba(90,120,180,0)');
+  } else {
+    sun.addColorStop(0.5, 'rgba(255,120,70,0.28)');
+    sun.addColorStop(1, 'rgba(255,120,70,0)');
+  }
   ctx.fillStyle = sun;
   ctx.fillRect(0, 0, 1024, 512);
 
@@ -95,6 +101,9 @@ function skyMesh(palette) {
       uTop: { value: color(palette.skyTop) },
       uSun: { value: color(palette.sun) },
       uGlow: { value: color(palette.sunGlow) },
+      uSunDisc: { value: palette.sunDisc ?? 1 },
+      uStars: { value: palette.stars ?? 0 },
+      uMoon: { value: color('#cfd9ff') },
     },
     vertexShader: /* glsl */ `
       varying vec3 vWorld;
@@ -113,6 +122,9 @@ function skyMesh(palette) {
       uniform vec3 uTop;
       uniform vec3 uSun;
       uniform vec3 uGlow;
+      uniform float uSunDisc;
+      uniform float uStars;
+      uniform vec3 uMoon;
       void main() {
         vec3 d = normalize(vWorld - uCenter);
         float h = clamp(d.y, 0.0, 1.0);
@@ -120,13 +132,19 @@ function skyMesh(palette) {
         col = mix(col, uMid, smoothstep(0.05, 0.32, h));
         col = mix(col, uTop, smoothstep(0.30, 0.9, h));
 
+        // Sun and its glow belong to daytime; clouds dim them. At night a
+        // small, cool moon takes the opposite side of the sky instead.
         float sd = max(dot(d, uSunDir), 0.0);
-        col += uSun * pow(sd, 1500.0) * 6.4;
-        col += uGlow * pow(sd, 26.0) * 0.34;
-        col += uGlow * pow(1.0 - h, 7.0) * 0.12;
+        col += uSun * pow(sd, 1500.0) * 6.4 * uSunDisc;
+        col += uGlow * pow(sd, 26.0) * 0.34 * uSunDisc;
+        col += uGlow * pow(1.0 - h, 7.0) * 0.12 * uSunDisc;
+
+        float md = max(dot(d, -uSunDir), 0.0);
+        col += uMoon * pow(md, 1200.0) * 2.2 * uStars;
+        col += uMoon * pow(md, 40.0) * 0.05 * uStars;
 
         float n = fract(sin(dot(d, vec3(12.9898, 78.233, 37.719))) * 43758.5453);
-        col += vec3(0.8, 0.8, 1.0) * step(0.99965, n) * smoothstep(0.35, 0.85, h) * 0.6;
+        col += vec3(0.8, 0.8, 1.0) * step(0.99965, n) * smoothstep(0.35, 0.85, h) * 0.6 * uStars;
 
         gl_FragColor = vec4(col, 1.0);
       }
@@ -424,11 +442,13 @@ export function createEnvironment(scene, renderer, palette) {
   scene.add(sun);
   scene.add(sun.target);
 
-  const fill = new THREE.DirectionalLight(palette.fillLight, 0.5);
+  // Fixed rim lights keep car paint readable, but at night they must not wash
+  // the scene back into daylight.
+  const fill = new THREE.DirectionalLight(palette.fillLight, palette.night ? 0.18 : 0.5);
   fill.position.set(-80, 40, -100);
   scene.add(fill);
 
-  const bounce = new THREE.DirectionalLight(palette.bounceLight, 0.3);
+  const bounce = new THREE.DirectionalLight(palette.bounceLight, palette.night ? 0.1 : 0.3);
   bounce.position.set(20, -20, 60);
   scene.add(bounce);
 

@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Day and night are now clearly different: DAY lifts the sunset palettes into
+  real daylight while NIGHT keeps the dark sky, so a dark city circuit no
+  longer looks like midnight at noon. The sky no longer draws a bright sun
+  after dark or stars in broad daylight; night gets a small moon instead.
+- Rain now makes the tarmac glossy and reflective, dims the sun and clouds the
+  stars, so wet weather reads at a glance.
+- Night and rain career events (NEON NIGHTS, CORAL TWILIGHT, REDWOOD RHYTHM,
+  ALPINE GAUNTLET, DOCKYARD DUEL) no longer silently run in clear daylight.
+  Race setup now shows the chosen conditions in its summary.
+
 ### Added
 
 - Admin credit grants: `/admin` can give or remove credits for a player from
