@@ -112,63 +112,34 @@ Build command: npm run build
 Output directory: dist
 ```
 
-### Cloudflare (Workers + Durable Object, free plan)
+### Cloudflare (Workers static assets, free plan)
 
-Cloudflare runs the whole game, including accounts, cloud saves and online
-races, on the Workers free plan. `wrangler.jsonc` serves the prebuilt `dist/`
-folder as static assets and routes `/api/*` to `worker/index.js`, which
-forwards every API call and WebSocket to one SQLite-backed Durable Object
-(`GameServer`):
-
-- **Accounts:** PBKDF2-SHA256 (100,000 iterations) password hashes, opaque
-  HttpOnly `SameSite=Strict` session cookies, 30-day sessions.
-- **Cloud saves:** one record per account with the same optimistic-concurrency
-  rule as `server.mjs` (HTTP 409 when another device saved first).
-- **Online lobby:** `server/rooms.mjs` runs unchanged inside the object; its
-  WebSocket connections keep it alive while anyone is connected.
-
-Hashing and the lobby run in the Durable Object rather than the Worker
-because the free Worker has a 10 ms CPU limit per request.
-
-The API is identical to `server.mjs`, so the browser code needs no changes.
-Accounts created on a self-hosted Node server do not carry over.
+Cloudflare serves the prebuilt `dist/` folder as static assets through `wrangler.jsonc`.
+This deployment is static-only: there is no server-side API or Durable Object.
+Saves stay in the browser via `localStorage`, and the game runs as a local guest.
+The `/api/auth/session` endpoint and online multiplayer from `server.mjs` are
+not available on this deployment; the rest of the game remains playable.
 
 #### Connect the GitHub repository (deploys on every push)
 
 1. **Cloudflare Dashboard → Workers & Pages → Create → Workers → Connect to Git**.
 2. Choose **`ybenbrai/cars`**, project name `sunset-drift`, branch **`main`**.
 3. Build command: **`npm run check && npm test && npm run build`**.
-4. Deploy command: **`npx wrangler deploy`**. It bundles `worker/index.js`,
-   uploads `dist/` and creates the Durable Object on the first deploy
-   (migration `v1`).
+4. Deploy command: **`npx wrangler deploy`**. It uploads the prebuilt `dist/`
+   folder according to `wrangler.jsonc`.
 5. Save and deploy.
 
 Every push to `main` then builds and publishes. Do **not** use
-`npx wrangler pages deploy`: Pages cannot run the Worker or Durable Object.
-
-#### Admin dashboard (`/admin`)
-
-The Worker also serves an admin dashboard at `https://<your-site>/admin`:
-overview KPIs and charts, player search with details and actions (credits,
-reset, sign out everywhere, kick, ban, delete), live online rooms (close room,
-kick), game switches (announcement shown to players, pause sign-ups, pause
-online play), CSV export and an audit log of every admin action.
-
-It stays switched off until you add a secret:
-
-1. Cloudflare Dashboard → your `sunset-drift` Worker → **Settings → Variables
-   and Secrets → Add** → type **Secret**, name **`ADMIN_TOKEN`**, value: a long
-   random string (16+ characters; a password manager can generate one).
-2. Deploy (or wait for the next push), open `/admin` and paste the token.
-
-The token is never stored in the browser: signing in gives a 12-hour HttpOnly
-admin cookie scoped to `/api/admin`. Rotate the secret to revoke access.
+`npx wrangler pages deploy` in this flow; it requires Pages authentication and
+is not the configured Workers project. The site URL comes from the Workers
+project (a `workers.dev` hostname or a custom domain configured in the
+Cloudflare dashboard).
 
 #### Local test of the Cloudflare build
 
 ```bash
 npm run build
-npx wrangler dev        # http://localhost:8787, with a local Durable Object
+npx wrangler dev        # http://localhost:8787, serving dist/ statically
 ```
 
 ### Plain object storage / CDN
