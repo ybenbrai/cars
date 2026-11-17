@@ -402,15 +402,36 @@ export class Admin {
     const id = user.id;
     if (action === 'grant') {
       const amount = Math.round(Number(body.amount));
-      if (!Number.isFinite(amount) || Math.abs(amount) > 10_000_000) return json(400, { error: 'Enter an amount up to 10,000,000.' });
+      if (!Number.isFinite(amount) || amount === 0 || Math.abs(amount) > 10_000_000) {
+        return json(400, { error: 'Enter an amount between -10,000,000 and 10,000,000.' });
+      }
       const stored = await this.storage.get(`save:${id}`);
-      if (!stored?.save) return json(409, { error: 'This player has no cloud save yet.' });
-      stored.save.wallet = Math.max(0, (Number(stored.save.wallet) || 0) + amount);
+      if (!stored?.save) {
+        // Players who have not synced yet have no cloud save to edit. Queue
+        // small credits in their inbox instead of replacing a local save with
+        // a stub; removals still need a real save.
+        if (amount < 0 || amount > 100_000) {
+          return json(409, { error: 'This player has not synced yet. Ask them to sign in once, or grant up to 100,000 CR now.' });
+        }
+        const now = new Date().toISOString();
+        user.inbox = [...(user.inbox || []), {
+          text: 'An admin credited your account.', credits: amount, at: now,
+        }].slice(-20);
+        await this.storage.put(`user:${id}`, user);
+        await this.audit('user.grant.inbox', { user: user.username, amount });
+        return json(200, { ok: true, queued: true, amount });
+      }
+      const wallet = Math.max(0, (Number(stored.save.wallet) || 0) + amount);
+      stored.save.wallet = wallet;
+      if (amount > 0) {
+        const stats = stored.save.stats || {};
+        stats.creditsEarned = (Number(stats.creditsEarned) || 0) + amount;
+        stored.save.stats = stats;
+      }
       stored.updatedAt = new Date().toISOString();
-      await this.storage.put(`save:${id}`, stored);
-      await this.storage.put(`summary:${id}`, summarize(stored.save, stored.updatedAt));
+      await this.storage.put({ [`save:${id}`]: stored, [`summary:${id}`]: summarize(stored.save, stored.updatedAt) });
       await this.audit('user.grant', { user: user.username, amount });
-      return json(200, { ok: true, wallet: stored.save.wallet });
+      return json(200, { ok: true, queued: false, wallet });
     }
     if (action === 'reset') {
       await this.storage.delete([`save:${id}`, `summary:${id}`]);

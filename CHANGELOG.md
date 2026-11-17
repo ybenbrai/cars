@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Admin credit grants: `/admin` can give or remove credits for a player from
+  the CREDITS card, with a confirmation, audit logging and wallet statistics.
+  Players who have not synced a cloud save yet receive up to 100,000 CR through
+  their inbox on next sign-in.
 - Modern bodies for every car (js/modernCar.js): original designs with
   creased panels, inset skirts, character and shoulder lines, wings over
   the axles and a design language per family: rounded hatches, notchback
@@ -254,6 +258,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Cloudflare deployment runs the Worker and Durable Object API again, so
+  accounts, cloud saves, online play and `/admin` work on the live site. Set
+  the `ADMIN_TOKEN` secret to enable admin sign-in.
 - Deeper procedural car realism pass: lower, rounder body sections with a
   continuous curved shoulder, lower rooflines, smoother greenhouses, larger
   wheels with moulded sidewall ridges, painted arch lips, wraparound lamps,

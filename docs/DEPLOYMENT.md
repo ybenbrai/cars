@@ -112,22 +112,36 @@ Build command: npm run build
 Output directory: dist
 ```
 
-### Cloudflare (Workers static assets, free plan)
+### Cloudflare (Workers + Durable Object, free plan)
 
-Cloudflare serves the prebuilt `dist/` folder as static assets through `wrangler.jsonc`.
-This deployment is static-only: there is no server-side API or Durable Object.
-Saves stay in the browser via `localStorage`, and the game runs as a local guest.
-The `/api/auth/session` endpoint and online multiplayer from `server.mjs` are
-not available on this deployment; the rest of the game remains playable.
+Cloudflare serves the prebuilt `dist/` folder as static assets and runs
+`worker/index.js` for `/api/*` and `/.well-known/*`. Accounts, cloud saves,
+the leaderboards, online multiplayer and the admin API all live in one SQLite
+Durable Object. This fits the Workers free plan; no KV, D1 or paid add-on is
+needed. Browser-only guests still work if a player chooses not to sign in.
+
+To enable the admin dashboard at `/admin`, add a secret in the Workers project
+(**Settings → Variables and Secrets → Add variable → Secret**):
+
+```text
+Name: ADMIN_TOKEN
+Value: a random string of at least 16 characters
+```
+
+Alternatively, set it locally with `npx wrangler secret put ADMIN_TOKEN`.
+Without that secret, `/admin` stays switched off and returns a setup message.
+With it, sign in using the same token and use **USERS → player → CREDITS** to
+give or remove credits.
 
 #### Connect the GitHub repository (deploys on every push)
 
 1. **Cloudflare Dashboard → Workers & Pages → Create → Workers → Connect to Git**.
 2. Choose **`ybenbrai/cars`**, project name `sunset-drift`, branch **`main`**.
 3. Build command: **`npm run check && npm test && npm run build`**.
-4. Deploy command: **`npx wrangler deploy`**. It uploads the prebuilt `dist/`
-   folder according to `wrangler.jsonc`.
-5. Save and deploy.
+4. Deploy command: **`npx wrangler deploy`**. It uploads `dist/` and the Worker
+   according to `wrangler.jsonc`.
+5. Add the `ADMIN_TOKEN` secret described above.
+6. Save and deploy.
 
 Every push to `main` then builds and publishes. Do **not** use
 `npx wrangler pages deploy` in this flow; it requires Pages authentication and
@@ -139,8 +153,11 @@ Cloudflare dashboard).
 
 ```bash
 npm run build
-npx wrangler dev        # http://localhost:8787, serving dist/ statically
+npx wrangler dev        # http://localhost:8787, full API and admin dashboard
 ```
+
+Set `.dev.vars` locally with `ADMIN_TOKEN=...` before starting `wrangler dev`
+to sign in to the admin dashboard.
 
 ### Plain object storage / CDN
 

@@ -360,7 +360,7 @@ async function openUser(id) {
     <div class="card"><h2>CREDITS</h2>
       <div class="toolbar" style="margin:0"><input type="number" id="amount" placeholder="Amount (negative to remove)" style="max-width:220px" />
       <button class="btn primary" data-act="grant">APPLY</button></div>
-      <p class="meta">The player's game picks up the change on its next cloud sync.</p>
+      <p class="meta">Applies to the cloud save on next sync. Players who have not synced yet can receive up to 100,000 CR through their inbox.</p>
     </div>
     <div class="card"><h2>PLAYER TOOLS</h2>
       <div class="toolbar"><input type="text" id="newName" placeholder="New username" value="${esc(u.username)}" style="max-width:220px" />
@@ -394,7 +394,15 @@ document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawe
 
 async function userAction(u, act) {
   const body = { action: act };
-  if (act === 'grant') body.amount = Number($('amount').value);
+  if (act === 'grant') {
+    const amount = Number($('amount').value);
+    if (!Number.isFinite(amount) || amount === 0 || Math.abs(amount) > 10000000) {
+      toast('Enter an amount between -10,000,000 and 10,000,000.', true);
+      return;
+    }
+    if (!confirm(`${amount > 0 ? 'Give' : 'Remove'} ${Math.abs(amount).toLocaleString()} CR ${amount > 0 ? 'to' : 'from'} ${u.username}?`)) return;
+    body.amount = amount;
+  }
   if (act === 'rename') body.username = $('newName').value.trim();
   if (act === 'message') body.text = $('msgText').value.trim();
   if (act === 'givecar') body.carId = $('carPick').value;
