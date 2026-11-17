@@ -166,6 +166,16 @@ drift score you banked, capped at 3,600 CR, so it rewards angle and chained
 slides rather than lap times. Pause → **END SESSION** banks the score at any
 time; `RESTART SESSION` resets the run.
 
+## City Roam
+
+City Roam is a free-drive session on **Downtown Run** with no laps, no checkpoints and no finish line. The closed race corridor is replaced by a `CityWorld`: the whole downtown grid is drivable, including painted side streets and the race boulevard. Buildings, the outer city bounds and other cars are solid; off-road is decided by distance to the nearest road rather than a single loop.
+
+- **Live traffic.** 18 instanced cars follow the grid, obey the signals, keep a gap to the car ahead, brake for red lights and turn at random junctions.
+- **Working signals.** Junctions run a 14-second green → amber → red cycle, split into two alternating phase sets so adjacent blocks differ. Traffic stops on red.
+- **No countdown, no gates.** Roam launches straight into driving. Checkpoints, lap timing, wrong-way warnings and the ghost are all disabled. Press `R` to reset to the nearest road.
+- **Rewards.** Like Free Drift, the session has no purse: it pays a drift-only bonus (capped at 2,000 CR) when you end it, and never counts as a race, win or lap record.
+- **Solo or shared.** Pick CITY ROAM from the mode select to drive alone, or use the CITY ROAM button in the ONLINE tab to join one shared downtown with other drivers. In shared roam, other cars are relayed live: late joiners see everyone already present, and leaving simply removes your car — there is no forfeit or result screen.
+
 ## Braking and wheel lock
 
 - Brakes stop a sports car at about **1.2 g** (roughly 35 m from 100 km/h),
@@ -318,7 +328,8 @@ the active gate highlighted and the car shown as an arrow.
 ## HUD
 
 - **Top center** — lap counter, current lap time and best lap. Free-run
-  sessions show `∞ / FREE DRIVE` instead of a lap total.
+  sessions show `∞ / FREE DRIVE` instead of a lap total; City Roam shows
+  `∞ / FREE ROAM` and hides the position and lap blocks entirely.
 - **Top left** — driver name; on touch, the borderless nitro panel.
 - **Top right** — sound, camera and pause buttons.
 - **Right** — minimap and total drift score.

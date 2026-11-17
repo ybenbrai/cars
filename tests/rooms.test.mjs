@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { Lobby, COUNTDOWN_MS, FINISH_GRACE_MS, ROOM_SIZE } from '../server/rooms.mjs';
+import {
+  Lobby, COUNTDOWN_MS, FINISH_GRACE_MS, ROOM_SIZE, ROAM_CODE, ROAM_CIRCUIT,
+} from '../server/rooms.mjs';
 import { CARS } from '../js/data/cars.js';
 import { CIRCUITS } from '../js/data/circuits.js';
 
@@ -255,6 +257,93 @@ test('practice-only venues are not online venues', () => {
   h.send(a, { type: 'config', circuitId: 'runway-01' });
   assert.equal(a.last('error').message, 'Unknown circuit.');
   assert.equal(h.lobby.rooms.get(room.code).circuitId, room.circuitId);
+});
+
+test('city roam is one persistent room joinable without a race', () => {
+  const h = harness();
+  const a = h.connect('alice');
+  h.send(a, { type: 'roam' });
+  const room = a.last('room').room;
+  assert.equal(room.code, ROAM_CODE);
+  assert.equal(room.mode, 'roam');
+  assert.equal(room.state, 'roaming');
+  assert.equal(room.circuitId, ROAM_CIRCUIT);
+  assert.equal(room.players.length, 1);
+
+  // Joining by the fixed code works too, and nobody has to ready up or start.
+  const b = h.connect('bob');
+  h.send(b, { type: 'join', code: ROAM_CODE });
+  assert.equal(b.last('room').room.players.length, 2);
+  assert.ok(a.all('room').some((m) => m.room.players.length === 2));
+  assert.equal(b.all('start').length, 0);
+  h.send(a, { type: 'start' });
+  assert.equal(b.all('start').length, 0);
+  h.send(a, { type: 'config', laps: 5 });
+  assert.equal(a.last('error').message, 'Only the host can change the race.');
+});
+
+test('roam relays positions and gives late joiners the last poses', () => {
+  const h = harness();
+  const a = h.connect('alice');
+  h.send(a, { type: 'roam' });
+  h.send(a, { type: 'state', x: 12, z: 34, h: 1.5, s: 9, d: 0, c: 0, f: 2 });
+
+  const b = h.connect('bob');
+  h.send(b, { type: 'roam' });
+  const snapshot = b.last('room').room;
+  assert.equal(snapshot.states[a.id].x, 12);
+  assert.equal(snapshot.states[a.id].z, 34);
+  assert.equal(snapshot.states[a.id].f, 2);
+
+  // Live relays keep flowing while roaming, and a later joiner sees the newest pose.
+  h.send(a, { type: 'state', x: 20, z: 10, h: 0, s: 12, d: 0, c: 0, f: 0 });
+  const live = b.last('state');
+  assert.equal(live.id, a.id);
+  assert.equal(live.x, 20);
+  const c = h.connect('carol');
+  h.send(c, { type: 'roam' });
+  assert.equal(c.last('room').room.states[a.id].x, 20);
+});
+
+test('the shared city survives an empty room and keeps its code', () => {
+  const h = harness();
+  const a = h.connect('alice');
+  h.send(a, { type: 'roam' });
+  h.send(a, { type: 'leave' });
+  assert.equal(a.last('room').room, null);
+  assert.ok(h.lobby.rooms.has(ROAM_CODE), 'roam room is not torn down');
+  assert.equal(h.lobby.rooms.get(ROAM_CODE).members.length, 0);
+  assert.deepEqual(h.lobby.rooms.get(ROAM_CODE).states, {});
+
+  const b = h.connect('bob');
+  h.send(b, { type: 'roam' });
+  assert.equal(b.last('room').room.code, ROAM_CODE);
+});
+
+test('leaving roam notifies others without race results or ranked hooks', () => {
+  const h = harness();
+  let results = 0;
+  h.lobby.onRaceResults = () => { results += 1; };
+  const a = h.connect('alice');
+  const b = h.connect('bob');
+  h.send(a, { type: 'roam' });
+  h.send(b, { type: 'roam' });
+  h.send(a, { type: 'leave' });
+  assert.ok(b.all('left').some((m) => m.id === a.id));
+  assert.equal(b.all('results').length, 0);
+  assert.equal(b.all('start').length, 0);
+  assert.equal(results, 0);
+  const room = b.last('room').room;
+  assert.equal(room.players.length, 1);
+  assert.equal(room.states[a.id], undefined);
+});
+
+test('the city room is not advertised as a public race', () => {
+  const h = harness();
+  const a = h.connect('alice');
+  h.send(a, { type: 'roam' });
+  h.send(a, { type: 'list' });
+  assert.equal(a.last('rooms').rooms.length, 0);
 });
 
 test('public room list shows open public lobbies only', async () => {

@@ -46,6 +46,13 @@ whether credits are per-car, and how to avoid turning the game into a grind.
 - Pause-menu performance preset for integrated GPUs
 - Photo mode using the existing free camera and post pipeline
 
+## 1.4 — City Roam (shipped)
+
+- Free-drive mode on the whole Downtown grid: no laps, checkpoints or race walls
+- Live traffic, cycling traffic lights and solid buildings/bounds
+- Shared `CITY` room online with live pose relay and late-join snapshots
+- No pedestrians in this version: traffic and signals came first
+
 ## Later / exploratory
 
 - Local ghost replays of a best lap
@@ -59,8 +66,9 @@ whether credits are per-car, and how to avoid turning the game into a grind.
 - Full racing simulation (tire temperatures, fuel, mechanical wear)
 - Officially licensed manufacturers and scanned car assets (the roster uses
   real production-car names, with original procedural bodies and lights)
-- Free-roam open world: the city circuits are closed street loops, not an
-  explorable sandbox
+- Pedestrians and a fully simulated persistent world: City Roam is a drivable
+  grid with live traffic and signals, not an open world with walking NPCs or
+  server-simulated physics (the shared city survives being empty, not restarts)
 - Server-authoritative physics or anti-cheat beyond sanity checks (online
   races relay client positions; they need the bundled Node server, and static
   hosts stay guest-only)

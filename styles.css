@@ -657,6 +657,9 @@ h1 em, h2 em {
   padding: 8px;
 }
 #minimap { display: block; width: 100%; height: auto; }
+/* City roam has no laps or finishing order — keep the driving gauges only. */
+body.roam-ui .hud-position,
+body.roam-ui .lap-block { display: none; }
 .score-block {
   display: flex; flex-direction: column; gap: 2px;
   border-top: 1px solid var(--line);

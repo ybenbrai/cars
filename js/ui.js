@@ -37,6 +37,8 @@ function esc(str) {
  * up in a race, time trial or online lobby, and practice lists them first.
  */
 function circuitsFor(modeId) {
+  // City roam is tied to the one venue with a full street grid.
+  if (modeId === 'roam') return CIRCUITS.filter((c) => c.id === 'downtown-run');
   // Only practice offers the test runway; free drift gets every street venue.
   const list = CIRCUITS.filter((c) => !c.practiceOnly || modeId === 'practice');
   if (modeId !== 'practice') return list;
@@ -258,7 +260,8 @@ export class UI {
       // Leaving practice: a rented circuit may be locked in the new mode (and
       // the practice runway is not a race venue), so fall back to a circuit
       // the player actually owns. Free drift opens every street venue.
-      const freeMode = this.raceConfig.mode === 'practice' || this.raceConfig.mode === 'drift';
+      const freeMode = this.raceConfig.mode === 'practice' || this.raceConfig.mode === 'drift'
+      || this.raceConfig.mode === 'roam';
       const allowed = circuitsFor(this.raceConfig.mode);
       if (!allowed.some((c) => c.id === this.raceConfig.circuitId)
         || (!freeMode && !this.store?.circuitUnlocked(this.raceConfig.circuitId))) {
@@ -907,8 +910,9 @@ export class UI {
     $('circuitList').innerHTML = circuits.map((circuit) => {
       const practice = mode.id === 'practice';
       const drift = mode.id === 'drift';
+      const roam = mode.id === 'roam';
       const unlocked = this.store.circuitUnlocked(circuit.id);
-      const open = unlocked || practice || drift;
+      const open = unlocked || practice || drift || roam;
       const fee = practice ? this.store.practiceFee(circuit.id) : 0;
       const active = circuit.id === this.raceConfig.circuitId;
       const best = this.store.bestLapFor(circuit.id);
@@ -952,8 +956,10 @@ export class UI {
     const car = this.store.selectedCar;
     const aiMode = mode.id === 'quick' || mode.id === 'career';
     const laps = mode.id === 'practice' ? 'Free drive'
-      : mode.id === 'drift' ? 'Free drift' : `${circuit.laps} laps`;
-    const opponents = aiMode ? `${this.raceConfig.opponents} AI` : 'Solo';
+      : mode.id === 'drift' ? 'Free drift'
+        : mode.id === 'roam' ? 'Free roam' : `${circuit.laps} laps`;
+    const opponents = aiMode ? `${this.raceConfig.opponents} AI`
+      : mode.id === 'roam' ? 'Shared city' : 'Solo';
     const rental = mode.id === 'practice' ? this.store.practiceFee(circuit.id) : 0;
     const freePayout = mode.id === 'practice' || mode.id === 'drift';
     $('setupSummary').innerHTML = `
@@ -1160,6 +1166,7 @@ export class UI {
     const titles = {
       practice: ['SESSION COMPLETE', 'FREE<br /><em>DRIVE.</em>'],
       drift: ['DRIFT SESSION', 'ANGLE<br /><em>OVER SPEED.</em>'],
+      roam: ['CITY ROAM', 'DOWNTOWN<br /><em>EXPLORED.</em>'],
       'time-trial': ['TIME TRIAL COMPLETE', 'AGAINST THE<br /><em>CLOCK.</em>'],
       online: ['ONLINE RACE', 'CHEQUERED<br /><em>FLAG.</em>'],
     };
@@ -1181,7 +1188,8 @@ export class UI {
     }
     $('btnAgain').innerHTML = data.mode === 'practice' ? 'DRIVE AGAIN <span>↻</span>'
       : data.mode === 'drift' ? 'DRIFT AGAIN <span>↻</span>'
-      : data.mode === 'online' ? 'BACK TO LOBBY <span>↻</span>' : 'RACE AGAIN <span>↻</span>';
+        : data.mode === 'roam' ? 'BACK TO ONLINE <span>↻</span>'
+          : data.mode === 'online' ? 'BACK TO LOBBY <span>↻</span>' : 'RACE AGAIN <span>↻</span>';
     $('resultDriver').textContent = data.driver;
     $('resultTotal').textContent = fmtTime(data.total);
     $('resultBest').textContent = fmtTime(data.best);
@@ -1334,16 +1342,20 @@ export class UI {
   }
 
   setPauseMode(mode) {
-    const isOnline = mode === 'online';
-    const freeRun = mode === 'practice' || mode === 'drift';
+    const roam = mode === 'roam';
+    const isOnline = mode === 'online' || roam;
+    const freeRun = mode === 'practice' || mode === 'drift' || roam;
     $('btnEndSession').classList.toggle('hidden', !freeRun);
     this.renderSettings();
     $('btnRestart').classList.toggle('hidden', isOnline);
     $('btnRestart').textContent = freeRun ? 'RESTART SESSION' : 'RESTART RACE';
-    $('btnQuit').textContent = isOnline ? 'FORFEIT · BACK TO GARAGE' : 'QUIT TO GARAGE';
-    $('pauseCopy').textContent = isOnline
-      ? 'This is a live race: your car is stopped while your rivals keep driving.'
-      : "The sun isn't going anywhere.";
+    $('btnQuit').textContent = roam ? 'LEAVE CITY · BACK TO GARAGE'
+      : isOnline ? 'FORFEIT · BACK TO GARAGE' : 'QUIT TO GARAGE';
+    $('pauseCopy').textContent = roam
+      ? 'You are cruising with other drivers. Leaving returns you to the garage.'
+      : isOnline
+        ? 'This is a live race: your car is stopped while your rivals keep driving.'
+        : "The sun isn't going anywhere.";
   }
 
   /* ───────────────────────── online ───────────────────────── */
@@ -1386,6 +1398,9 @@ export class UI {
     if (!room) {
       root.innerHTML = `${intro}
         <div class="online-actions">
+          <button class="online-choice" data-online="roam">
+            <strong>CITY ROAM</strong><span>Free-drive Downtown with other drivers. Live traffic, working lights, no laps.</span>
+          </button>
           <button class="online-choice" data-online="quick">
             <strong>QUICK MATCH</strong><span>Join an open public room, or open one for others to join.</span>
           </button>
@@ -1427,12 +1442,13 @@ export class UI {
     const isHost = room.hostId === client.id;
     const me = room.players.find((p) => p.id === client.id);
     const circuit = getCircuit(room.circuitId);
-    const racing = room.state !== 'lobby';
+    const roam = room.mode === 'roam';
+    const racing = !roam && room.state !== 'lobby';
     const players = room.players.map((p) => `
       <div class="online-player ${p.id === client.id ? 'me' : ''}">
         <i style="background:${esc(p.look?.paint || '#ffc46b')}"></i>
         <span class="who"><b>${esc(p.name)}</b><small>${esc(getCar(p.carId).name)}</small></span>
-        <span class="tag ${p.host ? 'host' : p.ready ? 'ready' : 'waiting'}">${p.host ? 'HOST' : p.ready ? 'READY' : 'NOT READY'}</span>
+        <span class="tag ${roam ? (p.id === client.id ? 'ready' : 'waiting') : (p.host ? 'host' : p.ready ? 'ready' : 'waiting')}">${roam ? (p.id === client.id ? 'YOU' : 'DRIVER') : (p.host ? 'HOST' : p.ready ? 'READY' : 'NOT READY')}</span>
         ${p.id === client.id ? '' : `<button class="link-btn report-btn" data-online="report" data-value="${esc(p.name)}" title="Report this driver">REPORT</button>`}
       </div>`).join('');
     const empty = Array.from({ length: Math.max(0, room.size - room.players.length) }, () => `
@@ -1444,7 +1460,11 @@ export class UI {
     }).join('');
     const laps = [2, 3, 4, 5].map((n) => `<button class="seg ${n === room.laps ? 'active' : ''}" data-online="laps" data-value="${n}">${n}</button>`).join('');
 
-    const hostControls = isHost && !racing ? `
+    const hostControls = roam ? `
+      <div class="setup-summary">
+        <div class="summary-row"><span>VENUE</span><strong>DOWNTOWN CITY · FREE ROAM</strong></div>
+        <div class="summary-row"><span>RULES</span><strong>No laps, no finish. Just drive together.</strong></div>
+      </div>` : isHost && !racing ? `
       <section class="setup-section">
         <div class="section-head"><span>CIRCUIT</span><span>Host picks</span></div>
         <div class="segmented wrap">${circuits}</div>
@@ -1462,7 +1482,9 @@ export class UI {
       </div>`;
 
     let primary;
-    if (racing) {
+    if (roam) {
+      primary = `<button class="btn primary wide" disabled>DRIVING · DOWNTOWN CITY</button>`;
+    } else if (racing) {
       primary = `<button class="btn primary wide" disabled>RACE IN PROGRESS</button>`;
     } else if (isHost) {
       const hint = room.players.length < 2 ? 'WAITING FOR DRIVERS' : room.canStart ? 'START RACE' : 'WAITING FOR READY';
@@ -1475,13 +1497,13 @@ export class UI {
 
     root.innerHTML = `
       <div class="online-room-head">
-        <div><small>${room.public ? 'PUBLIC ROOM' : 'PRIVATE ROOM'} · ${room.players.length}/${room.size}</small>
+        <div><small>${roam ? 'SHARED CITY' : (room.public ? 'PUBLIC ROOM' : 'PRIVATE ROOM')} · ${room.players.length}/${room.size}</small>
           <button class="room-code" data-online="copy" data-value="${esc(room.code)}" title="Copy code">${esc(room.code)}</button></div>
         <button class="btn ghost" data-online="leave">LEAVE</button>
       </div>
       ${!racing && room.players.length < room.size ? `<div class="invite-card">
         <strong>INVITE FRIENDS</strong>
-        <span>Friends open the game, sign in, go to ONLINE and type the code <b>${esc(room.code)}</b> under JOIN WITH A CODE, or just open your invite link.${room.public ? ' This room is public, so anyone can also find it in OPEN PUBLIC ROOMS.' : ''}</span>
+        <span>Friends open the game, sign in, go to ONLINE and ${roam ? 'tap CITY ROAM, or type the code' : 'type the code'} <b>${esc(room.code)}</b> under JOIN WITH A CODE${roam ? '' : ', or just open your invite link'}.${room.public ? ' This room is public, so anyone can also find it in OPEN PUBLIC ROOMS.' : ''}</span>
         <div class="invite-actions">
           <button class="btn ghost" data-online="copy" data-value="${esc(room.code)}">COPY CODE</button>
           <button class="btn primary" data-online="share" data-value="${esc(room.code)}">SHARE INVITE LINK</button>
@@ -1491,7 +1513,7 @@ export class UI {
       ${hostControls}
       ${primary}
       ${!racing ? this.friendsSection(true) : ''}
-      <div class="online-foot">Change your car in the CARS tab before the race starts.</div>`;
+      <div class="online-foot">${roam ? 'Leave the city to stop driving with the other players.' : 'Change your car in the CARS tab before the race starts.'}</div>`;
   }
 
   /** Friends list; in a room each online friend gets an INVITE button. */
@@ -1580,7 +1602,7 @@ export class UI {
     const history = (data.history || []).slice(0, 8).map((row) => {
       const circuit = getCircuit(row.circuitId);
       const when = new Date(row.at);
-      const place = row.mode === 'practice' || row.mode === 'drift' || row.mode === 'time-trial'
+      const place = row.mode === 'practice' || row.mode === 'drift' || row.mode === 'roam' || row.mode === 'time-trial'
         ? getMode(row.mode).label
         : row.position
           ? `${row.mode === 'online' ? 'ONLINE · ' : ''}P${row.position}/${row.totalRacers}`

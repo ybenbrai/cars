@@ -55,6 +55,7 @@ export class HUD {
     };
     this.gaugeMax = 0;
     this.last = {};
+    this.roam = false;
     this.toastTimer = null;
     this.map = this.el.minimap ? this.el.minimap.getContext('2d') : null;
     this.buildTicks(240);
@@ -66,6 +67,16 @@ export class HUD {
     this.track = track;
     this.lastMapCircuit = null;
     this.buildMapBase();
+  }
+
+  /** City roam drops lap/position chrome and checkpoint markers. */
+  setRoam(on) {
+    this.roam = !!on;
+    document.body.classList.toggle('roam-ui', this.roam);
+    if (this.roam) {
+      this.el.lapNum.textContent = '∞';
+      this.el.lapDim.textContent = 'FREE ROAM';
+    }
   }
 
   /** Show or hide the practice rental badge (`{ circuit, fee }` or null). */
@@ -243,7 +254,7 @@ export class HUD {
   setLap(lap, total, freeDrive = false) {
     if (freeDrive) {
       this.el.lapNum.textContent = '∞';
-      this.el.lapDim.textContent = 'FREE DRIVE';
+      this.el.lapDim.textContent = this.roam ? 'FREE ROAM' : 'FREE DRIVE';
       return;
     }
     this.el.lapNum.textContent = String(lap);
@@ -407,30 +418,33 @@ export class HUD {
     if (this.mapBase) ctx.drawImage(this.mapBase, 0, 0);
 
     // Checkpoints: a pulsing cyan diamond for the next one, small dots after.
-    for (const gate of this.track.gates) {
-      if (gate.index === 0) continue;
-      const x = gate.point.x * scale + ox;
-      const y = gate.point.z * scale + oy;
-      if (gate.index === nextGate) {
-        const pulse = 14 + (Math.sin((time || 0) * 5) * 0.5 + 0.5) * 8;
-        ctx.beginPath();
-        ctx.arc(x, y, pulse, 0, Math.PI * 2);
-        ctx.strokeStyle = 'rgba(92,225,230,0.5)';
-        ctx.lineWidth = 3;
-        ctx.stroke();
-        ctx.save();
-        ctx.translate(x, y);
-        ctx.rotate(Math.PI / 4);
-        ctx.fillStyle = '#5ce1e6';
-        ctx.shadowColor = '#5ce1e6';
-        ctx.shadowBlur = 14;
-        ctx.fillRect(-6, -6, 12, 12);
-        ctx.restore();
-      } else {
-        ctx.beginPath();
-        ctx.arc(x, y, 4.5, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,246,236,0.42)';
-        ctx.fill();
+    // Free roam has no checkpoints, so only cars are drawn there.
+    if (!this.roam) {
+      for (const gate of this.track.gates) {
+        if (gate.index === 0) continue;
+        const x = gate.point.x * scale + ox;
+        const y = gate.point.z * scale + oy;
+        if (gate.index === nextGate) {
+          const pulse = 14 + (Math.sin((time || 0) * 5) * 0.5 + 0.5) * 8;
+          ctx.beginPath();
+          ctx.arc(x, y, pulse, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(92,225,230,0.5)';
+          ctx.lineWidth = 3;
+          ctx.stroke();
+          ctx.save();
+          ctx.translate(x, y);
+          ctx.rotate(Math.PI / 4);
+          ctx.fillStyle = '#5ce1e6';
+          ctx.shadowColor = '#5ce1e6';
+          ctx.shadowBlur = 14;
+          ctx.fillRect(-6, -6, 12, 12);
+          ctx.restore();
+        } else {
+          ctx.beginPath();
+          ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+          ctx.fillStyle = 'rgba(255,246,236,0.42)';
+          ctx.fill();
+        }
       }
     }
 

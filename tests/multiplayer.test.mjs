@@ -8,6 +8,7 @@ import { join } from 'node:path';
 
 import { createStaticServer } from '../server.mjs';
 import { acceptKey } from '../server/ws.mjs';
+import { ROAM_CODE } from '../server/rooms.mjs';
 
 let root;
 let server;
@@ -160,6 +161,47 @@ test('two signed-in players meet in a private room over real WebSockets', async 
   // Bob dropping out mid-race is announced to Alice.
   await alice.next('left');
   alice.end();
+});
+
+test('city roam lets drivers drop in and out without a race', async () => {
+  const alice = await connect({ cookie: await register('mproama') });
+  const bob = await connect({ cookie: await register('mproamb') });
+  assert.equal(alice.status, 101);
+  assert.equal(bob.status, 101);
+  const aw = await alice.next('welcome');
+  const bw = await bob.next('welcome');
+
+  alice.send({ type: 'roam' });
+  const first = await alice.next('room', (m) => m.room?.mode === 'roam');
+  assert.equal(first.room.code, ROAM_CODE);
+  assert.equal(first.room.state, 'roaming');
+  assert.equal(first.room.circuitId, 'downtown-run');
+
+  alice.send({ type: 'state', x: 8, z: -12, h: 0.4, s: 14, d: 0, c: 0, f: 1 });
+  bob.send({ type: 'roam' });
+  const joined = await bob.next('room', (m) => m.room?.players.length === 2);
+  assert.equal(joined.room.states[aw.id].x, 8);
+  await alice.next('room', (m) => m.room?.players.length === 2);
+
+  // Positions relay the whole time; no start/ready handshake is involved.
+  alice.send({ type: 'state', x: 44, z: 55, h: 1, s: 20, d: 0, c: 0, f: 0 });
+  const live = await bob.next('state');
+  assert.equal(live.x, 44);
+  assert.equal(bob.inbox.some((m) => m.type === 'start'), false);
+
+  bob.send({ type: 'leave' });
+  await alice.next('left', (m) => m.id === bw.id);
+
+  // The room outlives an empty city, so a later driver can still join by code.
+  alice.send({ type: 'leave' });
+  const carol = await connect({ cookie: await register('mproamc') });
+  await carol.next('welcome');
+  carol.send({ type: 'join', code: ROAM_CODE });
+  const rejoined = await carol.next('room', (m) => m.room?.mode === 'roam');
+  assert.equal(rejoined.room.players.length, 1);
+  carol.end();
+  alice.end();
+  bob.end();
 });
 
 test('protocol violations close the connection', async () => {

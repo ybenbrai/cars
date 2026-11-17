@@ -21,6 +21,10 @@ export const FINISH_GRACE_MS = 45_000;
 export const RACE_TIMEOUT_MS = 15 * 60_000;
 export const STATE_RATE = 40; // max position updates per second per player
 export const MAX_AVG_SPEED = 110; // m/s, sanity bound for finish times
+// One shared city, joined through the CITY ROAM button rather than a race code.
+// It stays alive while empty so friends can drop in and out at any time.
+export const ROAM_CODE = 'CITY';
+export const ROAM_CIRCUIT = 'downtown-run';
 const LAP_CHOICES = [2, 3, 4, 5];
 // Online lobbies only host real circuits: practice-only venues such as the
 // test runway never appear as a race venue.
@@ -98,6 +102,7 @@ export class Lobby {
       case 'quick': return this.quickMatch(player);
       case 'create': return this.createRoom(player, { isPublic: !!message.public, circuitId: message.circuitId });
       case 'join': return this.joinByCode(player, message.code);
+      case 'roam': return this.joinRoam(player);
       case 'leave': return this.leaveRoom(player, true);
       case 'config': return this.configure(player, message);
       case 'ready': return this.setReady(player, !!message.ready);
@@ -153,7 +158,8 @@ export class Lobby {
     const room = this.rooms.get(code);
     if (!room) return this.error(player, 'No room with that code.');
     if (player.room === room) return this.broadcastRoom(room);
-    if (room.state !== 'lobby') return this.error(player, 'That race has already started.');
+    // The shared city is always open; only race lobbies reject late joiners.
+    if (room.state !== 'lobby' && room.mode !== 'roam') return this.error(player, 'That race has already started.');
     if (room.members.length >= ROOM_SIZE) return this.error(player, 'That room is full.');
     this.leaveRoom(player);
     this.addToRoom(room, player);
@@ -175,6 +181,39 @@ export class Lobby {
     return best;
   }
 
+  /** Lazily create the single shared city. Unlike race rooms it is never torn
+   *  down when the last driver leaves, so its code always works. */
+  ensureRoamRoom() {
+    let room = this.rooms.get(ROAM_CODE);
+    if (room) return room;
+    room = {
+      code: ROAM_CODE,
+      mode: 'roam',
+      isPublic: false, // reached through the CITY ROAM button, not matchmaking
+      hostId: null,
+      circuitId: ROAM_CIRCUIT,
+      laps: 0,
+      state: 'roaming',
+      members: [],
+      states: {}, // id -> last relayed pose, so late joiners see everyone
+      startedAt: 0,
+      firstFinishAt: 0,
+      timer: null,
+      results: null,
+    };
+    this.rooms.set(room.code, room);
+    return room;
+  }
+
+  joinRoam(player) {
+    const room = this.ensureRoamRoom();
+    if (player.room === room) return this.broadcastRoom(room);
+    if (room.members.length >= ROOM_SIZE) return this.error(player, 'The city is full. Try again soon.');
+    this.leaveRoom(player);
+    this.addToRoom(room, player);
+    return room;
+  }
+
   addToRoom(room, player) {
     player.room = room;
     player.ready = false;
@@ -194,11 +233,19 @@ export class Lobby {
     player.ready = false;
     if (notify) player.conn.send({ type: 'room', room: null });
     if (!room.members.length) {
-      this.closeRoom(room);
+      // The city outlives its visitors; only race rooms are recycled.
+      if (room.mode === 'roam') {
+        room.states = {};
+      } else {
+        this.closeRoom(room);
+      }
       return;
     }
     if (room.hostId === player.id) room.hostId = room.members[0].id;
-    if (room.state === 'countdown' || room.state === 'racing') {
+    if (room.mode === 'roam') {
+      delete room.states[player.id];
+      this.broadcast(room, { type: 'left', id: player.id });
+    } else if (room.state === 'countdown' || room.state === 'racing') {
       this.broadcast(room, { type: 'left', id: player.id });
       this.checkRaceOver(room);
     }
@@ -292,7 +339,11 @@ export class Lobby {
 
   relayState(player, msg) {
     const room = player.room;
-    if (!room || (room.state !== 'racing' && room.state !== 'countdown') || player.finished || player.forfeit) return;
+    if (!room || player.finished || player.forfeit) return;
+    const roam = room.mode === 'roam';
+    // Races relay during their countdown and run; the city relays the whole
+    // time it is occupied.
+    if (roam ? room.state !== 'roaming' : (room.state !== 'racing' && room.state !== 'countdown')) return;
     const now = this.now();
     const rate = player.rate;
     if (now - rate.start >= 1000) {
@@ -307,6 +358,7 @@ export class Lobby {
     const out = {
       type: 'state', id: player.id, x, z, h, s, d, c, f: flags,
     };
+    if (roam) room.states[player.id] = out;
     for (const m of room.members) if (m !== player) m.conn.send(out);
   }
 
@@ -407,6 +459,7 @@ export class Lobby {
   snapshot(room) {
     return {
       code: room.code,
+      mode: room.mode || 'race',
       public: room.isPublic,
       hostId: room.hostId,
       circuitId: room.circuitId,
@@ -415,6 +468,8 @@ export class Lobby {
       size: ROOM_SIZE,
       canStart: this.canStart(room),
       players: room.members.map((m) => this.publicPlayer(m, room)),
+      // Late roam joiners position the existing cars from this snapshot.
+      ...(room.mode === 'roam' ? { states: room.states } : {}),
     };
   }
 

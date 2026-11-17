@@ -503,6 +503,7 @@ export function populateScenery(scene, track, circuit) {
 
   const dummy = new THREE.Object3D();
   const tmpColor = new THREE.Color();
+  let city = null;
 
   // How far the venue reaches from the origin. City scenery scales its ring of
   // blocks with it, so a four-kilometre street circuit is not buried in
@@ -709,6 +710,13 @@ export function populateScenery(scene, track, circuit) {
       let k = 0;
       return () => list[k++] || null;
     };
+    // Solid footprints for free roam. The decorative meshes are instanced and
+    // throw their positions away; keep simple circles so cars cannot drive
+    // through buildings when the race walls come down.
+    const cityColliders = [];
+    const addCollider = (x, z, w, d) => {
+      cityColliders.push({ x, z, r: Math.max(w, d) * 0.62 });
+    };
 
     // ── downtown skyline: a cluster inside the loop plus a ring outside it
     const skyline = [];
@@ -724,10 +732,9 @@ export function populateScenery(scene, track, circuit) {
         if (track.distanceToTrack(x, z) < 70) continue;
         const h = 34 + Math.random() * 165;
         const w = 20 + Math.random() * 34;
-        skyline.push({
-          x, z, h, w, d: w * (0.6 + Math.random() * 0.7),
-          ry: Math.random() > 0.5 ? 0 : Math.PI / 2,
-        });
+        const d = w * (0.6 + Math.random() * 0.7);
+        skyline.push({ x, z, h, w, d, ry: Math.random() > 0.5 ? 0 : Math.PI / 2 });
+        addCollider(x, z, w, d);
       }
     }
     instanced(
@@ -744,9 +751,11 @@ export function populateScenery(scene, track, circuit) {
       if (!s) return null;
       const h = 14 + Math.random() * 58;
       const w = 12 + Math.random() * 20;
+      const d = w * (0.72 + Math.random() * 0.7);
+      addCollider(s.x, s.z, w, d);
       return {
         x: s.x, y: h / 2, z: s.z, scale: 1,
-        sx: w, sy: h, sz: w * (0.72 + Math.random() * 0.7),
+        sx: w, sy: h, sz: d,
         ry: Math.random() > 0.5 ? 0 : Math.PI / 2,
       };
     }, [0x7a7f94, 0x8a7d88, 0x6d7386, 0x91857c]);
@@ -816,10 +825,11 @@ export function populateScenery(scene, track, circuit) {
         const z = s.point.z + s.side.z * sign * off;
         if (track.distanceToTrack(x, z) < track.wallOffset + 4) continue;
         if (Math.hypot(x - standPos.x, z - standPos.z) < 34) continue;
+        const w = 7 + Math.random() * 6;
+        const d = 6 + Math.random() * 6;
+        addCollider(x, z, w, d);
         houseSpots.push({
-          x, z,
-          w: 7 + Math.random() * 6,
-          d: 6 + Math.random() * 6,
+          x, z, w, d,
           h: 3.8 + Math.random() * 3.2,
           roofH: 1.7 + Math.random() * 1.7,
           ry: Math.atan2(-sign * s.side.x, -sign * s.side.z),
@@ -873,10 +883,11 @@ export function populateScenery(scene, track, circuit) {
         return Math.min(m, block - m) < 15;
       };
       if (nearGrid(s.x) || nearGrid(s.z)) continue;
+      const w = 6 + Math.random() * 7;
+      const d = 5 + Math.random() * 6;
+      addCollider(s.x, s.z, w, d);
       blockHouses.push({
-        x: s.x, z: s.z,
-        w: 6 + Math.random() * 7,
-        d: 5 + Math.random() * 6,
+        x: s.x, z: s.z, w, d,
         h: 3.4 + Math.random() * 3.6,
         roofH: 1.5 + Math.random() * 1.8,
         ry: Math.random() * Math.PI * 2,
@@ -918,12 +929,15 @@ export function populateScenery(scene, track, circuit) {
         });
       }
     }
-    const lightMats = {
-      pole: new THREE.MeshStandardMaterial({ color: 0x26262f, metalness: 0.6, roughness: 0.5 }),
-      head: new THREE.MeshStandardMaterial({ color: 0x14141a, metalness: 0.5, roughness: 0.55 }),
+    const lampSet = () => ({
       red: new THREE.MeshStandardMaterial({ color: 0xff2130, emissive: 0xff1020, emissiveIntensity: 3.4, roughness: 0.3 }),
       amber: new THREE.MeshStandardMaterial({ color: 0x3a2a0d, emissive: 0xffa020, emissiveIntensity: 0.35, roughness: 0.4 }),
       green: new THREE.MeshStandardMaterial({ color: 0x0d2a18, emissive: 0x2fd06a, emissiveIntensity: 0.4, roughness: 0.4 }),
+    });
+    const lightMats = {
+      pole: new THREE.MeshStandardMaterial({ color: 0x26262f, metalness: 0.6, roughness: 0.5 }),
+      head: new THREE.MeshStandardMaterial({ color: 0x14141a, metalness: 0.5, roughness: 0.55 }),
+      sets: [lampSet(), lampSet()],
     };
     const poleGeo = new THREE.CylinderGeometry(0.09, 0.13, 4.5, 6);
     poleGeo.translate(0, 2.25, 0);
@@ -934,26 +948,30 @@ export function populateScenery(scene, track, circuit) {
       g.translate(0, y, -0.19);
       return g;
     };
-    const lightMeshes = [
-      [poleGeo, lightMats.pole, 0],
-      [headGeo, lightMats.head, 0],
-      [lampGeo(3.95), lightMats.red, 0],
-      [lampGeo(3.55), lightMats.amber, 0],
-      [lampGeo(3.15), lightMats.green, 0],
-    ];
-    for (const [geo, mat] of lightMeshes) {
-      const mesh = new THREE.InstancedMesh(geo, mat, junctionSpots.length);
-      junctionSpots.forEach((spotItem, index) => {
-        dummy.position.set(spotItem.x, 0, spotItem.z);
-        dummy.rotation.set(0, spotItem.ry, 0);
-        dummy.scale.setScalar(1);
-        dummy.updateMatrix();
-        mesh.setMatrixAt(index, dummy.matrix);
-      });
-      mesh.count = junctionSpots.length;
-      mesh.castShadow = true;
-      group.add(mesh);
-    }
+    const addLights = (spots, mats) => {
+      if (!spots.length) return;
+      const parts = [
+        [poleGeo, lightMats.pole], [headGeo, lightMats.head],
+        [lampGeo(3.95), mats.red], [lampGeo(3.55), mats.amber], [lampGeo(3.15), mats.green],
+      ];
+      for (const [geo, mat] of parts) {
+        const mesh = new THREE.InstancedMesh(geo, mat, spots.length);
+        spots.forEach((spotItem, index) => {
+          dummy.position.set(spotItem.x, 0, spotItem.z);
+          dummy.rotation.set(0, spotItem.ry, 0);
+          dummy.scale.setScalar(1);
+          dummy.updateMatrix();
+          mesh.setMatrixAt(index, dummy.matrix);
+        });
+        mesh.count = spots.length;
+        mesh.castShadow = true;
+        group.add(mesh);
+      }
+    };
+    // Both lamps at a junction share a phase; neighbouring junctions alternate
+    // so crossing traffic gets a red while the through road gets a green.
+    addLights(junctionSpots.filter((_, i) => Math.floor(i / 2) % 2 === 0), lightMats.sets[0]);
+    addLights(junctionSpots.filter((_, i) => Math.floor(i / 2) % 2 === 1), lightMats.sets[1]);
 
     // Zebra crossings just before each junction, painted over the tarmac.
     const crossings = [];
@@ -1033,6 +1051,14 @@ export function populateScenery(scene, track, circuit) {
     lampHeadMesh.count = lampSpots.length;
     lampPoleMesh.castShadow = true;
     group.add(lampPoleMesh, lampHeadMesh);
+
+    city = {
+      colliders: cityColliders,
+      lights: lightMats,
+      junctions: junctionSpots,
+      block,
+      extent,
+    };
   }
 
   if (circuit.theme === 'industrial') {
@@ -1372,5 +1398,5 @@ export function populateScenery(scene, track, circuit) {
     group.removeFromParent();
   }
 
-  return { group, stand, standPos, dispose };
+  return { group, stand, standPos, city, dispose };
 }

@@ -138,6 +138,8 @@ export class OnlineClient {
     if (this.connected) this.send(this.pendingCar);
   }
 
+  /** Join the single shared city room (no race start or ready-up needed). */
+  joinRoam() { return this.send({ type: 'roam' }); }
   quickMatch() { return this.send({ type: 'quick' }); }
   listRooms() { return this.send({ type: 'list' }); }
   createRoom(circuitId, isPublic = false) { return this.send({ type: 'create', circuitId, public: isPublic }); }

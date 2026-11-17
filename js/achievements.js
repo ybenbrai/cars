@@ -7,7 +7,7 @@ import { CAREER_EVENTS, CAREER_SERIES } from './data/career.js';
 import { UPGRADE_PARTS, MAX_UPGRADE_LEVEL, normalizeUpgrades } from './data/upgrades.js';
 import { seriesStandings } from './championship.js';
 
-const wonRace = (ctx) => ctx.position === 1 && ctx.mode !== 'time-trial' && ctx.mode !== 'practice';
+const wonRace = (ctx) => ctx.position === 1 && ctx.mode !== 'time-trial' && ctx.mode !== 'practice' && ctx.mode !== 'roam';
 
 export const ACHIEVEMENTS = [
   { id: 'first-race', name: 'LIGHTS OUT', desc: 'Finish your first race.', reward: 500,

@@ -6,6 +6,7 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 import { createTrack } from './track.js';
 import { createEnvironment, populateScenery } from './scenery.js';
+import { CityWorld } from './cityWorld.js';
 import { GarageScene } from './garageScene.js';
 import { Car } from './car.js';
 import { CarModel } from './carModel.js';
@@ -579,8 +580,11 @@ function resolveRaceConfig(config = {}) {
   const requested = getCircuit(circuitId);
   // Practice and free drift open locked venues without a rental. Only practice
   // may use a practice-only venue such as the test runway.
-  const freeCircuit = mode.id === 'practice' || mode.id === 'drift';
-  if (mode.id !== 'practice' && !config.dailyChallenge
+  const freeCircuit = mode.id === 'practice' || mode.id === 'drift' || mode.id === 'roam';
+  // City roam always uses the full downtown grid; it is the only venue with a
+  // street network beyond the closed race loop.
+  if (mode.id === 'roam') circuitId = 'downtown-run';
+  if (mode.id !== 'practice' && mode.id !== 'roam' && !config.dailyChallenge
     && (requested.practiceOnly || (!freeCircuit && !store.circuitUnlocked(circuitId)))) {
     circuitId = fallbackCircuit.id;
   }
@@ -782,6 +786,9 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     pad.active = true;
   }
   track.update(0, 1);
+  // Free roam needs the city simulation: roads, buildings, lights and traffic.
+  const roamWorld = setup.mode === 'roam'
+    ? new CityWorld(scene, track, raceWorld.scenery.city) : null;
 
   const totalRacers = entrants.length;
   const racers = [];
@@ -843,6 +850,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     circuit: setup.circuit,
     rental,
     track,
+    roamWorld,
     laps: setup.laps,
     difficulty: setup.difficulty,
     event: setup.event,
@@ -910,6 +918,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   for (const racer of racers) if (!racer.isPlayer) effects.attachFlames(racer.car);
 
   hud.setRental(rental);
+  hud.setRoam(setup.mode === 'roam');
 
   garage?.setActive(false);
   webgl.classList.remove('hidden');
@@ -917,7 +926,9 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   ui.setRaceMode(true);
   ui.setHudVisible(true);
 
-  state = 'countdown';
+  // The shared city has no starting grid or countdown: drivers are already
+  // roaming when they join, and latecomers drop straight into the traffic.
+  state = roamWorld ? 'racing' : 'countdown';
 
   const label = setup.mode === 'career' ? setup.event?.name || 'CAREER' : setup.modeLabel;
   hud.setDriver(store.name, label);
@@ -933,7 +944,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   hud.setWrongWay(false);
   hud.clearCountdown();
   race.lastCount = Math.ceil(countdown);
-  hud.countdown(String(race.lastCount));
+  if (!roamWorld) hud.countdown(String(race.lastCount));
   input.releaseAll();
   applyCameraNear();
   snapCamera();
@@ -965,6 +976,7 @@ function disposeRace() {
   }
   effects.setCar(null);
   race.ghostCar?.dispose();
+  race.roamWorld?.dispose();
   race.rain?.dispose();
   for (const racer of race.racers) racer.car.dispose();
   race = null;
@@ -973,6 +985,7 @@ function disposeRace() {
   hud.setWrongWay(false);
   hud.setDrift(false);
   hud.setRental(null);
+  hud.setRoam(false);
 }
 
 /* ───────────────────────── race simulation ───────────────────────── */
@@ -1250,7 +1263,9 @@ function updateWrongWay(dt) {
 function finishRace() {
   if (!race || state === 'finished') return;
   finishTutorial();
-  if (race.online) {
+  // Roaming is online but never a race: bank drift like other free runs rather
+  // than reporting a finish to the lobby (there is no flag or finishing order).
+  if (race.online && !race.roamWorld) {
     finishOnlineRace();
     return;
   }
@@ -1490,6 +1505,12 @@ function endSession() {
 function resetCar() {
   if (!race || state !== 'racing') return;
   const car = race.player.car;
+  if (race.roamWorld) {
+    const near = race.roamWorld.surface(car.pos.x, car.pos.z);
+    car.reset(new THREE.Vector3(near.x, 0, near.z), new THREE.Vector3(near.tx, 0, near.tz));
+    hud.toast('BACK ON THE ROAD');
+    return;
+  }
   const near = race.track.nearest(car.pos, car.trackInfo?.index);
   car.reset(near.point, near.tangent);
   race.physicsAcc = 0;
@@ -1764,7 +1785,7 @@ function tick(now, ms) {
       // Late (tab was in the background): the race clock is already running.
       race.time = race.goAt ? Math.max(0, (Date.now() - race.goAt) / 1000) : 0;
       race.lapStart = 0;
-      hud.countdown('GO!', true);
+      if (!race.roamWorld) hud.countdown('GO!', true);
       audio.beep('go');
       audio.releaseLaunch();
       race.goTimer = 0.9;
@@ -1805,13 +1826,13 @@ function tick(now, ms) {
         handbrake: input.handbrake,
         boost: input.boost,
       };
-      race.player.car.update(FIXED, playerInput, race.track);
+      race.player.car.update(FIXED, playerInput, race.track, race.roamWorld);
       for (const racer of race.ai) {
         const aiInput = racer.driver.update(FIXED, race.racers.map((r) => r.car));
         racer.car.update(FIXED, aiInput, race.track);
       }
       resolveCollisions();
-      trackCrossings();
+      if (!race.roamWorld) trackCrossings();
       race.recorder?.sample(race.time, race.racers.map((r) => r.car));
       race.physicsAcc -= FIXED;
       steps++;
@@ -1828,8 +1849,10 @@ function tick(now, ms) {
     if (state !== 'racing') {
       // finishRace() flipped the state mid-step.
     } else {
-      checkGates();
-      updateGhost();
+      if (!race.roamWorld) {
+        checkGates();
+        updateGhost();
+      }
       updatePads();
       updateDrift(dt);
       updateWrongWay(dt);
@@ -1893,6 +1916,7 @@ function tick(now, ms) {
   effects.update(dt);
   race.rain?.update(dt, camera);
   race.track.update(dt, race.nextGate ?? 1);
+  race.roamWorld?.update(dt);
   updateCamera(dt);
   composer.render();
   if (state === 'racing') {
@@ -1933,7 +1957,7 @@ function updateRemotes(dt, now) {
     car.boosting = !!(sample.f & FLAG_BOOST);
     car.drifting = !!(sample.f & FLAG_DRIFT);
     car.braking = !!(sample.f & FLAG_BRAKE);
-    car.trackInfo = race.track.nearest(car.pos, car.trackInfo?.index);
+    if (!race.roamWorld) car.trackInfo = race.track.nearest(car.pos, car.trackInfo?.index);
     car.wheelSpin += (sample.s * dt) / car.def.body.wheelRadius;
     car.model.setSpin(car.wheelSpin);
     car.model.setBraking(car.braking);
@@ -1976,6 +2000,110 @@ function startOnlineRace(msg) {
   ui.closeAccount?.();
   launchRace(setup, entrants, { countdown, online: { resolved: false } });
   hud.toast('ONLINE RACE', `${entrants.length} DRIVERS · ${msg.laps} LAPS`);
+}
+
+/* ───────────────────────── shared city roam ───────────────────────── */
+
+/**
+ * The shared city is a race-like session with no laps, no grid and no
+ * countdown. Everyone already in the room becomes a remote car; drivers who
+ * arrive later are added by `syncRoamRemotes` without disturbing this player.
+ */
+function startRoam(room) {
+  if (!store?.profile || !online.id) {
+    ui.notice('Create a driver profile before hitting the city.', 'error');
+    return;
+  }
+  ui.closeAccount?.();
+  const def = store.selectedCar;
+  const look = store.lookFor(def.id);
+  const entrants = [{
+    def, look, upgrades: store.upgradesFor(def.id), name: store.name, slot: 0, isPlayer: true,
+  }];
+  for (const p of room.players) {
+    if (p.id === online.id) continue;
+    const carDef = getCar(p.carId) || CARS[0];
+    entrants.push({
+      def: carDef,
+      look: normalizeLook(carDef, p.look || {}),
+      name: p.name,
+      slot: entrants.length,
+      remoteId: p.id,
+    });
+  }
+  const setup = {
+    mode: 'roam',
+    modeLabel: 'CITY ROAM',
+    circuit: getCircuit('downtown-run'),
+    laps: Infinity,
+    difficulty: getDifficulty('normal'),
+    opponents: entrants.length - 1,
+    event: null,
+    eventId: null,
+    conditions: normalizeConditions({
+      time: lastRaceConfig?.time || 'night',
+      weather: lastRaceConfig?.weather || 'clear',
+    }),
+  };
+  onlineRun = null;
+  launchRace(setup, entrants, { countdown: 0, online: { roam: true } });
+  race.roamRoomCode = room.code;
+  syncRoamRemotes(room);
+  hud.toast('CITY ROAM', `${entrants.length} DRIVER${entrants.length === 1 ? '' : 'S'} · DOWNTOWN`);
+}
+
+/** Build a remote racer for a driver who joins the city while we are driving. */
+function addRoamRemote(player) {
+  const def = getCar(player.carId) || CARS[0];
+  const look = normalizeLook(def, player.look || {});
+  const car = new Car(scene, def, look);
+  const near = race.roamWorld.surface(
+    race.player.car.pos.x + (Math.random() - 0.5) * 24,
+    race.player.car.pos.z + (Math.random() - 0.5) * 24,
+  );
+  car.reset(new THREE.Vector3(near.x, 0, near.z), new THREE.Vector3(near.tx, 0, near.tz));
+  car.isRemote = true;
+  car.model.setNight(race.conditions?.time === 'night');
+  effects.attachFlames(car);
+  const racer = {
+    car,
+    isPlayer: false,
+    name: player.name,
+    color: look.paint,
+    driver: null,
+    remote: { id: player.id, track: new RemoteTrack(), crossings: 0, dist: 0, left: false },
+    crossings: 0,
+    prevDist: 0,
+    finished: false,
+    finishTime: null,
+    bestLap: null,
+    lastLapStart: 0,
+    position: race.racers.length + 1,
+  };
+  race.racers.push(racer);
+  race.remotes.push(racer);
+  return racer;
+}
+
+/** Reconcile remote cars with the room's player list and late-join poses. */
+function syncRoamRemotes(room) {
+  if (!race?.roamWorld || race.roamRoomCode !== room.code) return;
+  const present = new Set();
+  for (const p of room.players) {
+    if (p.id === online.id) continue;
+    present.add(p.id);
+    let racer = race.remotes.find((r) => r.remote.id === p.id);
+    if (!racer) racer = addRoamRemote(p);
+    const pose = room.states?.[p.id];
+    if (pose) racer.remote.track.push(pose);
+  }
+  for (const racer of [...race.remotes]) {
+    if (present.has(racer.remote.id)) continue;
+    racer.car.dispose();
+    race.racers = race.racers.filter((r) => r !== racer);
+    race.remotes = race.remotes.filter((r) => r !== racer);
+  }
+  race.totalRacers = race.racers.length;
 }
 
 function finishOnlineRace() {
@@ -2116,9 +2244,15 @@ function applyOnlineResults(msg) {
   }
 }
 
-/** Leaving an online race before the flag counts as a forfeit. */
+/** Leaving an online race before the flag counts as a forfeit. Roaming has no
+ *  flag to forfeit — leaving simply removes this car from the shared city. */
 function leaveOnlineRace() {
-  if (race?.online && !race.player.finished && !race.online.resolved) {
+  if (!race) return;
+  if (race.roamWorld) {
+    if (online.room) online.leaveRoom();
+    return;
+  }
+  if (race.online && !race.player.finished && !race.online.resolved) {
     online.forfeit();
     race.online.resolved = true;
   }
@@ -2154,7 +2288,8 @@ async function handleOnline(action, payload = {}) {
     ui.notice('Not connected to the online lobby.', 'error');
     return;
   }
-  if (action === 'quick') online.quickMatch();
+  if (action === 'roam') online.joinRoam();
+  else if (action === 'quick') online.quickMatch();
   else if (action === 'create') online.createRoom(payload.circuitId, false);
   else if (action === 'join') online.joinRoom(payload.code);
   else if (action === 'leave') online.leaveRoom();
@@ -2279,7 +2414,15 @@ online.on('broadcast', (msg) => ui.notice(`📢 ${msg.message}`, 'ok', 9000));
 online.on('rooms', () => {
   if (!online.room) ui.renderOnline(online, auth, store);
 });
-online.on('room', () => ui.renderOnline(online, auth, store));
+online.on('room', (room) => {
+  ui.renderOnline(online, auth, store);
+  if (room?.mode === 'roam') {
+    // First entry launches the city session; later updates add/remove cars as
+    // other drivers come and go, without resetting this player's position.
+    if (race?.roamWorld && race.roamRoomCode === room.code) syncRoamRemotes(room);
+    else startRoam(room);
+  }
+});
 online.on('error', (message) => ui.notice(message, 'error'));
 online.on('start', (msg) => startOnlineRace(msg));
 online.on('state', (msg) => {

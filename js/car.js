@@ -216,7 +216,7 @@ export class Car {
     this.vel.multiplyScalar(0.94);
   }
 
-  update(dt, input, track) {
+  update(dt, input, track, world = null) {
     this.prevPos.copy(this.pos);
     this.prevHeading = this.heading;
     this.wallHit = 0;
@@ -357,49 +357,55 @@ export class Car {
     this.vel.set(fx * nF + rx * nR, 0, fz * nF + rz * nR);
     this.pos.addScaledVector(this.vel, dt);
 
-    const near = track.nearest(this.pos, this.trackInfo?.index);
-    this.trackInfo = near;
-    // Kerbs are part of the track; only the dirt beyond them is off-road.
-    this.offroad = Math.abs(near.signed) > (track.curbOuter ?? track.halfWidth + 1.2) + 0.1;
+    if (world) {
+      // Free roam: the whole city is drivable, so the closed-loop corridor
+      // clamp is replaced by the city's road/boundary/building constraints.
+      world.constrain(this, dt);
+    } else {
+      const near = track.nearest(this.pos, this.trackInfo?.index);
+      this.trackInfo = near;
+      // Kerbs are part of the track; only the dirt beyond them is off-road.
+      this.offroad = Math.abs(near.signed) > (track.curbOuter ?? track.halfWidth + 1.2) + 0.1;
 
-    const limit = track.wallOffset - 0.95;
-    if (Math.abs(near.signed) > limit) {
-      const sign = Math.sign(near.signed);
-      const nx = near.side.x * sign;
-      const nz = near.side.z * sign;
-      this.pos.set(
-        near.point.x + near.side.x * sign * limit,
-        0,
-        near.point.z + near.side.z * sign * limit,
-      );
-      const vn = this.vel.x * nx + this.vel.z * nz;
-      if (vn > 0) {
-        // Reflect only the part of the velocity going into the wall. The rest
-        // keeps sliding along it, so brushing a barrier does not stop the car
-        // dead. A short extra shove provides the visible recoil.
-        const bounce = wallResponse(this.vel.x, this.vel.z, nx, nz);
-        this.vel.x = bounce.vx;
-        this.vel.z = bounce.vz;
-        this.wallHit = bounce.hit;
-        this.wallNormal.x = nx;
-        this.wallNormal.z = nz;
-        // Turn the nose down the barrier: without this the car keeps driving
-        // into the wall, every frame cancels the throttle, and the hit feels
-        // as if the car has stopped dead. The rotation is deliberately small
-        // per step so a scrape slides instead of snapping.
-        if (near.tangent) {
-          this.heading = wallAlign(
-            this.heading,
-            this.vel.x,
-            this.vel.z,
-            near.tangent.x,
-            near.tangent.z,
-            bounce.hit,
-          );
-          this.forward.set(Math.sin(this.heading), 0, Math.cos(this.heading));
-          this.right.set(-Math.cos(this.heading), 0, Math.sin(this.heading));
+      const limit = track.wallOffset - 0.95;
+      if (Math.abs(near.signed) > limit) {
+        const sign = Math.sign(near.signed);
+        const nx = near.side.x * sign;
+        const nz = near.side.z * sign;
+        this.pos.set(
+          near.point.x + near.side.x * sign * limit,
+          0,
+          near.point.z + near.side.z * sign * limit,
+        );
+        const vn = this.vel.x * nx + this.vel.z * nz;
+        if (vn > 0) {
+          // Reflect only the part of the velocity going into the wall. The rest
+          // keeps sliding along it, so brushing a barrier does not stop the car
+          // dead. A short extra shove provides the visible recoil.
+          const bounce = wallResponse(this.vel.x, this.vel.z, nx, nz);
+          this.vel.x = bounce.vx;
+          this.vel.z = bounce.vz;
+          this.wallHit = bounce.hit;
+          this.wallNormal.x = nx;
+          this.wallNormal.z = nz;
+          // Turn the nose down the barrier: without this the car keeps driving
+          // into the wall, every frame cancels the throttle, and the hit feels
+          // as if the car has stopped dead. The rotation is deliberately small
+          // per step so a scrape slides instead of snapping.
+          if (near.tangent) {
+            this.heading = wallAlign(
+              this.heading,
+              this.vel.x,
+              this.vel.z,
+              near.tangent.x,
+              near.tangent.z,
+              bounce.hit,
+            );
+            this.forward.set(Math.sin(this.heading), 0, Math.cos(this.heading));
+            this.right.set(-Math.cos(this.heading), 0, Math.sin(this.heading));
+          }
+          this.impact = Math.max(this.impact, bounce.hit);
         }
-        this.impact = Math.max(this.impact, bounce.hit);
       }
     }
 

@@ -18,11 +18,12 @@ import { CAREER_EVENTS, CAREER_SERIES, getCareerEvent } from '../js/data/career.
 
 const circuit = getCircuit('sunset-coast');
 
-test('four difficulties and five modes are available', () => {
+test('four difficulties and six modes are available', () => {
   assert.deepEqual(DIFFICULTIES.map((d) => d.id), ['easy', 'normal', 'hard', 'expert']);
-  assert.deepEqual(MODES.map((m) => m.id), ['career', 'quick', 'time-trial', 'practice', 'drift']);
+  assert.deepEqual(MODES.map((m) => m.id), ['career', 'quick', 'time-trial', 'practice', 'drift', 'roam']);
   assert.equal(isFreeRunMode('drift'), true);
   assert.equal(isFreeRunMode('practice'), true);
+  assert.equal(isFreeRunMode('roam'), true);
   assert.equal(isFreeRunMode('quick'), false);
   assert.equal(getDifficulty('missing').id, 'normal');
   assert.equal(getMode('missing').id, 'quick');

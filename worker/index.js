@@ -397,7 +397,8 @@ export class GameServer {
         if (!f || f.banned) continue;
         const live = connOf(id);
         friends.push({
-          username: f.username, online: !!live, racing: !!live?.room && live.room.state !== 'lobby',
+          username: f.username, online: !!live,
+          racing: !!live?.room && live.room.mode !== 'roam' && live.room.state !== 'lobby',
           rating: f.rating ?? START_RATING, division: divisionFor(f.rating ?? START_RATING).name,
         });
       }

@@ -24,6 +24,7 @@ index.html
   └─ js/main.js
        ├─ renderer / scene / camera / composer
        ├─ createEnvironment() + createTrack() + populateScenery()
+       ├─ CityWorld ── free-roam roads, buildings, signals, traffic (roam only)
        ├─ UI ─────── profile, garage, results, pause screens
        ├─ GarageScene ── second renderer for the turntable
        ├─ Input ───── keyboard, gamepad, touch
@@ -46,8 +47,9 @@ gameplay modules do not reach into the DOM except where noted.
 | --- | --- |
 | `js/main.js` | Boot, renderer, state machine, race rules, camera, scoring, persistence gluing, debug hook |
 | `js/track.js` | Closed Catmull-Rom circuit, road/curb geometry, start arch, gates, boost pads, nearest-point query |
-| `js/scenery.js` | Sky dome, sun, lighting, environment map, ground, mesas, palms, rocks, grandstands, props |
-| `js/car.js` | Arcade vehicle physics, wall collisions, off-road handling, nitro, drift state |
+| `js/scenery.js` | Sky dome, sun, lighting, environment map, ground, mesas, palms, rocks, grandstands, props; city colliders and signal phase data |
+| `js/cityWorld.js` | Free-roam city: drivable road surface, building/bounds/traffic collision, signal cycles, instanced traffic |
+| `js/car.js` | Arcade vehicle physics, wall/city collision hook, off-road handling, nitro, drift state |
 | `js/vehicleMath.js` | Pure braking, coasting and drift-entry math shared by the car, AI and tests |
 | `js/data/upgrades.js` | Upgrade parts, levels, prices and physics multipliers |
 | `js/ghostLap.js` | Pure Time Trial ghost recording, storage and replay maths |
@@ -72,8 +74,9 @@ boot
  └─ garage (saved profile) ──► garage
 
 garage ──(race)──► countdown ──(3s)──► racing
+garage ──(city roam)──► racing        (no countdown or gates)
 racing ──(pause)──► paused ──(resume)──► racing
-racing ──(finish)──► finished ──(1.6s)──► results
+racing ──(finish / end session)──► finished ──(1.6s)──► results
 paused ──(restart)──► countdown
 paused / results ──(quit)──► garage
 ```
@@ -82,7 +85,8 @@ paused / results ──(quit)──► garage
 - `garage` renders only through `GarageScene`.
 - `countdown` runs the race renderer but not physics.
 - `racing` is the only state that advances physics, gates, scoring, effects and
-  race audio.
+  race audio. City Roam skips `countdown` entirely and launches in `racing`;
+  gates, lap timing, wrong-way and ghost updates are bypassed for roam sessions.
 - `finished` keeps rendering for a short orbit camera before the results modal.
 - `paused` freezes the simulation and idles the engine sound.
 
@@ -98,7 +102,7 @@ const dt = Math.min((now - last) / 1000, 0.25);
 physicsAcc += dt;
 let steps = 0;
 while (physicsAcc >= FIXED && steps < 32) {
-  raceCar.update(FIXED, input, track);
+  raceCar.update(FIXED, input, track, race.roamWorld); // world replaces the corridor in roam
   physicsAcc -= FIXED;
   steps++;
 }
@@ -143,7 +147,9 @@ Handbrake grip is 15% of normal, so lateral velocity survives and the car slides
 6. Damp lateral velocity by grip and clamp it.
 7. Integrate position.
 8. Query the nearest track sample; update off-road state.
-9. Clamp to the wall corridor and reflect normal velocity on impact.
+9. Clamp to the wall corridor and reflect normal velocity on impact. In City
+   Roam this step calls `world.constrain(car)` instead: the city surface decides
+   off-road, and buildings, traffic and the outer bounds are solid.
 10. Derive `speed`, `slip`, `drifting`, nitro gain, gear, wheel spin, roll/pitch.
 
 ### Tuning constants
@@ -172,6 +178,16 @@ lateral distance. If the distance exceeds `wallOffset - 0.95`, the car is
 projected back inside and the outward velocity component is reflected and
 damped. The nearest-point scan is linear over the sampled centerline; with a few
 hundred samples this is cheap and completely stable.
+
+City Roam swaps that single corridor for `CityWorld.constrain(car)`. The city
+surface query picks the nearest painted grid line (or race boulevard sample) and
+marks off-road from its half-width; building colliders, the 18 traffic cars and
+an outer extent push the car out and reflect inbound velocity. Traffic itself is
+instanced (three meshes for bodies, cabins and lamps) and updated each frame with
+signal-aware target speeds, gap keeping and random turns at junctions. Signals
+are materials whose `emissiveIntensity` is driven from a 14-second clock split
+into two alternating phase sets. All of it is procedural and mobile-friendly;
+no new assets are loaded.
 
 ## Track generation
 
@@ -280,6 +296,18 @@ visual feedback for the physics.
 - Typical desktop target is 60 fps at 1440p; integrated GPUs should use a
   smaller window or the browser's hardware acceleration.
 
+## Online rooms
+
+`server/rooms.mjs` owns the lobby protocol and is transport-agnostic for tests.
+Race rooms are created on demand, gated by ready checks and a host-started
+countdown, and recycled when empty. City Roam instead uses one fixed `CITY`
+room (`ROAM_CODE`, circuit `downtown-run`) that is created lazily and never torn
+down when it empties, so the code always works. Joining it sends `{ type: 'roam'
+}` and drops straight into driving; there is no lobby state, ready check, result
+or ranked hook. Position relays are stored as last-known snapshots so late
+joiners can place existing cars, and a `left` broadcast removes a car without a
+forfeit. The worker's friend status treats a roamer as online but not racing.
+
 ## Extending the game
 
 - **New car:** add a `CARS` entry; the garage and stat display are data-driven.
@@ -294,9 +322,9 @@ visual feedback for the physics.
 
 ## Debug hook
 
-`window.__sunsetDrift` exposes read-only getters for `state`, `car`, `lap`,
-`nextGate` and `raceTime`, plus `track`, `scene`, `camera` and `startRace()`.
-Useful for console experiments and automated smoke tests:
+`window.__sunsetDrift` exposes read-only getters for `state`, `car`, `race`,
+`lap`, `nextGate` and `raceTime`, plus `track`, `scene`, `camera` and
+`startRace()`. Useful for console experiments and automated smoke tests:
 
 ```js
 __sunsetDrift.state;             // "racing"

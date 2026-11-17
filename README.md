@@ -33,16 +33,22 @@ feel good immediately, but leave enough depth to chase a clean lap.
   the real thing. Start with 30,000 CR and earn your way up.
 - **A real garage.** Change paint, finish, rims, spoiler, stripes, tint,
   underglow and the license plate with a live 3D preview.
-- **Ten circuits, five modes.** Career (ten events), Quick Race against up to
-  seven AI rivals on four difficulty levels, Time Trial, Practice and Free
-  Drift. Practice opens every circuit; locked ones are rented per session.
-  Free Drift runs solo with no clock and pays out on drift score. Practice also
-  has a dedicated airport-style test runway: a 3.6 km straight for top-speed
-  runs. **Downtown Run** is a 3.8 km street loop through a full city grid of
-  houses, boulevards and red traffic lights.
-- **Online races.** Quick match or private rooms with a share code, up to six
-  drivers, live positions and server-ranked results (needs the bundled server
-  and an account).
+- **Ten circuits, six modes.** Career (ten events), Quick Race against up to
+  seven AI rivals on four difficulty levels, Time Trial, Practice, Free Drift
+  and **City Roam**. Practice opens every circuit; locked ones are rented per
+  session. Free Drift runs solo with no clock and pays out on drift score.
+  Practice also has a dedicated airport-style test runway: a 3.6 km straight for
+  top-speed runs. **Downtown Run** is a 3.8 km street loop through a full city
+  grid of houses, boulevards and red traffic lights.
+- **City Roam.** No laps, no checkpoints and no race walls: drive the whole
+  Downtown grid, with 18 live traffic cars, solid buildings and traffic lights
+  that actually cycle green → amber → red. Available solo from the mode select
+  or with friends online.
+- **Online races and shared driving.** Quick match or private rooms with a share
+  code, up to six drivers, live positions and server-ranked results. The
+  **CITY ROAM** button drops everyone into one persistent shared downtown room
+  with no countdown and no finish line — come and go whenever you like (needs
+  the bundled server and an account).
 - **Arcade drift physics.** Handbrake rotation, slip angle, combo scoring,
   nitro refills, off-road penalties and wall collisions.
 - **Plays everywhere.** Keyboard, gamepad and on-screen touch controls.
@@ -136,6 +142,8 @@ Full stats, physics modifiers, scoring formulas and driving tips are in the
 - Fixed 120 Hz arcade physics with handbrake drift, grip loss, off-road drag and
   wall collisions
 - Three-lap time attack with ordered checkpoint gates and finish-line banking
+- City Roam: a free-drivable grid with live traffic, cycling signals and
+  building/bounds collisions instead of the closed race corridor
 - Drift score with a time-based combo multiplier up to ×5
 - Nitro that refills through drifting, checkpoints, laps and track pickups
 - Best-lap persistence, wrong-way detection and a live minimap
@@ -145,6 +153,8 @@ Full stats, physics modifiers, scoring formulas and driving tips are in the
 - WebSocket lobby built into `server.mjs` (no dependencies): quick match into
   public rooms, private rooms with a five-character code, host-picked circuit
   and lap count, ready checks and rematches
+- Shared city room: one fixed `CITY` room that survives being empty, with live
+  pose relays, late-join snapshots and no race/result bookkeeping
 - Remote cars are interpolated between snapshots and collide with yours
 - Finishing order comes from the server clock; implausibly fast finishes are
   rejected
@@ -199,9 +209,10 @@ Full stats, physics modifiers, scoring formulas and driving tips are in the
 │  ├─ rooms.mjs               Online rooms, matchmaking and race flow
 │  └─ ws.mjs                  Minimal RFC 6455 WebSocket endpoint
 ├─ js/
-│  ├─ main.js                 State machine, race loop, camera, scoring
+│  ├─ main.js                 State machine, race loop, camera, scoring, roam sessions
 │  ├─ track.js                Circuit geometry, gates, nitro bottles, nearest-point lookup
-│  ├─ scenery.js              Sky, lights, ground, mesas, grandstands, props
+│  ├─ scenery.js              Sky, lights, ground, mesas, grandstands, props, city colliders/lights
+│  ├─ cityWorld.js            Free-roam city: drivable surface, buildings, signals, traffic
 │  ├─ car.js                  Arcade physics, collisions, nitro
 │  ├─ vehicleMath.js          Braking, coasting and drift math shared with tests
 │  ├─ carModel.js             Procedural car mesh and cosmetics

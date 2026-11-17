@@ -29,11 +29,15 @@ export const MODES = [
     id: 'drift', label: 'FREE DRIFT', short: 'Angle over speed',
     blurb: 'No rivals, no clock. Chain slides, build combos and bank credits from your drift score on the wide skidpad.',
   },
+  {
+    id: 'roam', label: 'CITY ROAM', short: 'Own the streets',
+    blurb: 'No laps, no walls. Explore the whole downtown grid, dodge live traffic and meet other drivers online.',
+  },
 ];
 
-/** Practice and free drift are solo sessions without a chequered flag. */
+/** Practice, free drift and city roam are sessions without a chequered flag. */
 export function isFreeRunMode(id) {
-  return id === 'practice' || id === 'drift';
+  return id === 'practice' || id === 'drift' || id === 'roam';
 }
 
 export function getDifficulty(id) {
@@ -95,10 +99,11 @@ export function computeRewards({
     return { total, lines, difficulty: diff, position: null };
   }
 
-  if (mode === 'drift') {
-    // A dedicated drift session is paid purely on style: longer chained slides
-    // pay more, but the cap keeps a single session from printing credits.
-    const drift = Math.min(3600, Math.round((driftScore || 0) * 0.45));
+  if (mode === 'drift' || mode === 'roam') {
+    // Drift and roam are paid purely on style: longer chained slides pay more,
+    // but the cap keeps a single session from printing credits.
+    const drift = Math.min(mode === 'roam' ? 2000 : 3600,
+      Math.round((driftScore || 0) * (mode === 'roam' ? 0.3 : 0.45)));
     if (drift) lines.push({ label: 'Drift session bonus', value: drift });
     total += drift;
     return { total, lines, difficulty: diff, position: null };

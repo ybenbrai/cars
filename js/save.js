@@ -427,11 +427,11 @@ export class SaveStore {
     const unlocks = [];
     // Practice and free drift are open sessions: they never count toward rank,
     // otherwise starting and quitting would farm progression.
-    if (mode === 'practice' || mode === 'drift') stats.sessions = (stats.sessions || 0) + 1;
+    if (mode === 'practice' || mode === 'drift' || mode === 'roam') stats.sessions = (stats.sessions || 0) + 1;
     else stats.races += 1;
     stats.laps += laps || 0;
     stats.driftScore += Math.round(driftScore || 0);
-    if (mode !== 'time-trial' && mode !== 'practice' && mode !== 'drift') {
+    if (mode !== 'time-trial' && mode !== 'practice' && mode !== 'drift' && mode !== 'roam') {
       // A DNF has no position (null), which must not count as a podium.
       if (position === 1) stats.wins += 1;
       if (Number.isInteger(position) && position >= 1 && position <= 3) stats.podiums += 1;
@@ -453,7 +453,7 @@ export class SaveStore {
     }
     // Practice and free drift never set circuit records (the results screen
     // also never pays a record bonus for them).
-    if (bestLap && circuitId && mode !== 'practice' && mode !== 'drift') {
+    if (bestLap && circuitId && mode !== 'practice' && mode !== 'drift' && mode !== 'roam') {
       const rec = this.data.records[circuitId] || { bestLap: null, bestTotal: null, bestLaps: [] };
       // Race totals are only comparable over the same distance, so they are
       // kept per lap count. `bestTotal` mirrors the standard 3-lap distance.

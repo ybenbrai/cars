@@ -28,6 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- City Roam: a free-drive mode on the whole Downtown grid with no laps,
+  checkpoints or race walls. Adds live instanced traffic, cycling traffic
+  lights, solid buildings and city bounds, and drift-only rewards like Free
+  Drift. Pedestrians are intentionally deferred.
+- Shared city online: a CITY ROAM button joins one persistent `CITY` room with
+  live car pose relays, late-join snapshots and clean join/leave — no countdown,
+  results or ranked bookkeeping. Friends can also join with the `CITY` code.
 - Admin credit grants: `/admin` can give or remove credits for a player from
   the CREDITS card, with a confirmation, audit logging and wallet statistics.
   Players who have not synced a cloud save yet receive up to 100,000 CR through
