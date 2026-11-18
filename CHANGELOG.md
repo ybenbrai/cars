@@ -38,6 +38,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   ALPINE GAUNTLET, DOCKYARD DUEL) no longer silently run in clear daylight.
   Race setup now shows the chosen conditions in its summary.
 
+### Changed
+
+- Refreshed `docs/ROADMAP.md`: shipped features are now marked as such and the
+  work that genuinely remains is listed explicitly. The old "Upgrades is the
+  next planned feature" and "no pedestrians in this version" notes were stale.
+
 ### Added
 
 - Online races are now recorded on the server and can be watched from the
