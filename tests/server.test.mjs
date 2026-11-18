@@ -114,3 +114,33 @@ test('players can delete their own account with their password', async () => {
   assert.equal(again.status, 201, 'name and email are free again');
   await new Promise((r) => server.close(r));
 });
+
+test('online replay endpoint serves stored recordings to signed-in drivers', async () => {
+  const { createStaticServer } = await import('../server.mjs');
+  const { mkdtemp, mkdir, writeFile } = await import('node:fs/promises');
+  const { tmpdir } = await import('node:os');
+  const { join } = await import('node:path');
+  const dataDir = await mkdtemp(join(tmpdir(), 'sd-replay-'));
+  const id = '0123456789abcdef';
+  const recording = { id, rate: 15, frames: 60, duration: 3.9333, tracks: [[0, 0, 0]] };
+  await mkdir(join(dataDir, 'replays'), { recursive: true });
+  await writeFile(join(dataDir, 'replays', `${id}.json`), JSON.stringify(recording));
+  const server = createStaticServer({ dataDir });
+  await new Promise((r) => server.listen(0, r));
+  try {
+    const base = `http://127.0.0.1:${server.address().port}`;
+    assert.equal((await fetch(`${base}/api/replay/${id}`)).status, 401);
+    const registration = await fetch(`${base}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'replayfan', email: 'replay@example.com', password: 'longpassword1' }),
+    });
+    const cookie = registration.headers.get('set-cookie').split(';')[0];
+    const res = await fetch(`${base}/api/replay/${id}`, { headers: { Cookie: cookie } });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), recording);
+    assert.equal((await fetch(`${base}/api/replay/not-a-race`, { headers: { Cookie: cookie } })).status, 404);
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});

@@ -874,8 +874,9 @@ export function populateScenery(scene, track, circuit, options = {}) {
       reader(crosswalks.map((c) => ({ ...c, y: 0.014 }))),
     );
 
-    if (!roam) {
     // ── junction positions (used by houses, lights, crossings and side streets)
+    // Declared outside the race-only block because the signal and crossing
+    // sections below reuse them.
     const metresPerSample = track.length / track.samples.length;
     const junctionStep = Math.max(1, Math.round(155 / metresPerSample));
     const junctions = [];
@@ -889,6 +890,7 @@ export function populateScenery(scene, track, circuit, options = {}) {
       return false;
     };
 
+    if (!roam) {
     // ── houses lining both kerbs, rotated to face the street
     const houseSpots = [];
     const houseStride = Math.max(1, Math.round(26 / metresPerSample));

@@ -119,6 +119,11 @@ rotate. Full stats for all twenty cars are in `js/data/cars.js`.
   down to about 80 % of its top speed (93 % for SUVs and off-roaders) over a
   couple of seconds rather than braking hard. `R` safely returns you to the
   nearest point on the circuit.
+- **Online replays.** Every online race is recorded on the server at 15 Hz.
+  When the results arrive the game fetches the recording in the background and
+  adds **WATCH REPLAY** to the results screen. Playback uses the same TV
+  cameras as a local replay and includes every entrant, even drivers who left
+  mid-race. Shared City Roam sessions are never recorded.
 
 ### Gate hitboxes
 

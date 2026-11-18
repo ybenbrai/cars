@@ -2,8 +2,9 @@
 // rate, stored as flat arrays (one per car) so a long race stays small.
 
 export const REPLAY_RATE = 15; // samples per second
+export const MAX_REPLAY_SECONDS = 15 * 60;
 const STEP = 1 / REPLAY_RATE;
-const MAX_SECONDS = 15 * 60;
+const MAX_SECONDS = MAX_REPLAY_SECONDS;
 
 export class ReplayRecorder {
   constructor(count) {

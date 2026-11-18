@@ -148,6 +148,16 @@ export class AuthService {
     }
   }
 
+  /** Fetch a server-recorded online race, or null if it is unavailable. */
+  async loadReplay(id) {
+    if (!this.isAccount || !this.available || !/^[0-9a-f]{16}$/.test(id || '')) return null;
+    try {
+      return await api(`/api/replay/${id}`);
+    } catch {
+      return null;
+    }
+  }
+
   explain(err) {
     if (err.message === 'BACKEND_UNAVAILABLE') {
       return 'Cloud accounts are unavailable on this static host. Play as a guest — your progress is still saved in this browser.';

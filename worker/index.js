@@ -19,6 +19,7 @@ const AUTH_WINDOW_MS = 60 * 1000;
 const AUTH_ATTEMPTS = 30;
 const MP_PER_IP = 8;
 const MP_MSG_RATE = 80;
+const MAX_REPLAYS = 40; // keep the newest online race recordings
 const PBKDF2_ITERATIONS = 100_000; // Workers' WebCrypto maximum
 const USERNAME_RE = /^[A-Za-z0-9_.-]{3,16}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -125,6 +126,7 @@ export class GameServer {
     this.admin = new Admin(this);
     this.lobby.onRaceStart = () => { bump(this.storage, 'onlineRaces').catch(() => {}); };
     this.lobby.onRaceResults = (room, finishers) => { this.rateRace(finishers).catch(() => {}); };
+    this.lobby.onRaceRecording = (room, replay) => { this.saveReplay(replay).catch(() => {}); };
   }
 
   async fetch(request) {
@@ -287,6 +289,16 @@ export class GameServer {
       const cookie = [`${SESSION_COOKIE}=`, 'HttpOnly', 'SameSite=Strict', 'Path=/', 'Max-Age=0', secure ? 'Secure' : '']
         .filter(Boolean).join('; ');
       return json(200, { ok: true }, { 'Set-Cookie': cookie });
+    }
+
+    const replayId = path.match(/^\/api\/replay\/([0-9a-f]{16})$/)?.[1];
+    if (replayId) {
+      if (!isRead) return json(405, { error: 'Method not allowed.' }, { Allow: 'GET, HEAD' });
+      const user = await this.currentUser(request);
+      if (!user) return json(401, { error: 'Sign in to watch online replays.' });
+      const replay = await this.storage.get(`replay:${replayId}`);
+      if (!replay) return json(404, { error: 'Replay not found.' });
+      return json(200, replay);
     }
 
     if (path === '/api/save') {
@@ -456,6 +468,18 @@ export class GameServer {
     await this.storage.put(`community:${c.id}`, Math.min(c.target * 10, c.progress + added));
     const key = `contrib:${c.id}:${userId}`;
     await this.storage.put(key, ((await this.storage.get(key)) || 0) + added);
+  }
+
+  /* ── online race replays ── */
+  async saveReplay(replay) {
+    const index = (await this.storage.get('replayIndex')) || [];
+    const next = [replay.id, ...index.filter((id) => id !== replay.id)].slice(0, MAX_REPLAYS);
+    const removed = index.filter((id) => !next.includes(id));
+    await this.storage.put({
+      [`replay:${replay.id}`]: replay,
+      replayIndex: next,
+    });
+    for (const id of removed) await this.storage.delete(`replay:${id}`);
   }
 
   /* ── ranked ratings ── */

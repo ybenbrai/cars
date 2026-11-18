@@ -13,6 +13,7 @@ import { randomBytes } from 'node:crypto';
 import { CARS, normalizeLook } from '../js/data/cars.js';
 import { CIRCUITS } from '../js/data/circuits.js';
 import { plausibleLap } from '../js/lapCheck.js';
+import { REPLAY_RATE, MAX_REPLAY_SECONDS } from '../js/replayData.js';
 
 export const ROOM_SIZE = 6;
 export const MAX_ROOMS = 500;
@@ -21,6 +22,9 @@ export const FINISH_GRACE_MS = 45_000;
 export const RACE_TIMEOUT_MS = 15 * 60_000;
 export const STATE_RATE = 40; // max position updates per second per player
 export const MAX_AVG_SPEED = 110; // m/s, sanity bound for finish times
+const REPLAY_STEP = 1000 / REPLAY_RATE;
+const MAX_REPLAY_FRAMES = MAX_REPLAY_SECONDS * REPLAY_RATE;
+const MIN_REPLAY_FRAMES = 30; // don't persist a replay shorter than ~2 seconds
 // One shared city, joined through the CITY ROAM button rather than a race code.
 // It stays alive while empty so friends can drop in and out at any time.
 export const ROAM_CODE = 'CITY';
@@ -32,6 +36,8 @@ const ONLINE_CIRCUITS = CIRCUITS.filter((c) => !c.practiceOnly);
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I
 
 const finite = (v, lo, hi) => Number.isFinite(v) && v >= lo && v <= hi;
+const round2 = (v) => Math.round(v * 100) / 100;
+const round3 = (v) => Math.round(v * 1000) / 1000;
 
 function makeCode(taken) {
   for (let attempt = 0; attempt < 50; attempt++) {
@@ -255,6 +261,7 @@ export class Lobby {
   closeRoom(room) {
     this.clearTimer(room.timer);
     room.timer = null;
+    room.replay = null;
     this.rooms.delete(room.code);
   }
 
@@ -308,13 +315,35 @@ export class Lobby {
       const j = randomBytes(1)[0] % (i + 1);
       [order[i], order[j]] = [order[j], order[i]];
     }
+    room.startedAt = this.now() + COUNTDOWN_MS;
+    // Record the same fixed-rate tracks the local replay player expects. The
+    // grid order is the track order, and the id lets clients fetch it later.
+    room.raceId = randomBytes(8).toString('hex');
+    room.replay = {
+      id: room.raceId,
+      code: room.code,
+      circuitId: room.circuitId,
+      laps: room.laps,
+      rate: REPLAY_RATE,
+      players: order.map((m, index) => ({
+        id: m.id, name: m.name, carId: m.carId, look: { ...m.look }, grid: index,
+      })),
+      tracks: order.map(() => []),
+      latest: order.map(() => null),
+      byId: {},
+      frames: 0,
+      nextAt: room.startedAt,
+      events: [],
+      results: null,
+    };
     order.forEach((m, index) => {
       m.grid = index;
+      room.replay.byId[m.id] = index;
       this.resetRaceFields(m);
     });
-    room.startedAt = this.now() + COUNTDOWN_MS;
     this.broadcast(room, {
       type: 'start',
+      raceId: room.raceId,
       startIn: COUNTDOWN_MS,
       circuitId: room.circuitId,
       laps: room.laps,
@@ -335,6 +364,48 @@ export class Lobby {
     player.finishMs = null;
     player.bestLap = null;
     player.forfeit = false;
+  }
+
+  /** Remember a driver's latest pose and fill the fixed-rate replay timeline. */
+  recordPose(room, player, pose, now) {
+    const rec = room.replay;
+    if (!rec) return;
+    const index = rec.byId[player.id];
+    if (index === undefined) return;
+    rec.latest[index] = [round2(pose.x), round2(pose.z), round3(pose.h)];
+    if (now >= room.startedAt) this.sampleReplay(room, now);
+  }
+
+  /**
+   * Append every elapsed 15 Hz frame using the newest pose of each driver.
+   * Called from incoming states and at race end so a car that stops sending
+   * simply holds its final line instead of freezing the whole recording.
+   */
+  sampleReplay(room, now) {
+    const rec = room.replay;
+    if (!rec || rec.frames >= MAX_REPLAY_FRAMES || now < rec.nextAt) return;
+    while (rec.frames < MAX_REPLAY_FRAMES && now >= rec.nextAt) {
+      rec.tracks.forEach((track, index) => {
+        const pose = rec.latest[index];
+        if (pose) track.push(pose[0], pose[1], pose[2]);
+      });
+      rec.frames += 1;
+      rec.nextAt += REPLAY_STEP;
+    }
+  }
+
+  /** Package the recording for storage, dropping the live-only lookup tables. */
+  finalizeReplay(room, now) {
+    const rec = room.replay;
+    if (!rec) return null;
+    this.sampleReplay(room, now);
+    rec.results = room.results;
+    rec.duration = Math.max(0, (rec.frames - 1) / REPLAY_RATE);
+    delete rec.latest;
+    delete rec.byId;
+    delete rec.nextAt;
+    room.replay = null;
+    return rec.frames >= MIN_REPLAY_FRAMES ? rec : null;
   }
 
   relayState(player, msg) {
@@ -358,6 +429,7 @@ export class Lobby {
     const out = {
       type: 'state', id: player.id, x, z, h, s, d, c, f: flags,
     };
+    if (!roam) this.recordPose(room, player, out, now);
     if (roam) room.states[player.id] = out;
     for (const m of room.members) if (m !== player) m.conn.send(out);
   }
@@ -369,15 +441,19 @@ export class Lobby {
     // faster finish is a bug or a forged message.
     const circuit = CIRCUITS.find((c) => c.id === room.circuitId);
     const minMs = (((circuit?.length || 500) * room.laps) / MAX_AVG_SPEED) * 1000;
-    if (this.now() - room.startedAt < minMs) return this.error(player, 'Finish rejected.');
+    const now = this.now();
+    if (now - room.startedAt < minMs) return this.error(player, 'Finish rejected.');
+    // The final forced state has already arrived; hold that line at the flag.
+    this.sampleReplay(room, now);
     player.finished = true;
     // Ranked by the server's clock, not the client's claim.
-    player.finishMs = Math.max(0, this.now() - room.startedAt);
+    player.finishMs = Math.max(0, now - room.startedAt);
     // A best lap must be physically possible and fit inside the race time.
     player.bestLap = finite(bestLap, 1, 3600) && plausibleLap(room.circuitId, bestLap)
       && bestLap * room.laps <= (player.finishMs / 1000) * 1.05 + 2 ? bestLap : null;
+    room.replay?.events.push({ tMs: player.finishMs, type: 'finished', id: player.id });
     if (!room.firstFinishAt) {
-      room.firstFinishAt = this.now();
+      room.firstFinishAt = now;
       this.clearTimer(room.timer);
       room.timer = this.setTimer(() => this.endRace(room), FINISH_GRACE_MS);
       this.broadcast(room, { type: 'grace', ms: FINISH_GRACE_MS });
@@ -391,6 +467,11 @@ export class Lobby {
     const room = player.room;
     if (!room || (room.state !== 'racing' && room.state !== 'countdown') || player.finished) return;
     player.forfeit = true;
+    const now = this.now();
+    this.sampleReplay(room, now);
+    room.replay?.events.push({
+      tMs: Math.max(0, now - room.startedAt), type: 'left', id: player.id,
+    });
     this.broadcast(room, { type: 'left', id: player.id });
     this.checkRaceOver(room);
   }
@@ -417,12 +498,17 @@ export class Lobby {
       timeMs: m.finishMs,
       bestLap: m.bestLap,
     }));
+    const replay = this.finalizeReplay(room, this.now());
+    if (replay) this.onRaceRecording?.(room, replay);
     room.state = 'lobby';
     for (const m of room.members) {
       m.ready = false;
       this.resetRaceFields(m);
     }
-    this.broadcast(room, { type: 'results', results: room.results, total: order.length });
+    this.broadcast(room, {
+      type: 'results', results: room.results, total: order.length,
+      replayId: replay?.id || null,
+    });
     // Ranked hook (Cloudflare backend): only drivers who finished are rated.
     if (finishers.length >= 2) this.onRaceResults?.(room, finishers);
     this.broadcastRoom(room);

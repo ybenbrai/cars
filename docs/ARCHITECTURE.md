@@ -333,6 +333,19 @@ or ranked hook. Position relays are stored as last-known snapshots so late
 joiners can place existing cars, and a `left` broadcast removes a car without a
 forfeit. The worker's friend status treats a roamer as online but not racing.
 
+Race rooms also record a post-race replay. `startRace()` assigns a random
+`raceId` and a flat, grid-ordered track per driver; `relayState()` keeps each
+driver's newest pose and fills a 15 Hz timeline from the server clock, so a car
+that stops sending simply holds its final line. `finish()` samples the flag
+crossing and `endRace()` packages the recording before player fields reset and
+hands it to `onRaceRecording`, which never blocks the results broadcast. The
+Node server writes `.data/replays/<id>.json` and the Worker stores
+`replay:<id>` in Durable Object storage, both keeping the newest 40. A signed-in
+`GET /api/replay/<id>` serves the JSON; it never travels over the WebSocket
+(16 KB frame cap) or the cloud save (512 KB cap). The client maps tracks by
+player id onto `race.racers`, creates temporary stand-in cars for drivers who
+left mid-race, and reuses `ReplayPlayer` for playback.
+
 ## Extending the game
 
 - **New car:** add a `CARS` entry; the garage and stat display are data-driven.

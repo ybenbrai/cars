@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
-import { mkdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from 'node:fs/promises';
 import { extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
@@ -49,6 +49,7 @@ const AUTH_ATTEMPTS = 30;
 const MP_PATH = '/api/mp';
 const MP_PER_IP = 8; // simultaneous online connections per address
 const MP_MSG_RATE = 80; // messages per second before a client is dropped
+const MAX_REPLAYS = 40; // keep the newest online race recordings
 
 const USERNAME_RE = /^[A-Za-z0-9_.-]{3,16}$/;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -163,6 +164,7 @@ export function createStaticServer({
   const dataRoot = resolve(dataDir || join(rootDir, '.data'));
   const usersFile = join(dataRoot, 'users.json');
   const savesDir = join(dataRoot, 'saves');
+  const replaysDir = join(dataRoot, 'replays');
 
   const sessions = new Map(); // token -> { userId, expires }
   const buckets = new Map(); // ip -> { start, count }
@@ -218,6 +220,35 @@ export function createStaticServer({
       if (error.code === 'ENOENT') return { save: null, updatedAt: null };
       // A corrupt or unreadable save must not look like "no save": the client
       // would then push its local copy over the player's real progress.
+      throw error;
+    }
+  }
+
+  /** Online replay files use the race id handed to every client in `results`. */
+  async function writeReplay(replay) {
+    await mkdir(replaysDir, { recursive: true });
+    const file = join(replaysDir, `${replay.id}.json`);
+    const tmp = `${file}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
+    await writeFile(tmp, JSON.stringify(replay), 'utf8');
+    await rename(tmp, file);
+
+    const files = await readdir(replaysDir);
+    const dated = await Promise.all(files
+      .filter((name) => name.endsWith('.json'))
+      .map(async (name) => ({ name, mtime: (await stat(join(replaysDir, name))).mtimeMs })));
+    dated.sort((a, b) => b.mtime - a.mtime);
+    for (const old of dated.slice(MAX_REPLAYS)) {
+      await rm(join(replaysDir, old.name), { force: true });
+    }
+  }
+
+  async function readReplay(id) {
+    if (!/^[0-9a-f]{16}$/.test(id)) return null;
+    try {
+      const raw = await readFile(join(replaysDir, `${id}.json`), 'utf8');
+      return JSON.parse(raw);
+    } catch (error) {
+      if (error.code === 'ENOENT') return null;
       throw error;
     }
   }
@@ -303,6 +334,26 @@ export function createStaticServer({
         multiplayer: true,
         time: new Date().toISOString(),
       });
+      return true;
+    }
+
+    const replayId = pathname.match(/^\/api\/replay\/([0-9a-f]{16})$/)?.[1];
+    if (replayId) {
+      if (!isRead) {
+        sendJson(req, res, 405, { error: 'Method not allowed.' }, { Allow: 'GET, HEAD' });
+        return true;
+      }
+      const user = await currentUser(req);
+      if (!user) {
+        sendJson(req, res, 401, { error: 'Sign in to watch online replays.' });
+        return true;
+      }
+      const replay = await readReplay(replayId);
+      if (!replay) {
+        sendJson(req, res, 404, { error: 'Replay not found.' });
+        return true;
+      }
+      sendJson(req, res, 200, replay);
       return true;
     }
 
@@ -614,6 +665,10 @@ export function createStaticServer({
 
   /* ── online multiplayer (WebSocket) ────────────────────────────── */
   const lobby = new Lobby();
+  // Storage failures must never break a race; the results still go out.
+  lobby.onRaceRecording = (room, replay) => {
+    writeReplay(replay).catch(() => {});
+  };
   const sockets = new Set();
   const perIp = new Map();
 

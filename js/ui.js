@@ -1268,7 +1268,7 @@ export class UI {
     if (time) $('replayTime').textContent = time;
   }
 
-  /** Online races have no replay. */
+  /** Show WATCH REPLAY when the finished race has a recording. */
   setReplayAvailable(on) {
     $('btnReplay').classList.toggle('hidden', !on);
   }

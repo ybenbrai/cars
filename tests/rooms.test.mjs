@@ -167,6 +167,62 @@ test('a full race: countdown, relayed positions, finish order by server clock', 
   assert.equal(b.last('room').room.state, 'lobby', 'room returns to the lobby for a rematch');
 });
 
+test('online races record a replay and hand its id to every driver', () => {
+  const h = harness();
+  const saved = [];
+  h.lobby.onRaceRecording = (room, replay) => saved.push(replay);
+  const { conns: [a, b] } = raceReady(h, 2);
+  h.send(a, { type: 'start' });
+  const start = b.last('start');
+  assert.match(start.raceId, /^[0-9a-f]{16}$/);
+
+  h.advance(COUNTDOWN_MS);
+  for (let i = 0; i < 45; i++) {
+    h.send(a, { type: 'state', x: i, z: i * 2, h: 0.25, s: 20, d: i, c: 1, f: 0 });
+    h.send(b, { type: 'state', x: -i, z: i, h: 1.25, s: 18, d: i, c: 1, f: 0 });
+    h.advance(1000 / 15);
+  }
+  // A malformed pose must not become a replay frame.
+  h.send(a, { type: 'state', x: 'evil', z: 0, h: 0, s: 0, d: 0, c: 0 });
+  h.advance(40_000);
+  h.send(a, { type: 'finish', bestLap: 13 });
+  h.send(b, { type: 'finish', bestLap: 14 });
+
+  const results = b.last('results');
+  assert.equal(results.replayId, start.raceId);
+  assert.equal(saved.length, 1);
+  const replay = saved[0];
+  assert.equal(replay.id, start.raceId);
+  assert.equal(replay.rate, 15);
+  assert.ok(replay.frames > 30, 'a short race still produces a watchable replay');
+  assert.equal(replay.duration, (replay.frames - 1) / 15);
+  assert.deepEqual(replay.players.map((p) => p.id), start.players.map((p) => p.id));
+  assert.equal(replay.tracks.length, start.players.length);
+  for (const track of replay.tracks) {
+    assert.ok(track.length >= replay.frames * 3 - 3);
+    assert.ok(track.every(Number.isFinite));
+  }
+  assert.deepEqual(replay.results.map((r) => r.id), results.results.map((r) => r.id));
+  assert.equal(replay.latest, undefined, 'live lookup tables are not persisted');
+});
+
+test('shared city roam is never recorded as a race replay', () => {
+  const h = harness();
+  let saved = 0;
+  h.lobby.onRaceRecording = () => { saved += 1; };
+  const a = h.connect('alice');
+  const b = h.connect('bob');
+  h.send(a, { type: 'roam' });
+  h.send(b, { type: 'roam' });
+  h.advance(1000);
+  for (let i = 0; i < 10; i++) {
+    h.send(a, { type: 'state', x: i, z: 0, h: 0, s: 10, d: 0, c: 0, f: 0 });
+    h.advance(100);
+  }
+  assert.equal(saved, 0);
+  assert.equal(h.lobby.rooms.get(ROAM_CODE).replay, undefined);
+});
+
 test('the race ends as soon as every remaining driver finished or forfeited', () => {
   const h = harness();
   const { conns: [a, b] } = raceReady(h, 2);

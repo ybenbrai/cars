@@ -40,6 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Online races are now recorded on the server and can be watched from the
+  results screen with the same TV cameras as local replays. The server samples
+  every driver's line at 15 Hz, stores the last 40 recordings, and serves them
+  through a signed-in `/api/replay/<id>` endpoint; drivers who leave mid-race
+  still appear via temporary stand-in cars.
 - City Roam is now a dense downtown instead of an empty field: instanced
   towers, mid-rise blocks, low houses, parks, street trees, palms, lamps and a
   canal with a bridge on every north-south street fill the grid. The race

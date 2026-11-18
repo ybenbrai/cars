@@ -982,6 +982,7 @@ function disposeRace() {
     return;
   }
   effects.setCar(null);
+  disposeReplayStandIns();
   race.ghostCar?.dispose();
   race.roamWorld?.dispose();
   race.rain?.dispose();
@@ -1392,20 +1393,85 @@ function finishRace() {
   setGarageBestLabel();
 }
 
+/** A finished race can be replayed from its local recorder or a server
+ *  recording fetched after an online race. */
+function replayAvailable() {
+  if (!race || state !== 'finished') return false;
+  if (race.recorder && race.recorder.frames > 30) return true;
+  const onlineRec = race.onlineReplay;
+  return !!(onlineRec && onlineRec.frames > 30 && Array.isArray(onlineRec.tracks)
+    && onlineRec.tracks.length === onlineRec.players?.length);
+}
+
+function refreshReplayAvailability() {
+  if (race?.resultsShown) ui.setReplayAvailable(replayAvailable());
+}
+
 function showResults() {
   if (!race?.result || race.resultsShown) return;
   race.resultsShown = true;
   ui.setRaceMode(false);
   ui.renderResults(race.result);
-  ui.setReplayAvailable(!!race.recorder && race.recorder.frames > 30);
+  ui.setReplayAvailable(replayAvailable());
+}
+
+/**
+ * Build the recording and racer list a replay needs. Local races use the live
+ * cars in grid order. Online recordings are keyed by player id because drivers
+ * who left mid-race were removed from `race.racers`; they get a temporary
+ * stand-in car so every recorded line still appears in the replay.
+ */
+function replaySetup() {
+  if (race.recorder && race.recorder.frames > 30) {
+    return { recording: race.recorder, racers: race.racers, standIns: [] };
+  }
+  const rec = race.onlineReplay;
+  if (!replayAvailable() || !rec) return null;
+  const live = new Map();
+  for (const racer of race.racers) {
+    const id = racer.isPlayer ? online.id : racer.remote?.id;
+    if (id) live.set(id, racer);
+  }
+  const racers = [];
+  const tracks = [];
+  const standIns = [];
+  rec.players.forEach((player, index) => {
+    let racer = live.get(player.id);
+    if (!racer) {
+      const def = getCar(player.carId) || CARS[0];
+      const look = normalizeLook(def, player.look || {});
+      const car = new Car(scene, def, look);
+      car.isRemote = true;
+      car.model.setDetail?.(true);
+      racer = { car, isPlayer: false, name: player.name, color: look.paint };
+      standIns.push(car);
+    }
+    racers.push(racer);
+    tracks.push(rec.tracks[index] || []);
+  });
+  const recording = {
+    tracks,
+    frames: rec.frames,
+    duration: Number.isFinite(rec.duration) ? rec.duration : Math.max(0, (rec.frames - 1) / 15),
+  };
+  return { recording, racers, standIns };
+}
+
+function disposeReplayStandIns() {
+  if (!race?.replayStandIns) return;
+  for (const car of race.replayStandIns) car.dispose();
+  race.replayStandIns = null;
 }
 
 /** Post-race replay with TV cameras; the results come back when it ends. */
 function startReplay() {
-  if (!race?.recorder || state !== 'finished') return;
+  if (state !== 'finished') return;
+  const setup = replaySetup();
+  if (!setup) return;
   state = 'replay';
-  race.replay = new ReplayPlayer(race.recorder, race.racers, camera, race.track);
-  for (const racer of race.racers) racer.car.model.setDetail?.(true);
+  race.replayStandIns = setup.standIns;
+  race.replay = new ReplayPlayer(setup.recording, setup.racers, camera, race.track);
+  for (const racer of setup.racers) racer.car.model.setDetail?.(true);
   ui.show(null);
   ui.setHudVisible(false);
   ui.setReplayBar(true, '0:00');
@@ -1414,6 +1480,7 @@ function startReplay() {
 function stopReplay() {
   if (state !== 'replay') return;
   race.replay = null;
+  disposeReplayStandIns();
   state = 'finished';
   ui.setReplayBar(false);
   ui.show('results');
@@ -2013,7 +2080,7 @@ function startOnlineRace(msg) {
   const countdown = Math.max(1, (msg.startIn - online.rtt / 2) / 1000);
   onlineRun = null;
   ui.closeAccount?.();
-  launchRace(setup, entrants, { countdown, online: { resolved: false } });
+  launchRace(setup, entrants, { countdown, online: { resolved: false, raceId: msg.raceId } });
   hud.toast('ONLINE RACE', `${entrants.length} DRIVERS · ${msg.laps} LAPS`);
 }
 
@@ -2190,7 +2257,7 @@ function onlineResult(final) {
   };
 }
 
-function applyOnlineResults(msg) {
+async function applyOnlineResults(msg) {
   const me = msg.results.find((r) => r.id === online.id);
   const liveRace = race?.online && !race.online.resolved ? race : null;
   if (!me || (!liveRace && !onlineRun)) return;
@@ -2257,6 +2324,22 @@ function applyOnlineResults(msg) {
       : 'Online race finished without you.', 'ok');
     if (state === 'garage') ui.renderGarage(store, auth);
   }
+  await loadOnlineReplay(liveRace, msg);
+}
+
+/**
+ * Server recordings arrive separately from the results because they can be
+ * large. Fetch one when the results arrive and light up WATCH REPLAY at the
+ * latest possible moment.
+ */
+async function loadOnlineReplay(liveRace, msg) {
+  if (!liveRace || race !== liveRace) return;
+  const id = msg.replayId || liveRace.online?.raceId;
+  if (!id) return;
+  const replay = await auth.loadReplay(id);
+  if (!replay || race !== liveRace) return;
+  liveRace.onlineReplay = replay;
+  refreshReplayAvailability();
 }
 
 /** Leaving an online race before the flag counts as a forfeit. Roaming has no
@@ -2599,6 +2682,7 @@ window.__sunsetDrift = {
   get race() { return race; },
   get store() { return store; },
   get auth() { return auth; },
+  get online() { return online; },
   get renderer() { return renderer; },
   get quality() { return quality; },
   get audio() { return audio; },
