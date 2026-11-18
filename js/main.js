@@ -556,15 +556,17 @@ function disposeWorld() {
   world = null;
 }
 
-function ensureWorld(circuit, conditions = normalizeConditions()) {
-  const key = `${circuit.id}|${conditionsKey(conditions)}`;
+function ensureWorld(circuit, conditions = normalizeConditions(), roam = false) {
+  // Roam and race need different worlds for the same circuit: the former has
+  // no ribbon, walls or grandstand and is filled with a dense block city.
+  const key = `${circuit.id}|${conditionsKey(conditions)}|${roam ? 'roam' : 'race'}`;
   if (world?.key === key) return world;
   disposeWorld();
   // Night and rain re-tint the circuit's own palette (see conditions.js).
   const lit = { ...circuit, palette: paletteFor(circuit.palette, conditions) };
   const env = createEnvironment(scene, renderer, lit.palette);
-  const track = createTrack(scene, lit);
-  const scenery = populateScenery(scene, track, lit);
+  const track = createTrack(scene, lit, { roam });
+  const scenery = populateScenery(scene, track, lit, { roam });
   world = { circuit, key, env, track, scenery };
   quality.applyWorld(env.sun);
   return world;
@@ -781,7 +783,8 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   disposeRace();
   // An unclaimed daily reward stays claimable back in the garage.
   document.getElementById('screen-reward')?.classList.add('hidden');
-  const raceWorld = ensureWorld(setup.circuit, setup.conditions);
+  const roam = setup.mode === 'roam';
+  const raceWorld = ensureWorld(setup.circuit, setup.conditions, roam);
   const track = raceWorld.track;
   hud.setTrack(track);
   // The track is reused between races: every bottle starts available.
@@ -791,8 +794,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   }
   track.update(0, 1);
   // Free roam needs the city simulation: roads, buildings, lights and traffic.
-  const roamWorld = setup.mode === 'roam'
-    ? new CityWorld(scene, track, raceWorld.scenery.city) : null;
+  const roamWorld = roam ? new CityWorld(scene, track, raceWorld.scenery.city) : null;
 
   const totalRacers = entrants.length;
   const racers = [];
@@ -802,7 +804,8 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   for (const entrant of entrants) {
     // Online entrants have no `upgrades`: every online race is stock vs stock.
     const car = new Car(scene, entrant.def, entrant.look, entrant.upgrades || null);
-    const slot = track.gridSlot(entrant.slot);
+    // The shared city starts on a boulevard, not on the invisible race grid.
+    const slot = roamWorld ? roamWorld.spawnPoint(entrant.slot) : track.gridSlot(entrant.slot);
     car.reset(slot.point, slot.tangent);
     car.isPlayer = !!entrant.isPlayer;
     // Every car lights up at night; the player also gets real beam spots.

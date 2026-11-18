@@ -190,7 +190,12 @@ function disposeObject(root) {
   root.removeFromParent();
 }
 
-export function createTrack(scene, circuit) {
+export function createTrack(scene, circuit, options = {}) {
+  // Free roam has no race ribbon, walls, gates or start line. The data API
+  // (samples, nearest, gridSlot, distanceToTrack...) is still built so the
+  // minimap, spawning and collision helpers can keep using it, but none of the
+  // circuit's race-only geometry is drawn.
+  const roam = options.roam === true;
   const palette = circuit.palette;
   const halfWidth = circuit.width;
   const curbOuter = halfWidth + 1.2;
@@ -565,8 +570,13 @@ export function createTrack(scene, circuit) {
     };
   }
 
+  // One flag hides every race-only mesh at once. Disposal is unaffected; the
+  // whole group is still torn down when the world is rebuilt.
+  group.visible = !roam;
+
   let elapsed = 0;
   function update(dt, nextGate) {
+    if (roam) return; // gates and nitrous bottles are not part of the city
     elapsed += dt;
     for (const gate of gates) {
       if (!gate.gate) continue;

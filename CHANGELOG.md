@@ -40,6 +40,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- City Roam is now a dense downtown instead of an empty field: instanced
+  towers, mid-rise blocks, low houses, parks, street trees, palms, lamps and a
+  canal with a bridge on every north-south street fill the grid. The race
+  ribbon, barriers, gates, grandstand and invisible loop surface are no longer
+  part of roam, while race modes keep their original circuit scenery.
 - Auto Nitro setting: leaving it ON fires nitro automatically whenever the
   bottle has charge, with hysteresis so a spent bottle waits for a useful
   refill instead of strobing on and off. The manual N2O key still works too.

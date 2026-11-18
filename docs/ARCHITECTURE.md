@@ -46,8 +46,10 @@ gameplay modules do not reach into the DOM except where noted.
 | File | Responsibility |
 | --- | --- |
 | `js/main.js` | Boot, renderer, state machine, race rules, camera, scoring, persistence gluing, debug hook |
-| `js/track.js` | Closed Catmull-Rom circuit, road/curb geometry, start arch, gates, boost pads, nearest-point query |
-| `js/scenery.js` | Sky dome, sun, lighting, environment map, ground, mesas, palms, rocks, grandstands, props; city colliders and signal phase data |
+| `js/track.js` | Closed Catmull-Rom circuit, road/curb geometry, start arch, gates, boost pads, nearest-point query; race-only geometry is hidden in roam |
+| `js/scenery.js` | Sky dome, sun, lighting, environment map, ground and theme props; mode-aware city scenery, colliders and signal phase data |
+| `js/data/cityGrid.js` | Single source of truth for the drivable grid, sidewalks, canal, bridges and building parcels |
+| `js/downtown.js` | Dense roam-only city: instanced buildings, street trees and lamps, canal water and bridge decks |
 | `js/cityWorld.js` | Free-roam city: drivable road surface, building/bounds/traffic collision, signal cycles, instanced traffic and sidewalk pedestrians |
 | `js/car.js` | Arcade vehicle physics, wall/city collision hook, off-road handling, nitro, drift state |
 | `js/vehicleMath.js` | Pure braking, coasting and drift-entry math shared by the car, AI and tests |
@@ -179,24 +181,28 @@ projected back inside and the outward velocity component is reflected and
 damped. The nearest-point scan is linear over the sampled centerline; with a few
 hundred samples this is cheap and completely stable.
 
-City Roam swaps that single corridor for `CityWorld.constrain(car)`. A shared
-grid definition (`js/data/cityGrid.js`) feeds the painted streets, the surface
-query, traffic lanes, sidewalks and the roam minimap: 96 m blocks with
-boulevards every third line. The whole downtown is drivable, so no off-road
-penalty is applied; bucketed building colliders, the 18 traffic cars and an
-outer extent push the car out and reflect inbound velocity. Traffic itself is
+City Roam swaps that single corridor for `CityWorld.constrain(car)`.
+`createTrack()` still builds the circuit's samples and queries but hides its
+group; `populateScenery()` skips the race ribbon, loop houses, gates,
+grandstand and theme props and calls `buildDowntown()` instead. A shared grid
+definition (`js/data/cityGrid.js`) feeds the painted streets, the surface
+query, traffic lanes, sidewalks, building parcels, canal bridges and the roam
+minimap: 96 m blocks with boulevards every third line. The whole downtown is
+drivable, so no off-road penalty is applied; bucketed building colliders, the
+18 traffic cars and an outer extent push the car out and reflect inbound
+velocity. Traffic itself is
 instanced (three meshes for bodies, cabins and lamps) and updated each frame
 with signal-aware target speeds at every grid junction, gap keeping, yielding to
 the player and random turns into the correct lane width. `turnDirection()`
 decides which side's indicator pair to blink for 1.8 seconds after a turn; the
 pairs are two more instanced meshes so indicators cost no extra draw calls per
-car. Visible signal heads on the race boulevard and at every painted grid
-crossing are instanced materials whose `emissiveIntensity` is driven from a
+car. Visible signal heads at every painted grid crossing are instanced
+materials whose `emissiveIntensity` is driven from a
 14-second clock split into two alternating phase sets; the same phase drives
 traffic and waiting pedestrians.
 
 Walkers reuse the same grid: `sidewalkCenters()` places 90 pedestrians on the
-pavement, and `nearBuilding()` checks the bucketed colliders plus the race road
+pavement, and `nearBuilding()` checks the bucketed colliders plus the canal
 so they do not spawn inside scenery. Two instanced meshes (capsule body and
 sphere head, tinted per instance) follow a simple walk timer along each
 sidewalk. `nextJunction()`, `roadWidthAt()` and `signalGroup()` from

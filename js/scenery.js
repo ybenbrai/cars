@@ -10,6 +10,7 @@ import {
   sidewalkCenters,
   signalGroup,
 } from './data/cityGrid.js';
+import { buildDowntown } from './downtown.js';
 
 export const SUN_DIR = new THREE.Vector3(0.66, 0.19, 0.42).normalize();
 
@@ -502,8 +503,11 @@ export function createEnvironment(scene, renderer, palette) {
 
 /* ───────────────────────── scenery ───────────────────────── */
 
-export function populateScenery(scene, track, circuit) {
+export function populateScenery(scene, track, circuit, options = {}) {
   const palette = circuit.palette;
+  // Roam is a real city: the race-loop skyline, houses, lamps and grandstand
+  // are replaced by block-based development around the painted street grid.
+  const roam = options.roam === true;
   const group = new THREE.Group();
   group.name = `scenery-${circuit.theme}`;
   scene.add(group);
@@ -569,7 +573,7 @@ export function populateScenery(scene, track, circuit) {
     new THREE.MeshStandardMaterial({ color: 0xb06a4c, roughness: 1, flatShading: true }),
   ];
 
-  if (circuit.theme === 'coast' || circuit.theme === 'desert') {
+  if (!roam && (circuit.theme === 'coast' || circuit.theme === 'desert')) {
     for (let i = 0; i < (circuit.theme === 'coast' ? 16 : 20); i++) {
       const angle = (i / 16) * Math.PI * 2 + Math.random() * 0.35;
       const radius = 470 + Math.random() * 280;
@@ -592,7 +596,7 @@ export function populateScenery(scene, track, circuit) {
     }
   }
 
-  if (circuit.theme === 'mountain') {
+  if (!roam && circuit.theme === 'mountain') {
     for (let i = 0; i < 18; i++) {
       const angle = (i / 18) * Math.PI * 2 + Math.random() * 0.3;
       const radius = 430 + Math.random() * 300;
@@ -615,7 +619,7 @@ export function populateScenery(scene, track, circuit) {
     }
   }
 
-  if (circuit.theme === 'forest') {
+  if (!roam && circuit.theme === 'forest') {
     for (let i = 0; i < 40; i++) {
       const angle = (i / 40) * Math.PI * 2 + Math.random() * 0.3;
       const radius = 430 + Math.random() * 320;
@@ -629,7 +633,7 @@ export function populateScenery(scene, track, circuit) {
     }
   }
 
-  if (circuit.theme === 'industrial') {
+  if (!roam && circuit.theme === 'industrial') {
     for (let i = 0; i < 52; i++) {
       const angle = (i / 52) * Math.PI * 2 + Math.random() * 0.4;
       const radius = 300 + Math.random() * 380;
@@ -646,7 +650,7 @@ export function populateScenery(scene, track, circuit) {
   }
 
   // ── theme detail
-  if (circuit.theme === 'coast' || circuit.theme === 'desert') {
+  if (!roam && (circuit.theme === 'coast' || circuit.theme === 'desert')) {
     const duneMat = new THREE.MeshStandardMaterial({ color: 0xb0845d, roughness: 1, flatShading: true });
     for (let i = 0; i < 30; i++) {
       const s = spot(42, 170, 480);
@@ -688,7 +692,7 @@ export function populateScenery(scene, track, circuit) {
     });
   }
 
-  if (circuit.theme === 'forest' || circuit.theme === 'mountain') {
+  if (!roam && (circuit.theme === 'forest' || circuit.theme === 'mountain')) {
     const snow = circuit.theme === 'mountain';
     const pineMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, flatShading: true });
     instanced(pineGeometry(snow), pineMat, circuit.theme === 'forest' ? 220 : 150, () => {
@@ -728,6 +732,7 @@ export function populateScenery(scene, track, circuit) {
       cityColliders.push({ x, z, r: Math.max(w, d) * 0.62 });
     };
 
+    if (!roam) {
     // ── downtown skyline: a cluster inside the loop plus a ring outside it
     const skyline = [];
     for (const [lo, hi, count] of [
@@ -772,6 +777,7 @@ export function populateScenery(scene, track, circuit) {
         ry: Math.random() > 0.5 ? 0 : Math.PI / 2,
       };
     }, [0x7a7f94, 0x8a7d88, 0x6d7386, 0x91857c]);
+    } // !roam — the roam skyline comes from the block-based downtown builder
 
     // ── dense downtown street grid stretching to the city limits
     const extent = CITY_EXTENT;
@@ -868,6 +874,7 @@ export function populateScenery(scene, track, circuit) {
       reader(crosswalks.map((c) => ({ ...c, y: 0.014 }))),
     );
 
+    if (!roam) {
     // ── junction positions (used by houses, lights, crossings and side streets)
     const metresPerSample = track.length / track.samples.length;
     const junctionStep = Math.max(1, Math.round(155 / metresPerSample));
@@ -982,9 +989,11 @@ export function populateScenery(scene, track, circuit) {
       blockHouses.length,
       reader(blockHouses.map((h) => ({ x: h.x, y: h.h / 2, z: h.z, ry: h.ry, sx: h.w, sy: h.h, sz: h.d }))),
     );
+    } // !roam — loop-derived houses and junctions belong to the race circuit
 
-    // ── traffic lights and zebra crossings at every junction
+    // ── race-loop junction signals (the roam city uses the grid ones below)
     const junctionSpots = [];
+    if (!roam) {
     for (const s of junctions) {
       for (const sign of [-1, 1]) {
         junctionSpots.push({
@@ -996,6 +1005,7 @@ export function populateScenery(scene, track, circuit) {
         });
       }
     }
+    } // !roam
     const lampSet = () => ({
       red: new THREE.MeshStandardMaterial({ color: 0xff2130, emissive: 0xff1020, emissiveIntensity: 3.4, roughness: 0.3 }),
       amber: new THREE.MeshStandardMaterial({ color: 0x3a2a0d, emissive: 0xffa020, emissiveIntensity: 0.35, roughness: 0.4 }),
@@ -1037,8 +1047,10 @@ export function populateScenery(scene, track, circuit) {
     };
     // Both lamps at a junction share a phase; neighbouring junctions alternate
     // so crossing traffic gets a red while the through road gets a green.
-    addLights(junctionSpots.filter((_, i) => Math.floor(i / 2) % 2 === 0), lightMats.sets[0]);
-    addLights(junctionSpots.filter((_, i) => Math.floor(i / 2) % 2 === 1), lightMats.sets[1]);
+    if (!roam) {
+      addLights(junctionSpots.filter((_, i) => Math.floor(i / 2) % 2 === 0), lightMats.sets[0]);
+      addLights(junctionSpots.filter((_, i) => Math.floor(i / 2) % 2 === 1), lightMats.sets[1]);
+    }
 
     // The same phase sets drive signal heads at every painted grid crossing.
     // Each junction gets one head per approach direction, placed on the right
@@ -1069,6 +1081,11 @@ export function populateScenery(scene, track, circuit) {
     addLights(gridSpots[0], lightMats.sets[0]);
     addLights(gridSpots[1], lightMats.sets[1]);
 
+    // Roam only: fill the grid blocks with a dense city, trees and a canal.
+    const downtown = roam
+      ? buildDowntown({ group, grid, addCollider }) : null;
+
+    if (!roam) {
     // Zebra crossings just before each junction, painted over the tarmac.
     const crossings = [];
     for (const s of junctions) {
@@ -1147,18 +1164,21 @@ export function populateScenery(scene, track, circuit) {
     lampHeadMesh.count = lampSpots.length;
     lampPoleMesh.castShadow = true;
     group.add(lampPoleMesh, lampHeadMesh);
+    } // !roam — loop crossings, side streets and lamps belong to the circuit
 
     city = {
       colliders: cityColliders,
       lights: lightMats,
-      junctions: junctionSpots,
+      junctions: roam ? [] : junctionSpots,
       gridSignals: gridSpots[0].length + gridSpots[1].length,
       grid,
       extent,
+      roam,
+      downtown,
     };
   }
 
-  if (circuit.theme === 'industrial') {
+  if (!roam && circuit.theme === 'industrial') {
     const containerMat = new THREE.MeshStandardMaterial({
       map: containerTexture(), color: 0xffffff, roughness: 0.75, metalness: 0.45,
     });
@@ -1203,7 +1223,7 @@ export function populateScenery(scene, track, circuit) {
     });
   }
 
-  if (circuit.theme === 'gp') {
+  if (!roam && circuit.theme === 'gp') {
     // Rolling parkland hills on the horizon.
     const hillMat = new THREE.MeshStandardMaterial({ color: 0x4a6838, roughness: 1, flatShading: true });
     for (let i = 0; i < 22; i++) {
@@ -1319,7 +1339,7 @@ export function populateScenery(scene, track, circuit) {
     pit.add(stripe);
   }
 
-  if (circuit.theme === 'airport') {
+  if (!roam && circuit.theme === 'airport') {
     // ── runway edge lights: two rows down the whole loop
     const lightMat = new THREE.MeshStandardMaterial({
       color: 0x3a3324, emissive: 0xffdba0, emissiveIntensity: 2.4, roughness: 0.45,
@@ -1395,8 +1415,10 @@ export function populateScenery(scene, track, circuit) {
     tower.add(cabGlass);
   }
 
+  let stand = null;
+  if (!roam) {
   // ── grandstand near the start line
-  const stand = new THREE.Group();
+  stand = new THREE.Group();
   stand.position.set(standPos.x, 0, standPos.z);
   stand.lookAt(start.point.x, 0, start.point.z);
   group.add(stand);
@@ -1483,6 +1505,7 @@ export function populateScenery(scene, track, circuit) {
       pole.add(lamp);
     }
   }
+  } // !roam — no grandstand or floodlight masts in the open city
 
   function dispose() {
     group.traverse((obj) => {

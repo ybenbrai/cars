@@ -10,6 +10,7 @@ import {
   sidewalkCenters,
   signalGroup,
   turnDirection,
+  createRiver,
 } from './data/cityGrid.js';
 
 // Free-roam city layer. The race track and its painted street grid already
@@ -35,17 +36,14 @@ export class CityWorld {
     this.extent = this.grid.extent;
     this.colliders = city?.colliders || [];
     this.lightSets = city?.lights?.sets || [];
+    this.river = createRiver(this.grid);
     this.junctions = [];
     const spots = city?.junctions || [];
     for (let i = 0; i < spots.length; i += 2) {
       this.junctions.push({ x: spots[i].x, z: spots[i].z, group: Math.floor(i / 2) % 2 });
     }
 
-    // The race loop is drivable too; sample it sparsely for the surface query.
-    this.loopPoints = track.samples.filter((_, i) => i % 3 === 0).map((s) => ({
-      x: s.point.x, z: s.point.z, tx: s.tangent.x, tz: s.tangent.z,
-    }));
-
+    // Roam is strictly the street grid: no invisible race loop underneath it.
     // Only test the handful of buildings around the car, not the whole city.
     this.colliderCell = 64;
     this.colliderBuckets = new Map();
@@ -65,22 +63,26 @@ export class CityWorld {
     this.buildPedestrians();
   }
 
-  /** Nearest painted road centreline: dense grid or the race boulevard. */
+  /** Nearest painted road centreline on the downtown grid. */
   surface(x, z) {
     const near = nearestRoad(x, z, this.grid);
-    let { dist, x: px, z: pz, tx, tz, halfWidth } = near;
-    // The race loop is a boulevard too; prefer it where it runs closer.
-    for (const p of this.loopPoints) {
-      const dx = x - p.x;
-      const dz = z - p.z;
-      const d2 = dx * dx + dz * dz;
-      if (d2 < dist * dist) {
-        dist = Math.sqrt(d2);
-        px = p.x; pz = p.z; tx = p.tx; tz = p.tz;
-        halfWidth = this.track.halfWidth;
-      }
-    }
-    return { dist, x: px, z: pz, tx, tz, halfWidth };
+    const { dist, edge, x: px, z: pz, tx, tz, halfWidth } = near;
+    return { dist, edge, x: px, z: pz, tx, tz, halfWidth };
+  }
+
+  /**
+   * Start line for the shared city. Everyone lines up on the central
+   * north-south boulevard heading into downtown, alongside the traffic.
+   */
+  spawnPoint(index = 0) {
+    const line = 0;
+    const lane = 4.8;
+    return {
+      // Start mid-block, not on the zebra crossing at the junction.
+      point: new THREE.Vector3(line + lane, 0, -40 - index * 9),
+      tangent: new THREE.Vector3(0, 0, 1),
+      dist: 0,
+    };
   }
 
   isGreen(group) {
@@ -327,7 +329,7 @@ export class CityWorld {
         pos = (k + 0.12 + Math.random() * 0.76) * this.grid.spacing;
         x = street.axis === 1 ? pos : lane;
         z = street.axis === 1 ? lane : pos;
-        if (this.track.distanceToTrack(x, z) < this.track.halfWidth + 3) continue;
+        if (Math.abs(z - this.river.pos) < this.river.halfWidth + 6) continue;
         if (!this.nearBuilding(x, z, 1.5)) break;
       }
       this.pedestrians.push({

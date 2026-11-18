@@ -1,4 +1,4 @@
-import { CITY_EXTENT, CITY_GRID } from './data/cityGrid.js';
+import { CITY_EXTENT, CITY_GRID, bridgeCrossings, createRiver } from './data/cityGrid.js';
 
 const pad2 = (n) => String(n).padStart(2, '0');
 
@@ -279,6 +279,13 @@ export class HUD {
       }
     }
 
+    // The canal runs between two street lines, so no road is submerged. The
+    // north-south streets over it are re-drawn as bridges below.
+    const river = createRiver();
+    ctx.fillStyle = 'rgba(46, 112, 148, 0.9)';
+    ctx.fillRect(ox - extent * scale, river.min * scale + oy,
+      extent * 2 * scale, (river.max - river.min) * scale);
+
     ctx.lineCap = 'butt';
     for (const s of CITY_GRID.streets) {
       const w = Math.max(1.2, s.width * scale);
@@ -303,6 +310,14 @@ export class HUD {
         ctx.lineWidth = 0.8;
         ctx.stroke();
       }
+    }
+
+    // Bridge decks: brighter spans where each boulevard crosses the canal.
+    ctx.fillStyle = 'rgba(196, 202, 216, 0.92)';
+    for (const crossing of bridgeCrossings()) {
+      const width = Math.max(4.5, crossing.width * scale);
+      ctx.fillRect(crossing.pos * scale + ox - width / 2,
+        river.min * scale + oy - 3, width, (river.max - river.min) * scale + 6);
     }
   }
 
