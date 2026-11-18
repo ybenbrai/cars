@@ -7,7 +7,9 @@
 //    paint shop, tint, rim colour and brake lights keep working.
 // Expected node naming (see docs/CAR_ART_BRIEF.md): wheels named like
 // "WheelFrontL", "WheelRearR"; materials named "Paint 1…", "Glass",
-// "Rim…", "Brakelight", "Headlight", "Signallight".
+// "Rim…", "Brakelight", "Headlight", "Signallight". The shipped concept car
+// actually exports its default look as a palette of unnamed materials, so
+// those palette slots are mapped too (see materialRole below).
 
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -35,13 +37,19 @@ const tmp = new THREE.Vector3();
 const box = new THREE.Box3();
 
 function materialRole(mat) {
-  const name = String(mat?.name || '').toLowerCase();
-  if (name.startsWith('paint 1')) return 'paint';
-  if (name === 'glass' || name.includes('window')) return 'glass';
+  const name = String(mat?.name || '').toLowerCase().replace(/\s+/g, '');
+  // Palette slots in the shipped Car Concept GLB. The original variant
+  // materials survive in the file but three.js does not select variants, so
+  // the palette slots are what actually render and must be remapped.
+  if (name === 'palettematerial001' || name === 'glass' || name.includes('window')) return 'glass';
+  if (name.startsWith('paint1') || name.startsWith('paint2')
+    || name === 'palettematerial006' || name === 'palettematerial007') return 'paint';
   if (name.startsWith('rim')) return 'rim';
-  if (name.includes('brakelight') || name.includes('taillight')) return 'brake';
-  if (name.includes('headlight')) return 'head';
-  if (name.includes('signal')) return 'signal';
+  // "Brake" is the caliper material in this asset, not a tail lamp — only
+  // match the explicit tail/brake-light names and the lamp palette slot.
+  if (name === 'palettematerial009' || name.includes('brakelight') || name.includes('taillight')) return 'brake';
+  if (name === 'palettematerial010' || name.includes('headlight')) return 'head';
+  if (name === 'palettematerial008' || name.includes('signal')) return 'signal';
   return null;
 }
 
@@ -79,10 +87,10 @@ export async function attachRealModel(model, def) {
   holder.position.set(-center.x, -box.min.y, -center.z);
   holder.updateMatrixWorld(true);
 
-  // Materials: reuse the game's paint, glass, rim and lamp materials.
+  // Materials: reuse the game's paint, glass, rim and lamp materials so the
+  // paint shop, window tint, rim colour and lighting all still work.
   holder.traverse((o) => {
     if (!o.isMesh) return;
-    o.castShadow = true;
     o.receiveShadow = false;
     const role = materialRole(o.material);
     if (role === 'paint') o.material = model.paintMat;
@@ -90,13 +98,34 @@ export async function attachRealModel(model, def) {
     else if (role === 'rim') o.material = model.rimMat;
     else if (role === 'brake') o.material = model.tailMat;
     else if (role === 'head') o.material = model.headMat;
-    else if (role === 'signal' && model.signalMats) o.material = model.signalMats.left;
+    else if (role === 'signal' && model.signalMats) o.material = model.signalMats.both;
+    // Transparent glass must not cast an opaque shadow.
+    o.castShadow = !o.material?.transparent && !(o.material?.transmission > 0);
   });
 
   // Hide every procedural part (body panels, lamps, wheels, stripes...).
   for (const child of model.body.children) child.visible = false;
   for (const wheel of model.wheels) wheel.pivot.visible = false;
   model.detailMeshes = [];
+
+  // The real cabin is a handful of separate "Interior*" nodes. Group them so
+  // the cockpit view can hide them instead of drawing two interiors at once.
+  const interiorNodes = [];
+  holder.traverse((o) => { if (/^interior/i.test(o.name || '')) interiorNodes.push(o); });
+  if (interiorNodes.length) {
+    const realInterior = new THREE.Group();
+    holder.add(realInterior);
+    for (const node of interiorNodes) {
+      let p = node.parent;
+      let nested = false;
+      while (p && p !== holder) {
+        if (/^interior/i.test(p.name || '')) { nested = true; break; }
+        p = p.parent;
+      }
+      if (!nested) realInterior.attach(node);
+    }
+    model.interiorBlock = realInterior;
+  }
 
   // Into the body group (so it leans with the suspension), then measure the
   // wheels in the car's own space.
@@ -107,6 +136,36 @@ export async function attachRealModel(model, def) {
   const wheels = [];
   const wheelNodes = [];
   holder.traverse((o) => { if (WHEEL_RE.test(o.name || '')) wheelNodes.push(o); });
+
+  // The source model ships its front wheels with a baked steering angle, so
+  // they look turned at rest and spin about the wrong axis. Align each front
+  // axle with the rear axle in world space; the roll (spoke angle) is kept.
+  const axisX = new THREE.Vector3(1, 0, 0);
+  const rearAxle = new THREE.Vector3();
+  const axle = new THREE.Vector3();
+  const worldQ = new THREE.Quaternion();
+  const parentQ = new THREE.Quaternion();
+  const alignQ = new THREE.Quaternion();
+  for (const node of wheelNodes) {
+    if (!/rear/i.test(node.name)) continue;
+    node.getWorldQuaternion(worldQ);
+    rearAxle.copy(axisX).applyQuaternion(worldQ).normalize();
+    break;
+  }
+  if (rearAxle.lengthSq() > 0) {
+    for (const node of wheelNodes) {
+      if (!/front/i.test(node.name)) continue;
+      node.getWorldQuaternion(worldQ);
+      axle.copy(axisX).applyQuaternion(worldQ).normalize();
+      if (axle.distanceTo(rearAxle) < 0.01) continue;
+      alignQ.setFromUnitVectors(axle, rearAxle);
+      worldQ.premultiply(alignQ);
+      node.parent.getWorldQuaternion(parentQ);
+      node.quaternion.copy(parentQ.invert().multiply(worldQ));
+      node.updateMatrixWorld(true);
+    }
+  }
+
   for (const node of wheelNodes) {
     box.setFromObject(node);
     const local = model.root.worldToLocal(box.getCenter(new THREE.Vector3()));

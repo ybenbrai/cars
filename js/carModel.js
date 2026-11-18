@@ -571,7 +571,9 @@ export class CarModel {
       roughness: 0.22, metalness: 0.1, clearcoat: 1, clearcoatRoughness: 0.08,
       envMapIntensity: 1.3, toneMapped: false,
     });
-    this.signalMats = { left: makeSignal(), right: makeSignal() };
+    // `both` drives a single lens that covers both sides (the real model's
+    // rear indicator strip); it glows whenever either side is signalling.
+    this.signalMats = { left: makeSignal(), right: makeSignal(), both: makeSignal() };
     this.seamMat = new THREE.MeshBasicMaterial({
       color: 0x0a0a0e, side: THREE.DoubleSide,
       polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2,
@@ -2329,7 +2331,7 @@ export class CarModel {
       this.rubberMat, this.treadMat, this.rimMat,
       this.discMat, this.archMat, this.caliperMat, this.grilleMat, this.seamMat,
       this.plateMat, this.stripeMat, this.glowMat,
-      this.signalMats?.left, this.signalMats?.right,
+      this.signalMats?.left, this.signalMats?.right, this.signalMats?.both,
     ]) {
       mat?.dispose();
     }
@@ -2442,6 +2444,8 @@ export class CarModel {
     for (const key of ['left', 'right']) {
       this.signalMats[key].emissiveIntensity = on && key === side ? 3.2 : 0.32;
     }
+    this.signalMats.both.emissiveIntensity = Math.max(
+      this.signalMats.left.emissiveIntensity, this.signalMats.right.emissiveIntensity);
   }
 
   setBraking(on) {

@@ -25,7 +25,15 @@ model names.
   - `Glass` — all windows (player tint)
   - `Rim1` — wheel rims (player rim colour)
   - `Brakelight`, `Headlight`, `Signallight` — lamp lenses
-- **Interior:** seats, dashboard, steering wheel (cockpit camera).
+
+  The shipped `concept-gt.glb` exports its default look as palette slots
+  instead of selecting these variants, so the loader maps those slots too:
+  `PaletteMaterial001` → glass, `006`/`007` → paint, `008` → signal,
+  `009` → tail lamp and `010` → head lamp. Materials named `Brake` are
+  calipers and are deliberately left alone.
+- **Interior:** seats, dashboard, steering wheel (cockpit camera). The `Interior*`
+  nodes are grouped at load time so the cockpit camera can hide them while the
+  game draws its own detailed cabin, avoiding two interiors on screen.
 - **Licence to us:** full commercial use in a game, including app stores.
 
 ## The 20 cars

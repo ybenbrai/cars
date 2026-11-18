@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- The VALENZA AETHER GT now renders the car's actual default materials: the
+  GLB's palette slots are remapped to the game's paint, glass, rim and lamp
+  materials, so paint, tint, brake lights, headlights and indicators respond
+  again. Its front wheels are straightened (the asset had a baked 30° steer),
+  glass no longer casts an opaque shadow, and the cockpit view hides the
+  model's cabin instead of drawing two interiors.
 - Hitting a downtown building no longer crashes with
   `wallNormal.set is not a function`; city collisions now write the same plain
   `x`/`z` wall normal used by the race circuit.
