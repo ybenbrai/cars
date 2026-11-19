@@ -34,10 +34,8 @@ Shipped:
 - Circuit selection through Race Setup and Career, with best laps in Profile.
 - Sector-time HUD: three distance thirds per lap, live sector time, splits and
   personal bests saved per circuit.
-
-Still open:
-
-- Reverse layouts of existing circuits.
+- Reverse layouts of every race circuit, starting from the same arch. Each
+  direction keeps its own best lap, totals, sector bests and ghost.
 
 ## 1.3 — Quality of life (Mostly shipped)
 

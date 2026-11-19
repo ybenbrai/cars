@@ -369,7 +369,12 @@ export class SaveStore {
 
   circuitUnlocked(circuitId) {
     const circuit = getCircuit(circuitId);
-    return !!circuit && (this.data.circuits.includes(circuitId) || this.rank >= (circuit.unlockRank || 0));
+    if (!circuit) return false;
+    // A reverse layout inherits its forward circuit's unlock, including early
+    // career unlocks that sit below its rank gate.
+    const accessIds = circuit.reverseOf ? [circuitId, circuit.reverseOf] : [circuitId];
+    return accessIds.some((id) => this.data.circuits.includes(id))
+      || this.rank >= (circuit.unlockRank || 0);
   }
 
   /** Practice rental price; zero when the player already has access. */

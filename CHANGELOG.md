@@ -46,6 +46,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Reverse layouts of every race circuit. Each direction starts at the same
+  arch, keeps its nitro strips in place, and has its own best lap, race totals,
+  sector bests and Time Trial ghost. Unlocking a circuit unlocks its reverse;
+  the practice-only runway stays a single layout.
 - Sector times in the race HUD: each lap is split into three distance thirds
   with a live sector clock, three splits and personal bests stored per circuit.
   A split turns gold when it beats your best, while a pending sector previews

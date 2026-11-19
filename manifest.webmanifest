@@ -2,7 +2,7 @@
   "id": "./",
   "name": "Sunset Drift",
   "short_name": "Sunset Drift",
-  "description": "An arcade drift racer with twenty cars, eight circuits, night and rain racing, a career, daily challenges and achievements.",
+  "description": "An arcade drift racer with twenty cars, ten circuits and their reverse layouts, night and rain racing, a career, daily challenges and achievements.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

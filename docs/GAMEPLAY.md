@@ -334,6 +334,12 @@ include a tight in-field block section and long boulevards. **Neon Skidpad** is
 the dedicated drift park: a wide, walled 1.7 km loop built for long sweepers and
 one big hairpin.
 
+Every race circuit also has a **reverse layout** that starts at the same arch
+and drives the same ribbon the other way. The two directions have separate
+record books: best laps, race totals, sector bests and Time Trial ghosts are
+never mixed. Unlocking a circuit unlocks its reverse as well. The practice-only
+test runway is the one layout without a reverse.
+
 The minimap is drawn from the same sampled centerline used by the physics, with
 the active gate highlighted and the car shown as an arrow.
 
@@ -362,9 +368,10 @@ the active gate highlighted and the car shown as an arrow.
 | `sunset-drift-profile-v1` | Driver name, selected car, per-car look data |
 | `sunset-drift-best-v1` | Best lap time in seconds |
 
-Clearing site data resets the profile. Invalid or older data is normalized on
-load; unknown cars fall back to the Koto Mira and invalid cosmetic values
-fall back to that car's defaults.
+Records are keyed by layout id, so `sunset-coast` and `sunset-coast-reverse`
+keep separate books. Clearing site data resets the profile. Invalid or older
+data is normalized on load; unknown cars fall back to the Koto Mira and invalid
+cosmetic values fall back to that car's defaults.
 
 ## Practical tips
 
@@ -385,8 +392,9 @@ fall back to that car's defaults.
 Time Trial records every lap you drive. Your fastest Time Trial lap on each
 circuit is kept as a ghost: a see-through copy of your car that starts each
 lap with you and drives that exact line. Beat it and the new lap becomes the
-ghost straight away. Ghosts stay in this browser (about 20 KB per circuit) and
-are not part of the cloud save.
+ghost straight away. Forward and reverse layouts each keep their own ghost.
+Ghosts stay in this browser (about 20 KB per circuit) and are not part of the
+cloud save.
 
 ## Upgrades
 

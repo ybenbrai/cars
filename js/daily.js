@@ -46,6 +46,15 @@ const REFERENCE_LAPS = {
   dockyard: 31.72,
   'coral-bay': 24.45,
 };
+// A reverse lap takes the same time in the reference car, so share the pace
+// model instead of falling back to a coarse length estimate. Reversing a path
+// changes gate order, not corner speeds.
+for (const circuit of CIRCUITS) {
+  if (circuit.reverseOf && REFERENCE_LAPS[circuit.reverseOf] != null
+      && REFERENCE_LAPS[circuit.id] == null) {
+    REFERENCE_LAPS[circuit.id] = REFERENCE_LAPS[circuit.reverseOf];
+  }
+}
 
 /** Expected clean best lap (s) for a car on a circuit, at autopilot pace. */
 export function expectedLap(car, circuit) {

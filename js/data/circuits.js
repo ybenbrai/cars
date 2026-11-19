@@ -405,7 +405,29 @@ const RAW = [
   },
 ];
 
-export const CIRCUITS = RAW.map((raw) => {
+/** A reverse layout drives the same ribbon the other way round. Keep the
+ *  original first point as the start so the arch and grid stay in the same
+ *  place, then mirror nitro strips so they remain at the same landmarks. */
+function reverseVariant(raw) {
+  const variant = {
+    ...raw,
+    id: `${raw.id}-reverse`,
+    name: `${raw.name} REVERSE`,
+    reverseOf: raw.id,
+    cp: [raw.cp[0], ...raw.cp.slice(1).reverse()],
+    features: ['REVERSE', ...(raw.features || [])],
+  };
+  if (Array.isArray(raw.pads)) {
+    variant.pads = raw.pads.map((t) => (1 - t) % 1).sort((a, b) => a - b);
+  }
+  return variant;
+}
+
+// The practice-only runway stays a single test straight; every race circuit
+// gets a forward and a reverse layout with separate records.
+const LAYOUTS = RAW.flatMap((raw) => (raw.practiceOnly ? [raw] : [raw, reverseVariant(raw)]));
+
+export const CIRCUITS = LAYOUTS.map((raw) => {
   const length = polylineLength(raw.cp);
   const palette = { ...(PALETTES[raw.theme] || PALETTES.coast), ...(raw.paletteOverrides || {}) };
   return {

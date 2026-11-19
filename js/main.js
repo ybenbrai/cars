@@ -1358,9 +1358,11 @@ function finishRace() {
       if (car.unlockRank === store.rank) unlocks.push({ kind: 'car', id: car.id, name: car.name });
     }
     for (const circuit of CIRCUITS) {
-      if (circuit.practiceOnly) continue;
+      if (circuit.practiceOnly || circuit.reverseOf) continue;
       if (circuit.unlockRank === store.rank && !unlocks.some((u) => u.id === circuit.id)) {
-        unlocks.push({ kind: 'circuit', id: circuit.id, name: circuit.name });
+        const hasReverse = CIRCUITS.some((c) => c.reverseOf === circuit.id);
+        const name = hasReverse ? `${circuit.name} + REVERSE` : circuit.name;
+        unlocks.push({ kind: 'circuit', id: circuit.id, name });
       }
     }
   }
