@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Collision camera shake is much gentler: wall, building and car contact now
+  shake roughly a third as hard as before, so a hit still reads as an impact
+  without throwing the picture around.
 - The VALENZA AETHER GT now renders the car's actual default materials: the
   GLB's palette slots are remapped to the game's paint, glass, rim and lamp
   materials, so paint, tint, brake lights, headlights and indicators respond

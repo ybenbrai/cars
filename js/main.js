@@ -44,6 +44,7 @@ import { getCareerEvent } from './data/career.js';
 import { getDifficulty, getMode, computeRewards, isFreeRunMode } from './economy.js';
 import { SectorTimer } from './sectors.js';
 import { bodyCircles, deepestContact } from './collisionMath.js';
+import { impactShake, contactShake } from './cameraShake.js';
 
 const FIXED = 1 / 120;
 // Release id stamped on module URLs by the build (`?v=…`); "dev" locally.
@@ -1200,7 +1201,7 @@ function resolveCollisions() {
           effects.burst(mid, push, 0xffb23d);
           if (a.isPlayer || b.isPlayer) {
             audio.crash(push);
-            race.shake = Math.max(race.shake, push * 0.55);
+            race.shake = Math.max(race.shake, contactShake(push));
           }
         }
       }
@@ -1955,7 +1956,7 @@ function tick(now, ms) {
       const car = race.player.car;
       if (car.impact > 0.22 && race.impactCooldown <= 0) {
         audio.crash(car.impact);
-        race.shake = Math.max(race.shake, car.impact * 0.9);
+        race.shake = Math.max(race.shake, impactShake(car.impact));
         race.impactCooldown = 0.55;
         if (car.wallHit > 0.1) {
           // Sparks where the body met the barrier, not at the car's centre.
