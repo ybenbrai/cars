@@ -41,6 +41,25 @@ test('auto nitro defaults to off and survives a save round-trip', () => {
   assert.equal(store.data.settings.autoNitro, true);
 });
 
+test('colour-blind marker mode defaults off, survives a save and rejects junk', () => {
+  const store = freshStore();
+  assert.equal(store.data.settings.colourBlind, 'default');
+
+  // Older saves without the field get the default backfilled on import.
+  const legacy = store.toJSON();
+  delete legacy.settings.colourBlind;
+  store.import(legacy);
+  assert.equal(store.data.settings.colourBlind, 'default');
+
+  store.data.settings.colourBlind = 'accessible';
+  store.import(store.toJSON());
+  assert.equal(store.data.settings.colourBlind, 'accessible');
+
+  store.data.settings.colourBlind = 'deuteranopia';
+  store.import(store.toJSON());
+  assert.equal(store.data.settings.colourBlind, 'default');
+});
+
 test('buying a car spends credits and equips it; overspending is refused', () => {
   const store = freshStore();
   const cheap = CARS.find((c) => !c.starter && c.unlockRank === 0 && c.price <= STARTING_MONEY);

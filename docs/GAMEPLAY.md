@@ -56,6 +56,13 @@ and **MOBILE** is a phone-specific preset that renders at 75% resolution with no
 shadows, bloom or cockpit mirror and a shorter view distance. Phones start on
 AUTO at MEDIUM; pick MOBILE if you want the lowest-cost picture all the time.
 
+**COLOUR-BLIND** in the same menu switches gates and minimap markers to an
+accessible high-contrast palette: neutral idle gates, a warm amber next gate
+and a cool blue passed flash, with matching marker colours on the minimap. Gate
+arches still pulse, the next checkpoint is still a diamond, and rivals are still
+numbered discs — colour is an extra cue, never the only one. The default option
+keeps each circuit's own colours.
+
 ## The cars
 
 Each car's performance comes from its spec sheet:
@@ -348,7 +355,9 @@ never mixed. Unlocking a circuit unlocks its reverse as well. The practice-only
 test runway is the one layout without a reverse.
 
 The minimap is drawn from the same sampled centerline used by the physics, with
-the active gate highlighted and the car shown as an arrow.
+the active gate highlighted as a pulsing diamond and the car shown as an arrow.
+Its marker colours follow the COLOUR-BLIND setting, but the diamond, dots and
+numbered rival discs keep their shapes either way.
 
 ## HUD
 

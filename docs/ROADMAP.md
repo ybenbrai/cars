@@ -53,14 +53,13 @@ Shipped:
 - Photo mode using the free camera and post pipeline, saving a watermarked PNG.
 - Readable markers: numbered, outlined rival discs, a larger player arrow and a
   pulsing next-checkpoint diamond; checkpoints are full-width glowing arches.
+- Colour-blind marker mode: a selectable high-contrast palette for gates and
+  minimap markers, on top of the existing shape and number cues.
 
 Still open:
 
 - Steering sensitivity settings. Input remapping shipped, but sensitivity is
   still fixed per device.
-- A dedicated colour-blind palette mode for gates and minimap markers. Current
-  markers already use shape and number as well as colour, but there is no
-  selectable alternative palette.
 - Broader reduced-motion support. Camera shake can be turned off, but other
   motion effects have no master switch.
 

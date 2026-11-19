@@ -1333,6 +1333,9 @@ export class UI {
       ['auto', 'AUTO'], ['high', 'HIGH'], ['medium', 'MED'], ['low', 'LOW'], ['mobile', 'MOBILE'],
     ]) + row('TURN SIGNALS', 'signals', settings.signals === false ? 'off' : 'on', [['on', 'ON'], ['off', 'OFF']])
       + row('AUTO NITRO', 'autoNitro', settings.autoNitro ? 'on' : 'off', [['on', 'ON'], ['off', 'OFF']])
+      + row('COLOUR-BLIND', 'colourBlind', settings.colourBlind || 'default', [
+        ['default', 'OFF'], ['accessible', 'ON'],
+      ])
       + `<p class="custom-note quality-note">${(QUALITY_LEVELS.find((q) => q.id === (settings.quality === 'auto' || !settings.quality ? 'high' : settings.quality)) || {}).note || ''}${
         !settings.quality || settings.quality === 'auto' ? ' AUTO picks the level for your device.' : ''}</p>`
       + row('LANGUAGE', 'lang', currentLanguage(), LANGUAGES.map((l) => [l.id, l.label]))

@@ -13,6 +13,7 @@ import { practiceRentalFee } from './economy.js';
 import { cleanSectors } from './sectors.js';
 import { ACHIEVEMENTS, earnedNow } from './achievements.js';
 import { rewardStatus } from './dailyReward.js';
+import { normalizeMarkerPaletteMode } from './markerPalette.js';
 import {
   UPGRADE_PARTS, MAX_UPGRADE_LEVEL, normalizeUpgrades, upgradeCost, upgradeValue,
 } from './data/upgrades.js';
@@ -50,7 +51,7 @@ function blankSave(displayName = '') {
       races: 0, wins: 0, podiums: 0, laps: 0,
       creditsEarned: 0, creditsSpent: 0, driftScore: 0, distanceKm: 0, sessions: 0,
     },
-    settings: { muted: false, camera: 0, quality: 'auto', signals: true, autoNitro: false, volume: 1, musicVolume: 1, tutorialDone: false, keys: {}, shake: true },
+    settings: { muted: false, camera: 0, quality: 'auto', signals: true, autoNitro: false, volume: 1, musicVolume: 1, tutorialDone: false, keys: {}, shake: true, colourBlind: 'default' },
   };
 }
 
@@ -123,6 +124,9 @@ function mergeSave(raw) {
   save.history = Array.isArray(raw.history) ? raw.history.slice(0, 40) : [];
   save.stats = { ...base.stats, ...(raw.stats || {}) };
   save.settings = { ...base.settings, ...(raw.settings || {}) };
+  // Only the new field is normalised; the rest of settings stays a loose
+  // shallow spread so older saves and other presets keep their existing rules.
+  save.settings.colourBlind = normalizeMarkerPaletteMode(raw.settings?.colourBlind);
   return save;
 }
 

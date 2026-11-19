@@ -52,6 +52,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A COLOUR-BLIND setting for gates and minimap markers. Switching it on replaces
+  the circuit's red/green-style state colours with neutral idle, amber next and
+  blue passed, plus matching minimap markers. The arch pulse, diamond and
+  numbered rival discs stay exactly as they are, so colour is never the only
+  cue; the default option keeps every circuit's existing palette.
 - City Roam now has a natural border: the street grid sits on a land apron that
   falls away to a sea, with a ring of low-poly snow-capped mountains on the
   horizon. It is procedural and instanced (a couple of extra draw calls), has no

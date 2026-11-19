@@ -45,6 +45,7 @@ import { getDifficulty, getMode, computeRewards, isFreeRunMode } from './economy
 import { SectorTimer } from './sectors.js';
 import { bodyCircles, deepestContact } from './collisionMath.js';
 import { impactShake, contactShake } from './cameraShake.js';
+import { normalizeMarkerPaletteMode } from './markerPalette.js';
 
 const FIXED = 1 / 120;
 // Release id stamped on module URLs by the build (`?v=…`); "dev" locally.
@@ -226,6 +227,7 @@ function attachStore(next) {
   audio.setVolumes(store.data.settings.volume ?? 1, store.data.settings.musicVolume ?? 1);
   input.setBindings(store.data.settings.keys);
   hud.setUnits(store.data.settings.units === 'mph');
+  hud.setMarkerPaletteMode(normalizeMarkerPaletteMode(store.data.settings.colourBlind));
   fpsMeter.el.classList.toggle('hidden', !store.data.settings.fps);
   store.onChange = () => {
     cloud.schedule();
@@ -518,6 +520,11 @@ function changeSetting(key, value, { live = false } = {}) {
     store.data.settings.autoNitro = value !== 'off';
     // Start each fresh burst from a full latch when the driver re-enables it.
     if (race) race.autoNitroReady = true;
+  } else if (key === 'colourBlind') {
+    const mode = normalizeMarkerPaletteMode(value);
+    store.data.settings.colourBlind = mode;
+    hud.setMarkerPaletteMode(mode);
+    race?.track?.setMarkerPaletteMode?.(mode);
   }
   store.save();
   ui.renderSettings();
@@ -567,7 +574,9 @@ function ensureWorld(circuit, conditions = normalizeConditions(), roam = false) 
   // Night and rain re-tint the circuit's own palette (see conditions.js).
   const lit = { ...circuit, palette: paletteFor(circuit.palette, conditions) };
   const env = createEnvironment(scene, renderer, lit.palette);
-  const track = createTrack(scene, lit, { roam });
+  const track = createTrack(scene, lit, {
+    roam, markerPaletteMode: normalizeMarkerPaletteMode(store?.data.settings?.colourBlind),
+  });
   const scenery = populateScenery(scene, track, lit, { roam });
   world = { circuit, key, env, track, scenery };
   quality.applyWorld(env.sun);

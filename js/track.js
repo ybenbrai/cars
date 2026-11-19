@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { resolveMarkerPalette } from './markerPalette.js';
 
 const N = 1200;
 
@@ -197,6 +198,10 @@ export function createTrack(scene, circuit, options = {}) {
   // circuit's race-only geometry is drawn.
   const roam = options.roam === true;
   const palette = circuit.palette;
+  // Gate state colours follow the circuit palette by default; the accessible
+  // mode overrides them so "next" and "passed" do not rely on red vs green.
+  let markerColors = resolveMarkerPalette(options.markerPaletteMode, palette);
+  let lastNextGate = 1;
   const halfWidth = circuit.width;
   const curbOuter = halfWidth + 1.2;
   const wallOffset = halfWidth + 3.0;
@@ -575,24 +580,30 @@ export function createTrack(scene, circuit, options = {}) {
   group.visible = !roam;
 
   let elapsed = 0;
-  function update(dt, nextGate) {
-    if (roam) return; // gates and nitrous bottles are not part of the city
-    elapsed += dt;
+  function paintGates() {
     for (const gate of gates) {
       if (!gate.gate) continue;
-      gate.flash = Math.max(0, gate.flash - dt * 2.4);
-      const active = gate.index === nextGate;
       if (gate.flash > 0) {
-        gate.material.emissive.set(0x8dffb0);
+        gate.material.emissive.set(markerColors.gate.passed);
         gate.material.emissiveIntensity = 2.5 + gate.flash * 4;
-      } else if (active) {
-        gate.material.emissive.set(palette.accent);
+      } else if (gate.index === lastNextGate) {
+        gate.material.emissive.set(markerColors.gate.next);
         gate.material.emissiveIntensity = 2.2 + Math.sin(elapsed * 5) * 1.3;
       } else {
-        gate.material.emissive.set(palette.marker);
+        gate.material.emissive.set(markerColors.gate.idle);
         gate.material.emissiveIntensity = gate.index === 0 ? 0.9 : 0.5;
       }
     }
+  }
+
+  function update(dt, nextGate) {
+    if (roam) return; // gates and nitrous bottles are not part of the city
+    elapsed += dt;
+    lastNextGate = nextGate;
+    for (const gate of gates) {
+      if (gate.gate) gate.flash = Math.max(0, gate.flash - dt * 2.4);
+    }
+    paintGates();
     for (const pad of pads) {
       // `active` is set by the race director, which owns the respawn clock.
       if (pad.active) {
@@ -613,6 +624,12 @@ export function createTrack(scene, circuit, options = {}) {
 
   function flashGate(gate) {
     if (gate && gate.gate) gate.flash = 1;
+  }
+
+  /** Recolour the live gates without rebuilding the track or losing race state. */
+  function setMarkerPaletteMode(mode) {
+    markerColors = resolveMarkerPalette(mode, palette);
+    paintGates();
   }
 
   function dispose() {
@@ -644,6 +661,7 @@ export function createTrack(scene, circuit, options = {}) {
     distanceToTrack,
     update,
     flashGate,
+    setMarkerPaletteMode,
     dispose,
   };
 }

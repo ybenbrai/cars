@@ -53,6 +53,7 @@ gameplay modules do not reach into the DOM except where noted.
 | `js/cityWorld.js` | Free-roam city: drivable road surface, building/bounds/traffic collision, signal cycles, instanced traffic and sidewalk pedestrians |
 | `js/car.js` | Arcade vehicle physics, wall/city collision hook, off-road handling, nitro, drift state |
 | `js/vehicleMath.js` | Pure braking, coasting and drift-entry math shared by the car, AI and tests |
+| `js/markerPalette.js` | Pure gate/minimap marker colours: default per-circuit theme or a colour-blind high-contrast set |
 | `js/data/upgrades.js` | Upgrade parts, levels, prices and physics multipliers |
 | `js/ghostLap.js` | Pure Time Trial ghost recording, storage and replay maths |
 | `js/ghost.js` | See-through ghost car that replays a stored lap |

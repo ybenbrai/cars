@@ -1,5 +1,6 @@
 import { CITY_EXTENT, CITY_GRID, bridgeCrossings, createRiver } from './data/cityGrid.js';
 import { SECTOR_COUNT } from './sectors.js';
+import { resolveMarkerPalette } from './markerPalette.js';
 
 const pad2 = (n) => String(n).padStart(2, '0');
 
@@ -63,6 +64,7 @@ export class HUD {
     this.gaugeMax = 0;
     this.last = {};
     this.roam = false;
+    this.markerColors = resolveMarkerPalette('default').minimap;
     this.toastTimer = null;
     this.map = this.el.minimap ? this.el.minimap.getContext('2d') : null;
     this.buildTicks(240);
@@ -524,6 +526,10 @@ export class HUD {
     this.el.wrongway.classList.toggle('hidden', !on);
   }
 
+  setMarkerPaletteMode(mode) {
+    this.markerColors = resolveMarkerPalette(mode).minimap;
+  }
+
   /**
    * Draw the minimap. `racers` is a list of
    * `{ pos, isPlayer, color, position, finished }`. Rivals are numbered discs,
@@ -547,21 +553,21 @@ export class HUD {
           const pulse = 14 + (Math.sin((time || 0) * 5) * 0.5 + 0.5) * 8;
           ctx.beginPath();
           ctx.arc(x, y, pulse, 0, Math.PI * 2);
-          ctx.strokeStyle = 'rgba(92,225,230,0.5)';
+          ctx.strokeStyle = this.markerColors.nextRing;
           ctx.lineWidth = 3;
           ctx.stroke();
           ctx.save();
           ctx.translate(x, y);
           ctx.rotate(Math.PI / 4);
-          ctx.fillStyle = '#5ce1e6';
-          ctx.shadowColor = '#5ce1e6';
+          ctx.fillStyle = this.markerColors.next;
+          ctx.shadowColor = this.markerColors.next;
           ctx.shadowBlur = 14;
           ctx.fillRect(-6, -6, 12, 12);
           ctx.restore();
         } else {
           ctx.beginPath();
           ctx.arc(x, y, 4.5, 0, Math.PI * 2);
-          ctx.fillStyle = 'rgba(255,246,236,0.42)';
+          ctx.fillStyle = this.markerColors.done;
           ctx.fill();
         }
       }
@@ -624,8 +630,8 @@ export class HUD {
     ctx.lineWidth = 4;
     ctx.strokeStyle = 'rgba(3,4,10,0.9)';
     ctx.stroke();
-    ctx.fillStyle = '#ffd166';
-    ctx.shadowColor = '#ff7a45';
+    ctx.fillStyle = this.markerColors.player;
+    ctx.shadowColor = this.markerColors.playerGlow;
     ctx.shadowBlur = 16;
     ctx.fill();
     ctx.restore();
