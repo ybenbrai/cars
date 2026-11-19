@@ -1,17 +1,8 @@
 import { MenuMusic } from './music.js';
-
-// Each body style gets its own engine voice. The numbers are deliberately
-// exaggerated: a muscle car should rumble at idle and a hypercar should scream.
-const PROFILES = {
-  hatch: { base: 54, span: 74, sub: 0.34, bright: 0.9, gain: 0.9, wave: 'sawtooth' },
-  sedan: { base: 47, span: 66, sub: 0.5, bright: 0.8, gain: 0.92, wave: 'sawtooth' },
-  sports: { base: 60, span: 88, sub: 0.42, bright: 1.05, gain: 1.0, wave: 'sawtooth' },
-  muscle: { base: 38, span: 58, sub: 0.86, bright: 0.68, gain: 1.22, wave: 'square' },
-  super: { base: 68, span: 102, sub: 0.34, bright: 1.25, gain: 1.02, wave: 'sawtooth' },
-  hyper: { base: 78, span: 118, sub: 0.3, bright: 1.5, gain: 1.04, wave: 'sawtooth' },
-  suv: { base: 41, span: 54, sub: 0.74, bright: 0.72, gain: 1.08, wave: 'square' },
-  offroad: { base: 45, span: 60, sub: 0.68, bright: 0.76, gain: 1.08, wave: 'square' },
-};
+import {
+  ENGINE_PROFILES, RIVAL_VOICE_COUNT, engineProfile, turboAmount, intakeAmount,
+  squealAmount, tireChirpAmount, rivalGain, rivalPan, shiftPop, isValidWave,
+} from './audioProfiles.js';
 
 export class AudioEngine {
   constructor() {
@@ -22,8 +13,9 @@ export class AudioEngine {
     this.noiseBuffer = null;
     this.engine = null;
     this.lastSpeed = 0;
-    this.profile = PROFILES.sports;
+    this.profile = engineProfile('sports');
     this.profileId = 'sports';
+    this.lastRpm = 0;
     this.launchPhase = 0;
     this.limiterPhase = 0;
     this.music = null;
@@ -62,13 +54,15 @@ export class AudioEngine {
     else this.music.stop();
   }
 
-  setProfile(category) {
-    this.profileId = PROFILES[category] ? category : 'sports';
-    this.profile = PROFILES[this.profileId];
+  /** Choose the engine voice for a car, including the sound of its tuning. */
+  setProfile(category, upgrades = null) {
+    this.profileId = Object.hasOwn(ENGINE_PROFILES, category) ? category : 'sports';
+    this.profile = engineProfile(this.profileId, upgrades);
     if (!this.ready) return;
     const e = this.engine;
     e.oscA.type = this.profile.wave;
     e.oscB.type = this.profile.wave === 'square' ? 'sawtooth' : 'square';
+    if (isValidWave(this.profile.exhaustWave)) this.exhaust.osc.type = this.profile.exhaustWave;
   }
 
   init() {
@@ -93,7 +87,12 @@ export class AudioEngine {
     for (let i = 0; i < length; i++) data[i] = Math.random() * 2 - 1;
     this.noiseBuffer = buffer;
 
-    // engine
+    // engine. shiftGain sits after the engine and exhaust voices so a gear
+    // change can dip the whole drivetrain for a moment without fighting the
+    // per-frame gain targets in update().
+    const shiftGain = ctx.createGain();
+    shiftGain.gain.value = 1;
+    shiftGain.connect(master);
     const engineGain = ctx.createGain();
     engineGain.gain.value = 0;
     const filter = ctx.createBiquadFilter();
@@ -101,7 +100,7 @@ export class AudioEngine {
     filter.frequency.value = 600;
     filter.Q.value = 0.9;
     engineGain.connect(filter);
-    filter.connect(master);
+    filter.connect(shiftGain);
 
     const oscA = ctx.createOscillator();
     oscA.type = 'sawtooth';
@@ -122,7 +121,63 @@ export class AudioEngine {
     oscB.start();
     sub.start();
 
-    this.engine = { engineGain, filter, oscA, oscB, sub };
+    this.engine = { engineGain, filter, oscA, oscB, sub, shiftGain };
+
+    // Exhaust note: a lower-octave voice with a slow burble at idle. Its wave
+    // and pitch come from the car category; upgrades brighten and deepen it.
+    const exhaust = ctx.createOscillator();
+    exhaust.type = isValidWave(this.profile.exhaustWave) ? this.profile.exhaustWave : 'sawtooth';
+    exhaust.frequency.value = 40;
+    const exhaustFilter = ctx.createBiquadFilter();
+    exhaustFilter.type = 'lowpass';
+    exhaustFilter.frequency.value = 260;
+    const exhaustGain = ctx.createGain();
+    exhaustGain.gain.value = 0;
+    exhaust.connect(exhaustFilter);
+    exhaustFilter.connect(exhaustGain);
+    exhaustGain.connect(shiftGain);
+    const burbleLfo = ctx.createOscillator();
+    burbleLfo.type = 'sine';
+    burbleLfo.frequency.value = 9;
+    const burbleDepth = ctx.createGain();
+    burbleDepth.gain.value = 0;
+    burbleLfo.connect(burbleDepth);
+    burbleDepth.connect(exhaustGain.gain);
+    exhaust.start();
+    burbleLfo.start();
+    this.exhaust = { osc: exhaust, filter: exhaustFilter, gain: exhaustGain, lfo: burbleLfo, depth: burbleDepth };
+
+    // Turbo whistle: band-passed noise is cheap and reads as a turbine spool.
+    const turboSrc = ctx.createBufferSource();
+    turboSrc.buffer = buffer;
+    turboSrc.loop = true;
+    const turboFilter = ctx.createBiquadFilter();
+    turboFilter.type = 'bandpass';
+    turboFilter.frequency.value = 2600;
+    turboFilter.Q.value = 7;
+    const turboGain = ctx.createGain();
+    turboGain.gain.value = 0;
+    turboSrc.connect(turboFilter);
+    turboFilter.connect(turboGain);
+    turboGain.connect(master);
+    turboSrc.start();
+    this.turbo = { gain: turboGain, filter: turboFilter };
+
+    // Intake roar: a wider band that follows throttle and revs.
+    const intakeSrc = ctx.createBufferSource();
+    intakeSrc.buffer = buffer;
+    intakeSrc.loop = true;
+    const intakeFilter = ctx.createBiquadFilter();
+    intakeFilter.type = 'bandpass';
+    intakeFilter.frequency.value = 700;
+    intakeFilter.Q.value = 0.8;
+    const intakeGain = ctx.createGain();
+    intakeGain.gain.value = 0;
+    intakeSrc.connect(intakeFilter);
+    intakeFilter.connect(intakeGain);
+    intakeGain.connect(master);
+    intakeSrc.start();
+    this.intake = { gain: intakeGain, filter: intakeFilter };
 
     // tire screech
     const tire = ctx.createBufferSource();
@@ -139,6 +194,22 @@ export class AudioEngine {
     tireGain.connect(master);
     tire.start();
     this.tire = { tireGain, tireFilter };
+
+    // High, short chirp as a tyre first breaks away, separate from the slide.
+    const chirpSrc = ctx.createBufferSource();
+    chirpSrc.buffer = buffer;
+    chirpSrc.loop = true;
+    const chirpFilter = ctx.createBiquadFilter();
+    chirpFilter.type = 'bandpass';
+    chirpFilter.frequency.value = 3100;
+    chirpFilter.Q.value = 5;
+    const chirpGain = ctx.createGain();
+    chirpGain.gain.value = 0;
+    chirpSrc.connect(chirpFilter);
+    chirpFilter.connect(chirpGain);
+    chirpGain.connect(master);
+    chirpSrc.start();
+    this.chirp = { gain: chirpGain, filter: chirpFilter };
 
     // wind
     const wind = ctx.createBufferSource();
@@ -169,6 +240,27 @@ export class AudioEngine {
     nitroGain.connect(master);
     nitro.start();
     this.nitro = { nitroGain };
+
+    // Pooled rival engines. StereoPannerNode is widely supported; if a browser
+    // lacks it the voices still play centred.
+    this.rivals = [];
+    for (let i = 0; i < RIVAL_VOICE_COUNT; i++) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = 70;
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      let pan = null;
+      if (ctx.createStereoPanner) {
+        pan = ctx.createStereoPanner();
+        gain.connect(pan);
+        pan.connect(master);
+      } else {
+        gain.connect(master);
+      }
+      osc.start();
+      this.rivals.push({ osc, gain, pan });
+    }
 
     this.music = new MenuMusic(ctx, master, buffer);
     this.music.level = this.musicVolume;
@@ -213,6 +305,7 @@ export class AudioEngine {
     }
     const freq = profile.base + rpm * (profile.span * 0.82) + gear * (profile.span * 0.13);
     const throttle = state.throttle ? 1 : 0;
+    this.lastRpm = rpm;
 
     // Pinned on the limiter (top speed or a drift at the redline) gets the
     // same hard, uneven stutter as launch control: ta-ta-ta-ta instead of a
@@ -240,9 +333,51 @@ export class AudioEngine {
       0.08,
     );
 
-    const slipAmount = Math.max(0, Math.min(1, (state.slip - 1.6) / 10));
-    this.tire.tireGain.gain.setTargetAtTime(slipAmount * 0.16 + (state.handbrake ? 0.05 : 0), t, 0.06);
-    this.tire.tireFilter.frequency.setTargetAtTime(1500 + slipAmount * 900, t, 0.1);
+    // Exhaust: an octave down for the burly cars, in-phase for the high-strung
+    // ones. The LFO lopes at idle and settles as the revs climb.
+    const ex = this.exhaust;
+    ex.osc.frequency.setTargetAtTime(Math.max(24, freq * profile.exhaustRatio), t, 0.08);
+    ex.filter.frequency.setTargetAtTime(170 + speedN * 280 + throttle * 140, t, 0.08);
+    ex.gain.gain.setTargetAtTime((0.018 + profile.burble * 0.07) * (0.55 + speedN * 0.55), t, 0.1);
+    ex.lfo.frequency.setTargetAtTime(7 + rpm * 12, t, 0.1);
+    ex.depth.gain.setTargetAtTime(profile.burble * 0.035 * (1 - speedN * 0.75), t, 0.12);
+
+    // Forced induction: the whistle rises with boost pressure and revs, while
+    // the intake roars whenever the throttle opens.
+    const spool = turboAmount({
+      rpm, throttle: !!throttle, boosting: !!state.boosting, turbo: profile.turbo, speedN,
+    });
+    this.turbo.gain.gain.setTargetAtTime(spool * 0.038, t, 0.08);
+    this.turbo.filter.frequency.setTargetAtTime(1700 + spool * 2200 + rpm * 900, t, 0.1);
+    const intake = intakeAmount({ rpm, throttle: !!throttle, speedN });
+    this.intake.gain.gain.setTargetAtTime(intake * 0.03, t, 0.06);
+    this.intake.filter.frequency.setTargetAtTime(420 + rpm * 900 + throttle * 260, t, 0.08);
+
+    // Two tyre layers: a low growl once fully sideways and a brief high chirp
+    // when the contact patch first lets go.
+    const squeal = squealAmount({ slip: state.slip ?? 0, handbrake: !!state.handbrake, speedN });
+    const chirp = tireChirpAmount({ slip: state.slip ?? 0, speedN });
+    this.tire.tireGain.gain.setTargetAtTime(squeal * 0.16, t, 0.06);
+    this.tire.tireFilter.frequency.setTargetAtTime(1200 + squeal * 1500, t, 0.1);
+    this.chirp.gain.gain.setTargetAtTime(chirp * 0.05, t, 0.05);
+    this.chirp.filter.frequency.setTargetAtTime(2600 + squeal * 1200, t, 0.1);
+
+    // Nearest rivals only, loudest and most panned when alongside. main.js
+    // passes already-sorted { distance, lateral, rpm } entries.
+    const rivals = Array.isArray(state.rivals) ? state.rivals : [];
+    for (let i = 0; i < this.rivals.length; i++) {
+      const voice = this.rivals[i];
+      const info = rivals[i];
+      if (!info) {
+        voice.gain.gain.setTargetAtTime(0, t, 0.12);
+        continue;
+      }
+      const level = rivalGain(info.distance);
+      voice.gain.gain.setTargetAtTime(level * 0.05, t, 0.12);
+      const rivalRpm = Math.max(0, Math.min(1, Number(info.rpm) || 0));
+      voice.osc.frequency.setTargetAtTime(58 + rivalRpm * 115, t, 0.08);
+      if (voice.pan) voice.pan.pan.setTargetAtTime(rivalPan(info.lateral), t, 0.12);
+    }
 
     this.wind.windGain.gain.setTargetAtTime(speedN * speedN * 0.085, t, 0.15);
     this.nitro.nitroGain.gain.setTargetAtTime(state.boosting ? 0.06 : 0, t, 0.05);
@@ -254,9 +389,16 @@ export class AudioEngine {
     if (!this.ready) return;
     const t = this.ctx.currentTime;
     this.engine.engineGain.gain.setTargetAtTime(0, t, 0.2);
+    this.engine.shiftGain.gain.setTargetAtTime(1, t, 0.1);
+    this.exhaust.gain.gain.setTargetAtTime(0, t, 0.2);
+    this.exhaust.depth.gain.setTargetAtTime(0, t, 0.1);
+    this.turbo.gain.gain.setTargetAtTime(0, t, 0.1);
+    this.intake.gain.gain.setTargetAtTime(0, t, 0.1);
     this.tire.tireGain.gain.setTargetAtTime(0, t, 0.1);
+    this.chirp.gain.gain.setTargetAtTime(0, t, 0.1);
     this.wind.windGain.gain.setTargetAtTime(0, t, 0.2);
     this.nitro.nitroGain.gain.setTargetAtTime(0, t, 0.1);
+    for (const voice of this.rivals) voice.gain.gain.setTargetAtTime(0, t, 0.12);
   }
 
   /**
@@ -288,9 +430,17 @@ export class AudioEngine {
     );
     e.filter.frequency.setTargetAtTime((320 + rev * 2200) * profile.bright, t, 0.05);
 
+    // A pinned throttle still spools the turbo and opens the intake on the
+    // line, which is most of what makes launch control sound mechanical.
+    this.turbo.gain.gain.setTargetAtTime(pulsing ? 0.02 : 0, t, 0.08);
+    this.intake.gain.gain.setTargetAtTime(pulsing ? 0.018 : 0, t, 0.08);
+    this.exhaust.gain.gain.setTargetAtTime((0.02 + this.profile.burble * 0.06) * (0.6 + rev * 0.5), t, 0.1);
+    this.exhaust.depth.gain.setTargetAtTime(this.profile.burble * 0.03, t, 0.1);
     this.tire.tireGain.gain.setTargetAtTime(pulsing ? 0.03 : 0, t, 0.08);
+    this.chirp.gain.gain.setTargetAtTime(0, t, 0.1);
     this.wind.windGain.gain.setTargetAtTime(0, t, 0.15);
     this.nitro.nitroGain.gain.setTargetAtTime(0, t, 0.1);
+    for (const voice of this.rivals) voice.gain.gain.setTargetAtTime(0, t, 0.12);
   }
 
   /** Hand control back to the normal driving loop after the lights go out. */
@@ -298,11 +448,20 @@ export class AudioEngine {
     this.launchPhase = 0;
   }
 
-  /** Gearbox clack plus a small exhaust note when a new gear engages. */
-  shift(up = true) {
+  /** Torque cut, gearbox clack and an exhaust crack when a gear engages. */
+  shift(up = true, rpm = this.lastRpm) {
     if (!this.ready) return;
     const ctx = this.ctx;
     const t = ctx.currentTime;
+    // A brief cut on the shared drivetrain bus, independent of the per-frame
+    // gain targets, so the engine audibly unloads between gears.
+    const dip = this.engine.shiftGain.gain;
+    dip.cancelScheduledValues(t);
+    dip.setValueAtTime(dip.value, t);
+    dip.linearRampToValueAtTime(up ? 0.42 : 0.55, t + 0.03);
+    dip.linearRampToValueAtTime(1, t + (up ? 0.17 : 0.13));
+    const pop = shiftPop({ up, rpm: Number.isFinite(rpm) ? Math.max(0, Math.min(1, rpm)) : 0, turbo: this.profile.turbo });
+    if (pop > 0.02) this.exhaustPop(pop);
     this.tone(up ? 280 : 190, 0.05, 'square', 0.016);
     this.tone(up ? 96 : 74, 0.09, 'triangle', 0.028);
     const src = ctx.createBufferSource();
@@ -391,6 +550,27 @@ export class AudioEngine {
     gain.connect(this.master);
     src.start(t, Math.random() * 1.5);
     src.stop(t + 0.04);
+  }
+
+  /** Small, sharp crack at the tailpipe on a gear change. */
+  exhaustPop(volume = 0.04) {
+    if (!this.ready) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuffer;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.value = 760;
+    filter.Q.value = 1.2;
+    const gain = ctx.createGain();
+    gain.gain.setValueAtTime(Math.min(0.1, volume), t);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.055);
+    src.connect(filter);
+    filter.connect(gain);
+    gain.connect(this.master);
+    src.start(t, Math.random() * 1.5);
+    src.stop(t + 0.06);
   }
 
   /** Exhaust backfire: a short, low crack. */

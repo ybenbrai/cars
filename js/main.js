@@ -46,6 +46,7 @@ import { SectorTimer } from './sectors.js';
 import { bodyCircles, deepestContact } from './collisionMath.js';
 import { impactShake, contactShake } from './cameraShake.js';
 import { normalizeMarkerPaletteMode } from './markerPalette.js';
+import { RIVAL_VOICE_COUNT } from './audioProfiles.js';
 
 const FIXED = 1 / 120;
 // Release id stamped on module URLs by the build (`?v=…`); "dev" locally.
@@ -789,7 +790,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   const playerEntrant = entrants.find((e) => e.isPlayer);
   audio.init();
   audio.setMusic(false);
-  audio.setProfile(playerEntrant.def.category);
+  audio.setProfile(playerEntrant.def.category, playerEntrant.upgrades);
 
   disposeRace();
   // An unclaimed daily reward stays claimable back in the garage.
@@ -1732,6 +1733,33 @@ function toggleSound() {
   }
 }
 
+/**
+ * Nearest rivals as plain numbers for the pooled audio voices. Keeping
+ * Three.js objects out of audio.js means the sound layer can be tested and
+ * reasoned about on its own.
+ */
+function rivalAudioInfo(playerCar, racers) {
+  const list = [];
+  const px = playerCar.renderPos.x;
+  const pz = playerCar.renderPos.z;
+  // renderForward is refreshed every interpolated frame; `right` is not, so
+  // derive it here or the stereo pan would lag behind the steering.
+  const rx = -playerCar.renderForward.z;
+  const rz = playerCar.renderForward.x;
+  for (const racer of racers) {
+    if (racer.isPlayer) continue;
+    const dx = racer.car.renderPos.x - px;
+    const dz = racer.car.renderPos.z - pz;
+    list.push({
+      distance: Math.hypot(dx, dz),
+      lateral: dx * rx + dz * rz,
+      rpm: racer.car.rpmRatio,
+    });
+  }
+  list.sort((a, b) => a.distance - b.distance);
+  return list.slice(0, RIVAL_VOICE_COUNT);
+}
+
 function updateHud(dt) {
   if (!race) return;
   const car = race.player.car;
@@ -1751,7 +1779,7 @@ function updateHud(dt) {
     if (car.gear !== 'R' && race.time - race.lastShiftAt > 0.22) {
       race.lastShiftAt = race.time;
       hud.flashShift(car.gear);
-      audio.shift(up);
+      audio.shift(up, car.rpmRatio);
     }
     race.lastGear = car.gear;
   }
@@ -1999,6 +2027,7 @@ function tick(now, ms) {
         slip: car.locked ? Math.max(car.slip, 7) : car.slip,
         handbrake: input.handbrake || car.locked,
         boosting: car.boosting,
+        rivals: rivalAudioInfo(car, race.racers),
       }, dt);
       if (car.boosting) race.shake = Math.max(race.shake, 0.025);
     }

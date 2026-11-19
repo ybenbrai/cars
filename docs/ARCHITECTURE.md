@@ -53,6 +53,7 @@ gameplay modules do not reach into the DOM except where noted.
 | `js/cityWorld.js` | Free-roam city: drivable road surface, building/bounds/traffic collision, signal cycles, instanced traffic and sidewalk pedestrians |
 | `js/car.js` | Arcade vehicle physics, wall/city collision hook, off-road handling, nitro, drift state |
 | `js/vehicleMath.js` | Pure braking, coasting and drift-entry math shared by the car, AI and tests |
+| `js/audioProfiles.js` | Pure per-category engine/exhaust voices, tuning-aware character and audio envelope math |
 | `js/markerPalette.js` | Pure gate/minimap marker colours: default per-circuit theme or a colour-blind high-contrast set |
 | `js/data/upgrades.js` | Upgrade parts, levels, prices and physics multipliers |
 | `js/ghostLap.js` | Pure Time Trial ghost recording, storage and replay maths |
@@ -304,10 +305,21 @@ This keeps repeated garage/race cycles from leaking GPU memory.
 ## Audio and effects
 
 Audio is synthesized with Web Audio oscillators, filters and noise buffers — no
-audio files. Engine pitch and gain follow speed and throttle; tire noise follows
-slip; wind follows speed; discrete cues cover countdown, checkpoints, crashes,
-lap completion and UI actions. The context is created on the first user gesture
-to satisfy browser autoplay rules.
+audio files. `audioProfiles.js` is a pure module that resolves a car's category
+and tuning into engine/exhaust waves, brightness, turbo and lope, plus the
+envelopes for whistle, intake, squeal, tyre chirp and rival falloff; `audio.js`
+owns the graph and only reads those numbers.
+
+The engine voice has three oscillators plus a lower-octave exhaust oscillator
+with an idle-lope LFO. Both feed a shared `shiftGain` bus so a gear change can
+dip the drivetrain independently of the per-frame gain targets. Band-passed
+noise provides turbo whistle (spooled by revs, load and nitro), intake roar, a
+low slide squeal and a high breakaway chirp. Up to three pooled rival voices
+fade with distance and pan from the player's interpolated heading, so the cost
+is fixed regardless of grid size. Wind follows speed; discrete cues cover
+countdown, checkpoints, crashes, lap completion and UI actions. Every layer is
+silenced by `idle()` on pause, by mute and by Volume 0. The context is created
+on the first user gesture to satisfy browser autoplay rules.
 
 Effects use small pooled meshes for skid marks, smoke, dust, sparks and nitro
 flames. They read the car's slip, off-road and boost state, so they double as

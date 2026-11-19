@@ -359,6 +359,20 @@ the active gate highlighted as a pulsing diamond and the car shown as an arrow.
 Its marker colours follow the COLOUR-BLIND setting, but the diamond, dots and
 numbered rival discs keep their shapes either way.
 
+## Sounds
+
+The car's sound is another readout of what it is doing. Engine pitch follows the
+revs and gear, and each car has its own exhaust character — a muscle car lopes
+at idle, a hypercar screams. Upgrades change it too: boost and intake parts add
+a turbo whistle that spools with revs and throttle (louder on nitro) and a
+sharper intake roar, while more power deepens the exhaust note.
+
+Tyres chirp as they first break away, then settle into a sustained squeal the
+harder you slide; the handbrake adds to it. A gear change briefly cuts the
+engine and cracks the exhaust. The engines of the three nearest rivals fade in
+as you close on them and pan left or right with their position, so you can hear
+a car coming before you see it. Everything falls silent when you pause or mute.
+
 ## HUD
 
 - **Top center** — lap counter, current lap time and best lap. Under them,

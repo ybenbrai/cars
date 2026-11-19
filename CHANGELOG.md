@@ -52,6 +52,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Deeper procedural car audio. Every category now has its own exhaust voice as
+  well as its engine note, and tuning parts change the sound: more boost adds
+  turbo whistle and a sharper intake, while more power deepens the exhaust lope.
+  The turbo spools with revs and load, tyres chirp as they first break away
+  before settling into a squeal, gear changes cut the drivetrain and crack the
+  exhaust, and the three nearest rivals get quiet engines that fade with
+  distance and pan with their position. Still fully synthesized — no audio
+  files — and all new layers fall silent with pause, mute and Volume 0.
 - A COLOUR-BLIND setting for gates and minimap markers. Switching it on replaces
   the circuit's red/green-style state colours with neutral idle, amber next and
   blue passed, plus matching minimap markers. The arch pulse, diamond and
