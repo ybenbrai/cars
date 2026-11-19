@@ -1,4 +1,5 @@
 import { CITY_EXTENT, CITY_GRID, bridgeCrossings, createRiver } from './data/cityGrid.js';
+import { SECTOR_COUNT } from './sectors.js';
 
 const pad2 = (n) => String(n).padStart(2, '0');
 
@@ -25,6 +26,10 @@ export class HUD {
       lapDim: document.querySelector('.lap-line .dim'),
       lapTime: document.getElementById('lapTime'),
       bestTime: document.getElementById('bestTime'),
+      sectorLine: document.getElementById('sectorLine'),
+      sectorNum: document.getElementById('sectorNum'),
+      sectorTime: document.getElementById('sectorTime'),
+      sectorSplits: document.getElementById('sectorSplits'),
       position: document.getElementById('position'),
       positionOf: document.getElementById('positionOf'),
       speed: document.getElementById('speed'),
@@ -359,6 +364,45 @@ export class HUD {
 
   setBest(seconds) {
     this.el.bestTime.textContent = fmtTime(seconds);
+  }
+
+  /**
+   * Show the live sector, its running time and the three splits. A completed
+   * split is gold when it beats the stored best; a pending cell previews that
+   * sector's personal best as a dim target. Only changed text is written, so
+   * this is cheap to call every frame.
+   */
+  setSectors(timer, time, show = !!timer) {
+    const el = this.el;
+    if (!el.sectorLine) return;
+    const visible = !!show && !!timer;
+    if (visible !== this.last.sectorVisible) {
+      el.sectorLine.classList.toggle('hidden', !visible);
+      this.last.sectorVisible = visible;
+    }
+    if (!visible) return;
+
+    const num = `S${Math.min(timer.sector + 1, SECTOR_COUNT)}/${SECTOR_COUNT}`;
+    if (num !== this.last.sectorNum) {
+      el.sectorNum.textContent = num;
+      this.last.sectorNum = num;
+    }
+    const running = fmtTime(timer.elapsed(time));
+    if (running !== this.last.sectorRunning) {
+      el.sectorTime.textContent = running;
+      this.last.sectorRunning = running;
+    }
+    let html = '';
+    for (let i = 0; i < SECTOR_COUNT; i++) {
+      const split = timer.current[i];
+      const best = split != null && timer.isBest(i);
+      const shown = split != null ? split : timer.best[i];
+      html += `<span class="sector-cell${best ? ' best' : split == null ? ' dim' : ''}">${fmtTime(shown)}</span>`;
+    }
+    if (html !== this.last.sectorSplits) {
+      el.sectorSplits.innerHTML = html;
+      this.last.sectorSplits = html;
+    }
   }
 
   /** Show speeds in miles per hour instead of km/h. */

@@ -101,6 +101,29 @@ test('race totals are kept per lap count', () => {
   assert.equal(store.data.records['sunset-coast'].bestTotal, 180);
 });
 
+test('sector bests persist per circuit and only improve', () => {
+  const store = freshStore();
+  assert.deepEqual(store.bestSectorsFor('sunset-coast'), [null, null, null]);
+
+  assert.equal(store.recordSectors('sunset-coast', [12.5, null, 31]), true);
+  assert.deepEqual(store.bestSectorsFor('sunset-coast'), [12.5, null, 31]);
+  assert.equal(store.recordSectors('sunset-coast', [13, 22, NaN]), true);
+  assert.deepEqual(store.bestSectorsFor('sunset-coast'), [12.5, 22, 31]);
+  assert.equal(store.recordSectors('sunset-coast', [14, 25, 40]), false);
+  assert.deepEqual(store.bestSectorsFor('sunset-coast'), [12.5, 22, 31]);
+
+  // Survives an import the way a cloud save round-trip does, and junk is dropped.
+  const reloaded = freshStore();
+  reloaded.import(store.toJSON());
+  assert.deepEqual(reloaded.bestSectorsFor('sunset-coast'), [12.5, 22, 31]);
+
+  reloaded.import({
+    ...reloaded.toJSON(),
+    records: { 'sunset-coast': { bestSectors: [9, -1, 'x', 30] } },
+  });
+  assert.deepEqual(reloaded.bestSectorsFor('sunset-coast'), [9, null, null]);
+});
+
 test('loading drops legacy mixed-distance totals and junk records', () => {
   const store = freshStore();
   store.import({

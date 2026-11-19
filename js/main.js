@@ -42,6 +42,7 @@ import {
 import { CIRCUITS, getCircuit } from './data/circuits.js';
 import { getCareerEvent } from './data/career.js';
 import { getDifficulty, getMode, computeRewards, isFreeRunMode } from './economy.js';
+import { SectorTimer } from './sectors.js';
 import { bodyCircles, deepestContact } from './collisionMath.js';
 
 const FIXED = 1 / 120;
@@ -881,6 +882,9 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
     lastShiftAt: -1,
     goTimer: 0,
     lapStart: 0,
+    // Free sessions have no chequered flag to close a sector at.
+    sectors: isFreeRunMode(setup.mode) ? null
+      : new SectorTimer(track.length, store.bestSectorsFor(setup.circuit.id)),
     score: 0,
     driftTime: 0,
     driftBank: 0,
@@ -941,6 +945,7 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
   hud.setDriver(store.name, label);
   hud.setLap(1, race.laps, isFreeRunMode(race.mode));
   hud.setLapTime(0);
+  hud.setSectors(race.sectors, 0, !!race.sectors);
   hud.setBest(store.bestLapFor(setup.circuit.id));
   hud.setPosition(totalRacers, totalRacers);
   hud.setScore(0);
@@ -1102,11 +1107,14 @@ function onCross(racer) {
   // First crossing is the actual start of lap 1 (the grid is behind the line).
   if (racer.crossings === 1) {
     race.lapStart = race.time;
+    race.sectors?.start(race.time, racer.car.trackInfo?.dist ?? 0);
     hud.setLap(1, race.laps);
     race.ghostRec?.start();
     return;
   }
 
+  race.sectors?.finishLap(race.time);
+  if (race.sectors) store.recordSectors(race.circuit.id, race.sectors.best);
   const lapTime = race.time - race.lapStart;
   race.lapStart = race.time;
   let ghostBeaten = false;
@@ -1151,6 +1159,7 @@ function trackCrossings() {
       if (dot > 0.2) onCross(racer);
     }
     racer.prevDist = now;
+    if (racer.isPlayer) race.sectors?.update(now, race.time);
   }
 }
 
@@ -1715,6 +1724,7 @@ function updateHud(dt) {
   const freeDrive = isFreeRunMode(race.mode);
 
   hud.setLapTime(race.time - (race.player.crossings === 0 ? 0 : race.lapStart));
+  hud.setSectors(race.sectors, race.time);
   hud.setSpeed(car.speedKmh, car.gear, car.maxSpeedKmh);
   const rpm = car.rpmRatio;
   const limiter = state === 'racing' && car.revLimiter;
@@ -2689,6 +2699,7 @@ window.__sunsetDrift = {
   build: BUILD,
   get lap() { return race ? clamp(race.player.crossings || 1, 1, race.laps) : 1; },
   get nextGate() { return race?.nextGate ?? 1; },
+  get sectors() { return race?.sectors || null; },
   get raceTime() { return race?.time ?? 0; },
   get track() { return world?.track || null; },
   get scene() { return scene; },

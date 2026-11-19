@@ -32,11 +32,12 @@ Shipped:
 - Time of day and weather in race setup: DAY, NIGHT, clear and rain, with real
   lighting changes, wet tarmac and less grip in the rain.
 - Circuit selection through Race Setup and Career, with best laps in Profile.
+- Sector-time HUD: three distance thirds per lap, live sector time, splits and
+  personal bests saved per circuit.
 
 Still open:
 
 - Reverse layouts of existing circuits.
-- Sector-time HUD: per-sector splits alongside the lap time.
 
 ## 1.3 — Quality of life (Mostly shipped)
 

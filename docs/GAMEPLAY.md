@@ -339,9 +339,14 @@ the active gate highlighted and the car shown as an arrow.
 
 ## HUD
 
-- **Top center** — lap counter, current lap time and best lap. Free-run
-  sessions show `∞ / FREE DRIVE` instead of a lap total; City Roam shows
-  `∞ / FREE ROAM` and hides the position and lap blocks entirely.
+- **Top center** — lap counter, current lap time and best lap. Under them,
+  timed races show **SECTOR** with the live third of the lap (`S1/3` to `S3/3`)
+  and its running time, plus three splits. A finished split turns gold when it
+  beats your stored best; a pending one previews that sector's best as a dim
+  target. Sectors are equal thirds of the circuit and their personal bests are
+  saved per circuit. Free-run sessions show `∞ / FREE DRIVE` instead of a lap
+  total and hide the sector line; City Roam shows `∞ / FREE ROAM` and hides the
+  position and lap blocks entirely.
 - **Top left** — driver name; on touch, the borderless nitro panel.
 - **Top right** — sound, camera and pause buttons.
 - **Right** — minimap and total drift score.

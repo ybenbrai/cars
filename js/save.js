@@ -10,6 +10,7 @@ import {
 import { CIRCUITS, getCircuit } from './data/circuits.js';
 import { CAREER_EVENTS } from './data/career.js';
 import { practiceRentalFee } from './economy.js';
+import { cleanSectors } from './sectors.js';
 import { ACHIEVEMENTS, earnedNow } from './achievements.js';
 import { rewardStatus } from './dailyReward.js';
 import {
@@ -98,6 +99,7 @@ function mergeSave(raw) {
       save.records[id] = {
         bestLap: Number.isFinite(rec.bestLap) && rec.bestLap > 0 ? rec.bestLap : null,
         bestLaps: Array.isArray(rec.bestLaps) ? rec.bestLaps.filter((t) => Number.isFinite(t) && t > 0).slice(0, 10) : [],
+        bestSectors: cleanSectors(rec.bestSectors),
         bestTotals,
         // Older builds stored one mixed-distance total (practice sessions
         // included), so only a total recorded per lap count is trusted.
@@ -498,6 +500,31 @@ export class SaveStore {
 
   bestLapFor(circuitId) {
     return this.data.records[circuitId]?.bestLap ?? null;
+  }
+
+  /** Personal best for each of the three distance thirds on a circuit. */
+  bestSectorsFor(circuitId) {
+    return cleanSectors(this.data.records[circuitId]?.bestSectors);
+  }
+
+  /** Merge freshly driven splits into the circuit's sector records. */
+  recordSectors(circuitId, sectors) {
+    const next = cleanSectors(sectors);
+    if (!circuitId || next.every((t) => t == null)) return false;
+    const rec = this.data.records[circuitId] || { bestLap: null, bestTotal: null, bestLaps: [] };
+    const best = cleanSectors(rec.bestSectors);
+    let improved = false;
+    for (let i = 0; i < best.length; i++) {
+      if (next[i] == null) continue;
+      if (best[i] == null || next[i] < best[i]) {
+        best[i] = next[i];
+        improved = true;
+      }
+    }
+    rec.bestSectors = best;
+    this.data.records[circuitId] = rec;
+    if (improved) this.save();
+    return improved;
   }
 
   /** Best race time on a circuit over `laps` laps (3 by default). */
