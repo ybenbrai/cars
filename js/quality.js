@@ -1,7 +1,8 @@
-// Graphics quality: HIGH / MEDIUM / LOW, chosen by the player or (AUTO) by
-// watching real frame times during a race and stepping down when the game
-// cannot hold its frame rate. It never steps back up on its own, so the
-// picture does not flicker between levels.
+// Graphics quality: MOBILE / HIGH / MEDIUM / LOW, chosen by the player or
+// (AUTO) by watching real frame times during a race and stepping down when the
+// game cannot hold its frame rate. It never steps back up on its own, so the
+// picture does not flicker between levels. MOBILE is a fixed, phone-friendly
+// preset and is deliberately not part of AUTO's step-down ladder.
 
 export const QUALITY_LEVELS = [
   // Each level must look clearly different, not just run differently.
@@ -17,8 +18,14 @@ export const QUALITY_LEVELS = [
     id: 'high', label: 'HIGH', pixelRatio: 2, composerRatio: 1.75, shadows: true, bloom: true,
     shadowMap: 2048, drawDistance: 1, note: 'Best looking: full sharpness on high-DPI screens, detailed shadows.',
   },
+  // Appended after the AUTO ladder so low/medium/high keep indexes 0/1/2 and
+  // coarse-pointer phones still start at MEDIUM unless the player picks MOBILE.
+  {
+    id: 'mobile', label: 'MOBILE', pixelRatio: 0.75, composerRatio: 0.75, shadows: false, bloom: false,
+    shadowMap: 256, drawDistance: 0.5, note: 'For phones: 75% resolution, no shadows or glow, shorter view distance.',
+  },
 ];
-export const QUALITY_MODES = ['auto', 'high', 'medium', 'low'];
+export const QUALITY_MODES = ['auto', 'high', 'medium', 'low', 'mobile'];
 
 // Auto mode: step down when the average frame over WINDOW seconds is slower
 // than SLOW_MS (about 42 fps), after a short settle time.

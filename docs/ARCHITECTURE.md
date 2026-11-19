@@ -190,7 +190,9 @@ query, traffic lanes, sidewalks, building parcels, canal bridges and the roam
 minimap: 96 m blocks with boulevards every third line. The whole downtown is
 drivable, so no off-road penalty is applied; bucketed building colliders, the
 18 traffic cars and an outer extent push the car out and reflect inbound
-velocity. Traffic itself is
+velocity. Past the outer streets, `populateScenery()` adds a roam-only land
+apron, a sea plane and an instanced ring of snow-capped peaks as pure scenery;
+they have no colliders and do not change the driving bounds. Traffic itself is
 instanced (three meshes for bodies, cabins and lamps) and updated each frame
 with signal-aware target speeds at every grid junction, gap keeping, yielding to
 the player and random turns into the correct lane width. `turnDirection()`

@@ -135,6 +135,9 @@ for (let i = 1; i < 8; i++) {
 - Watch for a growing `renderer.info.memory.geometries` after repeated
   garage/race cycles; it should plateau, not climb.
 - Test at device pixel ratio 2 and at a small window size.
+- With the MOBILE graphics preset selected, confirm the renderer uses 75%
+  resolution with shadows, bloom and the cockpit mirror off, and that AUTO
+  still steps MEDIUM → LOW on slow frames.
 - Verify that pausing and returning does not fast-forward the simulation.
 
 ## Troubleshooting

@@ -1692,8 +1692,10 @@ function updateCamera(dt) {
   car.model.cockpit?.update(dt, car.steer, view === 'cockpit' && !input.lookBack);
   if (car.model.cockpit?.root.visible) {
     car.model.cockpit.updateGauges(car);
-    // The mirror costs an extra (small) render; skip it on LOW quality.
-    if (quality.current.id !== 'low') car.model.cockpit.renderMirror(renderer, scene);
+    // The mirror costs an extra (small) render; skip it on LOW/MOBILE quality.
+    if (quality.current.id !== 'low' && quality.current.id !== 'mobile') {
+      car.model.cockpit.renderMirror(renderer, scene);
+    }
   }
 
   // Accessibility: with camera shake off, impacts and nitro never shake it.

@@ -46,8 +46,10 @@ Shipped:
 - Sound and music volume sliders plus a persistent mute preference.
 - Auto Nitro with hysteresis: a spent bottle waits for a useful refill instead
   of strobing, and the manual N2O key still works.
-- Graphics presets (AUTO / HIGH / MEDIUM / LOW) in the pause menu, with AUTO
-  stepping down when a race cannot hold frame rate; phones start at MEDIUM.
+- Graphics presets (AUTO / HIGH / MEDIUM / LOW / MOBILE) in the pause menu, with
+  AUTO stepping down when a race cannot hold frame rate; phones start at MEDIUM.
+  MOBILE is a fixed low-cost preset for phones (75% resolution, no shadows,
+  bloom or cockpit mirror, shorter view distance).
 - Photo mode using the free camera and post pipeline, saving a watermarked PNG.
 - Readable markers: numbered, outlined rival discs, a larger player arrow and a
   pulsing next-checkpoint diamond; checkpoints are full-width glowing arches.
@@ -71,6 +73,9 @@ Still open:
 - Live traffic that obeys signals at every junction, plus 90 instanced walkers
   that use the crossings, wait for green and step aside for the player.
 - Solid building collisions, city bounds and drift-only rewards.
+- A sea and snow-capped mountain border past the outer streets, so the city no
+  longer ends in a void. Procedural instanced scenery with no colliders or race
+  props.
 - Shared `CITY` room online with live pose relay, late-join snapshots and clean
   join/leave; no countdown, results or ranked bookkeeping.
 
@@ -91,12 +96,11 @@ Shipped from this list:
 - Online leaderboards: global best laps and ranked seasons with divisions.
 - Installable PWA: manifest, network-first offline service worker and store
   publishing notes.
+- A dedicated mobile performance mode (the MOBILE graphics preset).
 
 Still open:
 
 - Split-screen or local hot-seat time attack.
-- A dedicated mobile performance mode. Phones currently start at MEDIUM and
-  AUTO steps down; there is no phone-specific preset toggle.
 
 ## Non-goals for now
 

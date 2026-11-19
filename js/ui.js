@@ -1330,7 +1330,7 @@ export class UI {
       </div>`;
     };
     $('pauseSettings').innerHTML = row('GRAPHICS', 'quality', settings.quality || 'auto', [
-      ['auto', 'AUTO'], ['high', 'HIGH'], ['medium', 'MED'], ['low', 'LOW'],
+      ['auto', 'AUTO'], ['high', 'HIGH'], ['medium', 'MED'], ['low', 'LOW'], ['mobile', 'MOBILE'],
     ]) + row('TURN SIGNALS', 'signals', settings.signals === false ? 'off' : 'on', [['on', 'ON'], ['off', 'OFF']])
       + row('AUTO NITRO', 'autoNitro', settings.autoNitro ? 'on' : 'off', [['on', 'ON'], ['off', 'OFF']])
       + `<p class="custom-note quality-note">${(QUALITY_LEVELS.find((q) => q.id === (settings.quality === 'auto' || !settings.quality ? 'high' : settings.quality)) || {}).note || ''}${

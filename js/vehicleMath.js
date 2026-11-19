@@ -166,6 +166,15 @@ export function revLimiterActive({ throttle, offroad, gear, rpm, drifting }) {
   return !!drifting && rpm > 0.86;
 }
 
+// Normal speed (m/s) that counts as a full-strength impact. Both circuit walls
+// and city collisions use this to turn a raw velocity into the 0–1 push that
+// drives camera shake, crash audio and sparks.
+export const IMPACT_SPEED = 16;
+
+export function impactFromSpeed(speed) {
+  return Number.isFinite(speed) ? clamp(Math.abs(speed) / IMPACT_SPEED, 0, 1) : 0;
+}
+
 /**
  * Wall contact response. Arcade rules: the speed running along the barrier is
  * kept almost intact, and only a small slice of the normal component bounces
@@ -177,7 +186,7 @@ export function revLimiterActive({ throttle, offroad, gear, rpm, drifting }) {
 export function wallResponse(vx, vz, nx, nz) {
   const vn = vx * nx + vz * nz;
   if (vn <= 0) return { vx, vz, vn, hit: 0, bounces: false };
-  const hit = clamp(vn / 16, 0, 1);
+  const hit = impactFromSpeed(vn);
   const tx = vx - nx * vn;
   const tz = vz - nz * vn;
   // A scrape should not scrub a meaningful amount of road speed.

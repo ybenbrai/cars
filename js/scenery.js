@@ -1087,6 +1087,76 @@ export function populateScenery(scene, track, circuit, options = {}) {
     const downtown = roam
       ? buildDowntown({ group, grid, addCollider }) : null;
 
+    if (roam) {
+      // The street grid is a square, but the environment's ground disc is
+      // round and stops at radius 1250, leaving the diagonal corners over a
+      // void. Add a land apron under the whole square, then let it fall away
+      // to a sea and ring the horizon with cheap low-poly peaks. Nothing here
+      // has colliders or race props: the ±1140 clamp stays the city boundary.
+      const apron = new THREE.Mesh(
+        new THREE.PlaneGeometry(CITY_EXTENT * 2 + 160, CITY_EXTENT * 2 + 160),
+        new THREE.MeshStandardMaterial({ color: palette.ground, roughness: 1, metalness: 0 }),
+      );
+      apron.rotation.x = -Math.PI / 2;
+      apron.position.y = -0.07;
+      group.add(apron);
+
+      const sea = new THREE.Mesh(
+        new THREE.PlaneGeometry(4800, 4800),
+        new THREE.MeshStandardMaterial({ color: 0x2b617c, roughness: 0.42, metalness: 0.12 }),
+      );
+      sea.rotation.x = -Math.PI / 2;
+      sea.position.y = -0.14;
+      group.add(sea);
+
+      const peaks = [];
+      const apronHalf = CITY_EXTENT + 80;
+      for (let i = 0; i < 44; i++) {
+        const angle = (i / 44) * Math.PI * 2 + (Math.random() - 0.5) * 0.08;
+        const edge = apronHalf / Math.max(Math.abs(Math.cos(angle)), Math.abs(Math.sin(angle)));
+        const radius = edge + 50 + Math.random() * 240;
+        const height = 90 + Math.random() * 130;
+        const base = height * (0.45 + Math.random() * 0.3);
+        peaks.push({
+          x: Math.cos(angle) * radius,
+          z: Math.sin(angle) * radius,
+          height, base,
+          color: [0x66707a, 0x79818a, 0x59636e][i % 3],
+        });
+      }
+      const peakGeo = new THREE.ConeGeometry(1, 1, 5, 1);
+      const mountains = new THREE.InstancedMesh(
+        peakGeo,
+        new THREE.MeshLambertMaterial({ flatShading: true }),
+        peaks.length,
+      );
+      const snow = new THREE.InstancedMesh(
+        peakGeo,
+        new THREE.MeshLambertMaterial({ color: 0xd7dde6, flatShading: true }),
+        peaks.length,
+      );
+      mountains.castShadow = false;
+      mountains.receiveShadow = false;
+      snow.castShadow = false;
+      snow.receiveShadow = false;
+      peaks.forEach((peak, i) => {
+        dummy.position.set(peak.x, peak.height / 2 - 0.14, peak.z);
+        dummy.rotation.set(0, Math.random() * Math.PI * 2, 0);
+        dummy.scale.set(peak.base, peak.height, peak.base);
+        dummy.updateMatrix();
+        mountains.setMatrixAt(i, dummy.matrix);
+        mountains.setColorAt(i, tmpColor.set(peak.color));
+        // A pale cap covers the top ~24%. Its base must be wider than the
+        // mountain at that height (base * 0.24) or it stays hidden inside.
+        dummy.position.set(peak.x, peak.height * 0.88 - 0.14, peak.z);
+        dummy.scale.set(peak.base * 0.3, peak.height * 0.24, peak.base * 0.3);
+        dummy.updateMatrix();
+        snow.setMatrixAt(i, dummy.matrix);
+      });
+      mountains.instanceColor.needsUpdate = true;
+      group.add(mountains, snow);
+    }
+
     if (!roam) {
     // Zebra crossings just before each junction, painted over the tarmac.
     const crossings = [];

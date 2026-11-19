@@ -14,6 +14,8 @@ import {
   revLimiterActive,
   wallAlign,
   wallResponse,
+  IMPACT_SPEED,
+  impactFromSpeed,
   driveAccel,
   launchAccel,
   powerConstant,
@@ -96,6 +98,17 @@ test('coast drag grows smoothly with speed', () => {
     assert.ok(current > previous);
     previous = current;
   }
+});
+
+test('impact strength turns a raw collision velocity into a 0-1 push', () => {
+  assert.equal(IMPACT_SPEED, 16);
+  assert.equal(impactFromSpeed(0), 0);
+  assert.equal(impactFromSpeed(-8), 0.5);
+  assert.equal(impactFromSpeed(8), 0.5);
+  assert.equal(impactFromSpeed(16), 1);
+  assert.equal(impactFromSpeed(60), 1, 'a fast hit cannot exceed a full push');
+  assert.equal(impactFromSpeed(NaN), 0);
+  assert.equal(wallResponse(16, 0, 1, 0).hit, impactFromSpeed(16));
 });
 
 test('a head-on wall hit recoils a little instead of stopping the car dead', () => {

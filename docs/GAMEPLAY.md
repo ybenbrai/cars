@@ -50,6 +50,12 @@ applies throttle). Camera, pause and the borderless nitro panel sit along
 the top. The game also pauses itself when the tab loses visibility during a race
 or countdown.
 
+Graphics quality is set in the pause menu: AUTO adapts to your device's frame
+rate, HIGH and MEDIUM trade detail for speed, LOW is the fastest general preset,
+and **MOBILE** is a phone-specific preset that renders at 75% resolution with no
+shadows, bloom or cockpit mirror and a shorter view distance. Phones start on
+AUTO at MEDIUM; pick MOBILE if you want the lowest-cost picture all the time.
+
 ## The cars
 
 Each car's performance comes from its spec sheet:
@@ -181,6 +187,7 @@ time; `RESTART SESSION` resets the run.
 City Roam is a free-drive session on **Downtown Run** with no laps, no checkpoints and no finish line. The race ribbon, barriers, gates and grandstand are not drawn: a `CityWorld` replaces the closed corridor with a real downtown, from narrow side streets to wide boulevards and the bridges over the canal. Buildings, the outer city bounds, other cars and pedestrians are solid; there is no off-road speed penalty, so cutting across a block never slows the car. The minimap shows the full street grid and its canal, with live traffic dots, instead of the race circuit.
 
 - **Street grid.** One shared definition feeds the painted roads, traffic lanes, building placement, sidewalks and minimap: 96 m blocks, boulevards every third street, sidewalks, curbs, lane markings and zebra crossings at boulevard junctions. The blocks are filled with instanced towers, mid-rise blocks, low houses and parks, with trees and lamps along the kerbs; a canal runs between two street lines and every north-south street becomes a bridge. Buildings are kept clear of the sidewalks so the walkways stay usable.
+- **Coast and mountains.** Beyond the outermost streets the land apron drops to a sea that stretches past the draw distance, and a ring of instanced low-poly peaks with snow caps closes the horizon. It is scenery only: the city bounds are still the driving limit, and no race props appear out here.
 - **Live traffic.** 18 instanced cars follow the grid, obey the signals at every downtown junction, keep a gap to the car ahead, brake for red lights, yield when you are in their lane, blink a turn indicator and turn at random junctions into the correct lane width.
 - **Working signals.** Junctions run a 14-second green → amber → red cycle, split into two alternating phase sets so adjacent blocks differ. Traffic checks the phase at every grid crossing and stops on red; lit signal heads mark every painted boulevard crossing.
 - **Pedestrians.** 90 instanced walkers use the sidewalks, avoiding buildings and the canal. They wait at boulevard crosswalks until their direction has green, keep crossing if the light changes mid-crossing and turn around where no crossing is painted. They step away and slow down when your car comes close; a light bump makes them stumble aside rather than vanishing through the bodywork.

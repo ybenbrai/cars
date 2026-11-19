@@ -12,6 +12,7 @@ import {
   turnDirection,
   createRiver,
 } from './data/cityGrid.js';
+import { impactFromSpeed } from './vehicleMath.js';
 
 // Free-roam city layer. The race track and its painted street grid already
 // exist; this adds the missing *simulation*: a drivable surface, solid
@@ -125,8 +126,8 @@ export class CityWorld {
           if (vn < 0) {
             car.vel.x -= 1.5 * vn * nx;
             car.vel.z -= 1.5 * vn * nz;
-            car.impact = Math.max(car.impact, Math.abs(vn));
-            car.wallHit = Math.max(car.wallHit, Math.abs(vn));
+            car.impact = Math.max(car.impact, impactFromSpeed(vn));
+            car.wallHit = Math.max(car.wallHit, impactFromSpeed(vn));
             car.wallNormal.x = nx;
             car.wallNormal.z = nz;
           }
@@ -149,7 +150,7 @@ export class CityWorld {
       if (vn < 0) {
         car.vel.x -= 1.4 * vn * nx;
         car.vel.z -= 1.4 * vn * nz;
-        car.impact = Math.max(car.impact, Math.abs(vn) * 0.6);
+        car.impact = Math.max(car.impact, impactFromSpeed(vn) * 0.6);
         t.speed *= 0.7;
       }
     }
@@ -170,8 +171,8 @@ export class CityWorld {
       if (vn < 0) {
         car.vel.x -= 0.3 * vn * nx;
         car.vel.z -= 0.3 * vn * nz;
-        car.impact = Math.max(car.impact, Math.abs(vn) * 0.15);
-        car.wallHit = Math.max(car.wallHit, Math.abs(vn) * 0.1);
+        car.impact = Math.max(car.impact, impactFromSpeed(vn) * 0.15);
+        car.wallHit = Math.max(car.wallHit, impactFromSpeed(vn) * 0.1);
         p.stumble = 1;
         p.dodge = Math.max(p.dodge, 1.5);
       }
@@ -180,13 +181,13 @@ export class CityWorld {
     const limit = this.extent - 12;
     if (Math.abs(car.pos.x) > limit) {
       car.pos.x = Math.sign(car.pos.x) * limit;
+      car.impact = Math.max(car.impact, impactFromSpeed(car.vel.x));
       car.vel.x *= -0.35;
-      car.impact = Math.max(car.impact, Math.abs(car.vel.x));
     }
     if (Math.abs(car.pos.z) > limit) {
       car.pos.z = Math.sign(car.pos.z) * limit;
+      car.impact = Math.max(car.impact, impactFromSpeed(car.vel.z));
       car.vel.z *= -0.35;
-      car.impact = Math.max(car.impact, Math.abs(car.vel.z));
     }
   }
 

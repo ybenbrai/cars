@@ -11,7 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Collision camera shake is much gentler: wall, building and car contact now
   shake roughly a third as hard as before, so a hit still reads as an impact
-  without throwing the picture around.
+  without throwing the picture around. City Roam collisions now feed the same
+  0–1 impact strength as circuit walls, so a fast building or boundary hit no
+  longer shakes the camera (and maxes the crash audio and sparks) with a raw
+  m/s velocity.
 - The VALENZA AETHER GT now renders the car's actual default materials: the
   GLB's palette slots are remapped to the game's paint, glass, rim and lamp
   materials, so paint, tint, brake lights, headlights and indicators respond
@@ -49,6 +52,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- City Roam now has a natural border: the street grid sits on a land apron that
+  falls away to a sea, with a ring of low-poly snow-capped mountains on the
+  horizon. It is procedural and instanced (a couple of extra draw calls), has no
+  colliders and adds no race props — the existing city clamp is still the limit.
+- A MOBILE graphics preset for phones: 75% render resolution, no shadows, bloom
+  or cockpit mirror, and a shorter draw distance. It is a fixed choice next to
+  AUTO / HIGH / MEDIUM / LOW and does not change AUTO's step-down behaviour.
 - Reverse layouts of every race circuit. Each direction starts at the same
   arch, keeps its nitro strips in place, and has its own best lap, race totals,
   sector bests and Time Trial ghost. Unlocking a circuit unlocks its reverse;
