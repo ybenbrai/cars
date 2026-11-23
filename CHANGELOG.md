@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Race toasts no longer cover the middle of the driving view. Nitro pickups,
+  lap and sector times, camera changes and similar popups now appear in the
+  top-left corner below the driver row, clear of the car, the centred lap
+  block, the minimap, the gauges and the touch pedals. Long messages wrap
+  inside the panel instead of stretching across the road, and touch layouts
+  get a lower offset so the toast clears the relocated nitro bar.
 - Collision camera shake is much gentler: wall, building and car contact now
   shake roughly a third as hard as before, so a hit still reads as an impact
   without throwing the picture around. City Roam collisions now feed the same
