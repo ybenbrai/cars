@@ -19,6 +19,7 @@ import {
   wheelspinAmount,
 } from './vehicleMath.js';
 import { RAIN_GRIP, wetGripFactor } from './conditions.js';
+import { applyContactImpulse } from './collisionMath.js';
 import { upgradeMultipliers } from './data/upgrades.js';
 
 const BASE = {
@@ -221,11 +222,7 @@ export class Car {
 
   /** Collision response used by the race director for car-to-car contact. */
   takeHit(strength, nx = 0, nz = 0) {
-    const push = clamp(strength, 0, 1);
-    this.impact = Math.max(this.impact, push);
-    this.vel.x += nx * push * 5.5;
-    this.vel.z += nz * push * 5.5;
-    this.vel.multiplyScalar(0.94);
+    applyContactImpulse(this, strength, nx, nz);
   }
 
   update(dt, input, track, world = null) {

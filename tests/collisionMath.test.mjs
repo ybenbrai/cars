@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { bodyCircles, deepestContact } from '../js/collisionMath.js';
+import {
+  applyContactImpulse, bodyCircles, contactImpulse, deepestContact, RUB_SPEED,
+} from '../js/collisionMath.js';
 
 function car(x, z, heading = 0, length = 4.8, width = 1.9) {
   return {
@@ -58,4 +60,36 @@ test('the deepest circle pair wins when several circles overlap', () => {
   assert.ok(contact);
   // The front of A and the rear of B are closest, so the normal points +z.
   assert.ok(contact.nz > 0.9);
+});
+
+test('gentle contact is a rub, not a collision', () => {
+  assert.equal(contactImpulse(0), 0);
+  assert.equal(contactImpulse(-10), 0);
+  assert.equal(contactImpulse(RUB_SPEED), 0);
+  assert.equal(contactImpulse(RUB_SPEED - 0.1), 0);
+  assert.ok(contactImpulse(8) > 0);
+  assert.ok(contactImpulse(20) > contactImpulse(8));
+  assert.equal(contactImpulse(1000), 1);
+});
+
+test('a sustained rub never drains a car of its speed', () => {
+  const car = { impact: 0, vel: { x: 0, z: 24 } };
+  for (let frame = 0; frame < 120; frame++) {
+    applyContactImpulse(car, contactImpulse(1.5), 1, 0);
+  }
+  assert.deepEqual(car.vel, { x: 0, z: 24 });
+  assert.equal(car.impact, 0);
+});
+
+test('a real hit is bounded and leaves speed along the car untouched', () => {
+  const car = { impact: 0, vel: { x: 0, z: 24 } };
+  applyContactImpulse(car, 1, 1, 0);
+  assert.equal(car.vel.z, 24, 'a side hit must not brake the car');
+  assert.ok(car.vel.x > 0 && car.vel.x <= 4.2 + 1e-9);
+  assert.equal(car.impact, 1);
+
+  const rear = { impact: 0, vel: { x: 0, z: -18 } };
+  applyContactImpulse(rear, 0.5, 0, 1);
+  assert.equal(rear.vel.x, 0);
+  assert.ok(rear.vel.z > -18 && rear.vel.z <= -18 + 2.1 + 1e-9);
 });

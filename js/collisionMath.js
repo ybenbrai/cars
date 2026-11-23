@@ -67,3 +67,32 @@ export function deepestContact(a, b) {
   }
   return best;
 }
+
+// A closing speed below this is a rub, not a collision. The bodies still get
+// separated, but no impulse or crash effects are applied. Without this gate a
+// car rubbing a rival for a second would be hit 60 times and lose all speed.
+export const RUB_SPEED = 2.5;
+const MAX_CONTACT_IMPULSE = 4.2; // m/s added along the contact normal
+const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+
+/** 0 for a gentle rub, 0–1 for a real hit, scaled by the closing speed. */
+export function contactImpulse(closingSpeed) {
+  if (!Number.isFinite(closingSpeed) || closingSpeed <= RUB_SPEED) return 0;
+  return clamp((closingSpeed - RUB_SPEED) / 12, 0.08, 1);
+}
+
+/**
+ * Apply one contact impulse to a car-like body (`vel` is a Vector3 or any
+ * `{ x, z }`). Only the velocity along the contact normal changes: a side rub
+ * must not scrub away the speed the driver is carrying down the road. There is
+ * deliberately no blanket damping here — repeating an impulse every physics
+ * step is what used to bring both cars to a standstill.
+ */
+export function applyContactImpulse(car, strength, nx, nz) {
+  const push = clamp(strength, 0, 1);
+  if (!push) return;
+  car.impact = Math.max(car.impact || 0, push);
+  const impulse = push * MAX_CONTACT_IMPULSE;
+  car.vel.x += nx * impulse;
+  car.vel.z += nz * impulse;
+}

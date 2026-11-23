@@ -45,7 +45,7 @@ import { CIRCUITS, getCircuit } from './data/circuits.js';
 import { getCareerEvent } from './data/career.js';
 import { getDifficulty, getMode, computeRewards, isFreeRunMode } from './economy.js';
 import { SectorTimer } from './sectors.js';
-import { bodyCircles, deepestContact } from './collisionMath.js';
+import { bodyCircles, contactImpulse, deepestContact } from './collisionMath.js';
 import { impactShake, contactShake } from './cameraShake.js';
 import { normalizeMarkerPaletteMode } from './markerPalette.js';
 import { RIVAL_VOICE_COUNT } from './audioProfiles.js';
@@ -1207,8 +1207,11 @@ function resolveCollisions() {
       b.pos.x += nx * penetration * shareB;
       b.pos.z += nz * penetration * shareB;
       const rel = (a.vel.x - b.vel.x) * nx + (a.vel.z - b.vel.z) * nz;
-      if (rel > 1.2) {
-        const push = clamp(rel / 18, 0.06, 1);
+      // Separation above always happens. A gentle rub must not apply a fresh
+      // impulse on every physics step: that used to drain all speed and shove
+      // both cars sideways until they looked broken.
+      const push = contactImpulse(rel);
+      if (push > 0) {
         if (!a.isRemote) a.takeHit(push * (b.isRemote ? 0.8 : 0.55), -nx, -nz);
         if (!b.isRemote) b.takeHit(push * (a.isRemote ? 0.8 : 0.55), nx, nz);
         if (race.contactCooldown <= 0) {

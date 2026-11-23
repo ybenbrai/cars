@@ -9,6 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Car-to-car contact no longer destroys both cars. A gentle side rub or rear
+  nudge now only separates the bodies: it does not fire a fresh impulse every
+  physics step or multiply the whole velocity by 0.94, which used to bleed away
+  all speed in about a second and shove cars sideways. Real impacts still kick
+  and flash, but the impulse is bounded and only changes speed across the contact,
+  so a side touch no longer brakes you or launches either car.
 - Audio now stays unlockable for the whole session. The first click, key press or
   touch resumes the Web Audio context and retries if a browser creates it
   suspended, so menu music and race sounds no longer disappear permanently

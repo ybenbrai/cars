@@ -126,8 +126,9 @@ rotate. Full stats for all twenty cars are in `js/data/cars.js`.
 - A new best lap is saved immediately, even if you quit afterwards.
 - The total time is the sum of all laps. Drift score is separate from the
   time result.
-- Hitting walls or rivals unsettles the car: contact scrubs momentum and kicks
-  the body sideways, but there is no health bar and no failure state.
+- Hitting a wall or another car unsettles it: a real impact scrubs momentum and
+  kicks the body sideways, while a gentle rub just pushes the cars apart. There
+  is no health bar and no failure state.
 - Kerbs count as track. On the dirt beyond them grip drops and the car eases
   down to about 80 % of its top speed (93 % for SUVs and off-roaders) over a
   couple of seconds rather than braking hard. `R` safely returns you to the
