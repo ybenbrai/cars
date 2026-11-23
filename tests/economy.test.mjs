@@ -18,8 +18,14 @@ import { CAREER_EVENTS, CAREER_SERIES, getCareerEvent } from '../js/data/career.
 
 const circuit = getCircuit('sunset-coast');
 
-test('four difficulties and six modes are available', () => {
-  assert.deepEqual(DIFFICULTIES.map((d) => d.id), ['easy', 'normal', 'hard', 'expert']);
+test('five difficulties and six modes are available', () => {
+  assert.deepEqual(DIFFICULTIES.map((d) => d.id), ['easy', 'normal', 'hard', 'expert', 'legend']);
+  const expert = DIFFICULTIES.find((d) => d.id === 'expert');
+  const legend = getDifficulty('legend');
+  assert.ok(legend.pace > expert.pace);
+  assert.ok(legend.steer > expert.steer);
+  assert.ok(legend.mistakes < expert.mistakes);
+  assert.ok(legend.reward > expert.reward);
   assert.deepEqual(MODES.map((m) => m.id), ['career', 'quick', 'time-trial', 'practice', 'drift', 'roam']);
   assert.equal(isFreeRunMode('drift'), true);
   assert.equal(isFreeRunMode('practice'), true);
@@ -44,18 +50,37 @@ test('circuits have distinct layouts, palettes and unlock ranks', () => {
 });
 
 test('career ladder is ordered and complete', () => {
-  assert.ok(CAREER_SERIES.length >= 4);
-  assert.ok(CAREER_EVENTS.length >= 8);
+  assert.deepEqual(CAREER_SERIES.map((s) => s.id), ['rookie', 'club', 'pro', 'elite', 'legend', 'endurance', 'invitational']);
+  assert.ok(CAREER_EVENTS.length >= 22);
   assert.equal(new Set(CAREER_EVENTS.map((e) => e.id)).size, CAREER_EVENTS.length);
+  // The old ten-event ladder stays at the front so existing saves keep unlocking
+  // the same next event. Everything new is appended after it.
+  assert.deepEqual(CAREER_EVENTS.slice(0, 10).map((e) => e.id), [
+    'first-light', 'coastal-run', 'neon-nights', 'redwood-rhythm', 'dust-devil',
+    'velocity-gp', 'alpine-gauntlet', 'coral-twilight', 'dockyard-duel', 'sunset-championship',
+  ]);
   for (const event of CAREER_EVENTS) {
     assert.ok(CAREER_SERIES.some((series) => series.id === event.series), event.id);
     assert.ok(CIRCUITS.some((track) => track.id === event.circuitId), event.id);
-    assert.ok(event.laps >= 1 && event.opponents >= 1);
+    assert.ok(event.laps >= 1 && event.opponents >= 1 && event.opponents <= 9);
+    assert.ok(Number.isInteger(event.rank) && event.rank >= 0 && event.rank <= 4);
     assert.ok(event.targetPosition >= 1 && event.targetPosition <= event.opponents + 1);
     assert.ok(event.reward > 0);
     assert.ok(DIFFICULTIES.some((d) => d.id === event.difficulty), event.id);
   }
   assert.equal(getCareerEvent('missing'), null);
+});
+
+test('the late career is longer and harder than the opening events', () => {
+  const opener = CAREER_EVENTS[0];
+  const finale = CAREER_EVENTS[CAREER_EVENTS.length - 1];
+  assert.equal(finale.difficulty, 'legend');
+  assert.ok(finale.laps > opener.laps);
+  assert.ok(finale.opponents > opener.opponents);
+  assert.ok(finale.reward > opener.reward * 5);
+  const endurance = CAREER_EVENTS.filter((e) => e.series === 'endurance');
+  assert.equal(endurance.length, 4);
+  assert.ok(endurance.every((e) => e.laps >= 7));
 });
 
 test('rewards scale with position, laps and difficulty', () => {

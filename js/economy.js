@@ -6,16 +6,17 @@ export const DIFFICULTIES = [
   { id: 'normal', label: 'Normal', blurb: 'A fair fight. Mistakes cost positions.', pace: 0.88, steer: 1.0, mistakes: 0.12, reward: 1.0, color: '#5ce1e6' },
   { id: 'hard', label: 'Hard', blurb: 'They brake late and defend hard.', pace: 0.96, steer: 1.08, mistakes: 0.05, reward: 1.2, color: '#ffc46b' },
   { id: 'expert', label: 'Expert', blurb: 'Your car, driven at the limit. No gifts.', pace: 1.0, steer: 1.14, mistakes: 0.015, reward: 1.45, color: '#ff3d7f' },
+  { id: 'legend', label: 'Legend', blurb: 'The fastest company in the game. They do not make mistakes.', pace: 1.04, steer: 1.18, mistakes: 0.006, reward: 1.7, color: '#ff6a2f' },
 ];
 
 export const MODES = [
   {
     id: 'career', label: 'CAREER', short: 'Build a legacy',
-    blurb: 'Ten events across four series. Earn credits, unlock circuits and climb from Rookie to Legend.',
+    blurb: 'Twenty-two events across seven series. Earn credits, unlock circuits and climb from Rookie to Legend.',
   },
   {
     id: 'quick', label: 'QUICK RACE', short: 'Pick a fight',
-    blurb: 'Choose any owned car, any unlocked circuit and up to seven AI opponents.',
+    blurb: 'Choose any owned car, any unlocked circuit and up to nine AI opponents.',
   },
   {
     id: 'time-trial', label: 'TIME TRIAL', short: 'Beat the clock',
@@ -48,7 +49,7 @@ export function getMode(id) {
   return MODES.find((m) => m.id === id) || MODES[1];
 }
 
-const POSITION_FACTOR = [1.85, 1.3, 0.98, 0.76, 0.58, 0.44, 0.34, 0.26];
+const POSITION_FACTOR = [1.85, 1.3, 0.98, 0.76, 0.58, 0.44, 0.34, 0.26, 0.2, 0.16, 0.12, 0.1];
 
 // Practice lets you rent a circuit you have not unlocked yet. The price
 // doubles for each rank between you and the circuit's requirement.

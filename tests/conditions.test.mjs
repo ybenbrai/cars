@@ -68,8 +68,14 @@ test('the sun is hidden at night and stars only appear at night', () => {
 });
 
 test('night and rain career events declare their conditions', () => {
-  const nightEvents = ['neon-nights', 'coral-twilight', 'dockyard-duel'];
-  const rainEvents = ['redwood-rhythm', 'alpine-gauntlet', 'dockyard-duel'];
+  const nightEvents = [
+    'neon-nights', 'coral-twilight', 'dockyard-duel',
+    'night-gauntlet', 'dockyard-revenge', 'harbour-enduro', 'neon-finale',
+  ];
+  const rainEvents = [
+    'redwood-rhythm', 'alpine-gauntlet', 'dockyard-duel',
+    'storm-coast', 'forest-watch', 'dockyard-revenge',
+  ];
   for (const id of nightEvents) {
     const event = CAREER_EVENTS.find((e) => e.id === id);
     assert.ok(event, id);

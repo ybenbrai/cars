@@ -60,7 +60,7 @@ test('the AI plans to brake inside the car\'s real stopping distance', () => {
   const radius = 20;
   const cornerStart = 115;
   const cornerDistance = cornerStart + 5 - 3; // first sample minus the 3 m buffer
-  for (const id of ['normal', 'hard', 'expert']) {
+  for (const id of ['normal', 'hard', 'expert', 'legend']) {
     const car = makeCar();
     const driver = createAiDriver(car, makeTrack(cornerStart, radius), difficulty(id), 0, 'TEST');
     const cornerSpeed = driver.cornerSpeed(radius);
@@ -83,4 +83,5 @@ test('faster difficulty settings carry more speed into the same corner', () => {
   assert.ok(target('easy') < target('normal'));
   assert.ok(target('normal') < target('hard'));
   assert.ok(target('hard') < target('expert'));
+  assert.ok(target('expert') <= target('legend'));
 });

@@ -113,17 +113,18 @@ const T = {
   Normal: ['Normal', 'Normal', 'Normal', 'Normal'],
   Hard: ['Difícil', 'Difficile', 'Difícil', 'Schwer'],
   Expert: ['Experto', 'Expert', 'Especialista', 'Experte'],
-  'Ten events across four series. Earn credits, unlock circuits and climb from Rookie to Legend.': [
-    'Diez pruebas en cuatro series. Gana créditos, desbloquea circuitos y asciende de Novato a Leyenda.',
-    'Dix épreuves en quatre séries. Gagnez des crédits, débloquez des circuits et passez de Débutant à Légende.',
-    'Dez provas em quatro séries. Ganhe créditos, desbloqueie circuitos e suba de Novato a Lenda.',
-    'Zehn Rennen in vier Serien. Verdiene Credits, schalte Strecken frei und steig vom Rookie zur Legende auf.',
+  Legend: ['Leyenda', 'Légende', 'Lenda', 'Legende'],
+  'Twenty-two events across seven series. Earn credits, unlock circuits and climb from Rookie to Legend.': [
+    'Veintidós pruebas en siete series. Gana créditos, desbloquea circuitos y asciende de Novato a Leyenda.',
+    'Vingt-deux épreuves en sept séries. Gagnez des crédits, débloquez des circuits et passez de Débutant à Légende.',
+    'Vinte e duas provas em sete séries. Ganhe créditos, desbloqueie circuitos e suba de Novato a Lenda.',
+    'Zweiundzwanzig Rennen in sieben Serien. Verdiene Credits, schalte Strecken frei und steig vom Rookie zur Legende auf.',
   ],
-  'Choose any owned car, any unlocked circuit and up to seven AI opponents.': [
-    'Cualquier coche tuyo, cualquier circuito desbloqueado y hasta siete rivales.',
-    'N’importe quelle voiture possédée, tout circuit débloqué et jusqu’à sept adversaires.',
-    'Qualquer carro seu, qualquer circuito liberado e até sete adversários.',
-    'Jedes eigene Auto, jede freigeschaltete Strecke und bis zu sieben KI-Gegner.',
+  'Choose any owned car, any unlocked circuit and up to nine AI opponents.': [
+    'Cualquier coche tuyo, cualquier circuito desbloqueado y hasta nueve rivales.',
+    'N’importe quelle voiture possédée, tout circuit débloqué et jusqu’à neuf adversaires.',
+    'Qualquer carro seu, qualquer circuito liberado e até nove adversários.',
+    'Jedes eigene Auto, jede freigeschaltete Strecke und bis zu neun KI-Gegner.',
   ],
   'Empty track. Three laps. Every circuit keeps its own lap record.': [
     'Pista vacía. Tres vueltas. Cada circuito guarda su récord.',

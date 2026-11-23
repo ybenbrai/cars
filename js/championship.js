@@ -5,7 +5,7 @@
 
 import { CAREER_EVENTS } from './data/career.js';
 
-export const POINTS = [25, 18, 15, 12, 10, 8, 6, 4];
+export const POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 3, 2, 1, 1];
 
 export const RIVALS = {
   rookie: [
@@ -27,6 +27,21 @@ export const RIVALS = {
     { name: 'L. FONTAINE', skill: 0.7 },
     { name: 'Y. ISHIKAWA', skill: 0.8 },
     { name: 'C. MERCER', skill: 0.9 },
+  ],
+  legend: [
+    { name: 'F. NAKASHIMA', skill: 0.82 },
+    { name: 'P. LINDGREN', skill: 0.9 },
+    { name: 'V. ALMEIDA', skill: 0.97 },
+  ],
+  endurance: [
+    { name: 'T. BERGSTRÖM', skill: 0.78 },
+    { name: 'I. OKONKWO', skill: 0.86 },
+    { name: 'G. SARTORI', skill: 0.94 },
+  ],
+  invitational: [
+    { name: 'N. PETROVA', skill: 0.88 },
+    { name: 'R. DELGADO', skill: 0.95 },
+    { name: 'S. WOLFGANG', skill: 0.99 },
   ],
 };
 

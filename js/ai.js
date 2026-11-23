@@ -26,7 +26,7 @@ const PERSONALITIES = [
 
 // How close to the car's real cornering limit each difficulty drives
 // (1 = the physical limit), and how late it brakes.
-const LIMIT = { easy: 0.72, normal: 0.84, hard: 0.93, expert: 1.0 };
+const LIMIT = { easy: 0.72, normal: 0.84, hard: 0.93, expert: 1.0, legend: 1.0 };
 
 // Racecraft per difficulty: how hard they defend, how much they lean on a car
 // alongside, how well they time nitro and how keenly they chase bottles.
@@ -35,6 +35,7 @@ const TACTICS = {
   normal: { defend: 0.45, lean: 0.25, nitro: 0.6, seek: 0.6 },
   hard: { defend: 0.85, lean: 0.7, nitro: 0.9, seek: 0.9 },
   expert: { defend: 1, lean: 1, nitro: 1, seek: 1 },
+  legend: { defend: 1, lean: 1, nitro: 1, seek: 1 },
 };
 
 export class AIDriver {

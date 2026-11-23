@@ -57,6 +57,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- The old final series is now **ELITE CUP**, and SUNSET CHAMPIONSHIP is the gate
+  to the new ladder rather than the end of it. Only presentation changed: both
+  event IDs, rewards and completion rules stay compatible with existing saves.
 - Rain is much slipperier: wet tyre grip and braking drop to 72 % of dry,
   steering loses 10 % of its bite, and lateral grip falls further with speed as
   the tyres start to plane on standing water. Hard stops and late turn-ins now
@@ -67,6 +70,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A much bigger career ladder: **22 events across seven series**, up from ten
+  events in four. The original ten are untouched and still come first, so every
+  existing save keeps the same unlock chain. After SUNSET CHAMPIONSHIP come the
+  LEGEND LEAGUE (faster company, reversed circuits, wet night races), the
+  ENDURANCE CIRCUIT (seven to nine laps) and the INVITATIONAL (nine-car grids
+  ending in the eight-lap SUNSET LEGEND). Difficulties rise from Easy through
+  Legend, with longer races, bigger grids and higher rewards at every step.
+- Grids of up to nine AI rivals in Quick Race and the late career events, and a
+  new **Legend** difficulty above Expert: 4 % more pace, sharper steering,
+  almost no mistakes and a 70 % reward bonus.
 - Wheelspin off the line. Flooring the throttle asks more of the tyres than the
   contact patch can take, so the driven wheels spin for a few tenths of a second,
   flare the revs, waste part of the drive force and make a dedicated rubber

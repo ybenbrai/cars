@@ -144,6 +144,34 @@ Gates are checked as circles, not planes: radius `12` for the finish line and
 `11` for checkpoints. This keeps detection forgiving at high speed. Passing a
 gate out of order does nothing; the car must reach the active gate.
 
+## Career ladder
+
+Career is a chain of **22 events in seven series**. Meet an event's objective —
+a podium, a top-two finish or a win — to clear it, unlock the next event and open
+the circuit that event uses. Cleared events can be replayed for 30 % of their
+purse. The first ten events are unchanged; the newer ones were appended after
+SUNSET CHAMPIONSHIP, so older saves keep their place on the ladder.
+
+| Series | Events | What escalates |
+| --- | ---: | --- |
+| ROOKIE SEASON | 2 | Short daylight races, 3–4 rivals |
+| CLUB CUP | 2 | Night and rain, 5 rivals |
+| PRO TOUR | 4 | Every surface, 6–7 rivals |
+| ELITE CUP | 2 | Expert pace, 4–6 laps, 7 rivals |
+| LEGEND LEAGUE | 4 | Legend pace, reversed circuits, wet night races, 8–9 rivals |
+| ENDURANCE CIRCUIT | 4 | 7–9 laps and 8–9 rivals |
+| INVITATIONAL | 4 | Legend pace, 6–8 laps, nine-car grids, ending in SUNSET LEGEND |
+
+Difficulty climbs **Easy → Normal → Hard → Expert → Legend**. Legend rivals run
+4 % faster, steer more sharply and make almost no mistakes; the difficulty
+bonus pays 70 % above the base purse. Quick Race uses the same five levels and
+allows up to **nine AI rivals** (ten cars including you).
+
+Each series keeps its own championship table: your best finish in every event
+you have raced against three named rivals, with a gold, silver or bronze trophy
+once the whole series is cleared. Points are paid down to tenth place, so a
+back-marker finish in a big grid still scores.
+
 ## Practice sessions
 
 Practice has no opponents and no lap limit, and **every circuit is open** even

@@ -97,6 +97,22 @@ test('clearing a career event unlocks the next event circuit once', () => {
   assert.equal(replay.unlocks.length, 0);
 });
 
+test('appended career events keep the old unlock chain and open the new ladder', () => {
+  const store = freshStore();
+  const finale = CAREER_EVENTS.find((e) => e.id === 'sunset-championship');
+  const next = CAREER_EVENTS[CAREER_EVENTS.indexOf(finale) + 1];
+  assert.equal(next.id, 'night-gauntlet');
+  assert.ok(!store.circuitUnlocked(next.circuitId));
+
+  const cleared = store.completeRace(race({ mode: 'career', eventId: finale.id, position: 1 }));
+  assert.deepEqual(cleared.unlocks.map((u) => u.id), [next.circuitId]);
+  assert.ok(store.circuitUnlocked(next.circuitId));
+  assert.ok(store.data.career.completed.includes(finale.id));
+
+  const replay = store.completeRace(race({ mode: 'career', eventId: finale.id, position: 1 }));
+  assert.equal(replay.unlocks.length, 0);
+});
+
 test('time trials report no race position', () => {
   const result = computeRewards({ mode: 'time-trial', circuit: getCircuit('velocity-park'), laps: 3, position: 1 });
   assert.equal(result.position, null);

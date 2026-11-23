@@ -611,7 +611,7 @@ function resolveRaceConfig(config = {}) {
   const circuit = getCircuit(circuitId);
   const difficulty = getDifficulty(config.difficulty || event?.difficulty || 'normal');
   const solo = mode.id === 'time-trial' || isFreeRunMode(mode.id);
-  const opponents = solo ? 0 : clamp(Math.round(config.opponents ?? event?.opponents ?? 3), 1, 7);
+  const opponents = solo ? 0 : clamp(Math.round(config.opponents ?? event?.opponents ?? 3), 1, 9);
   const laps = solo ? (isFreeRunMode(mode.id) ? Infinity : 3) : (config.laps || event?.laps || circuit.laps || 3);
   // Career and daily events use the conditions written into the event (day /
   // clear when it has none). Quick races use the TIME OF DAY and WEATHER picks.

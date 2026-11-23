@@ -33,8 +33,10 @@ feel good immediately, but leave enough depth to chase a clean lap.
   the real thing. Start with 30,000 CR and earn your way up.
 - **A real garage.** Change paint, finish, rims, spoiler, stripes, tint,
   underglow and the license plate with a live 3D preview.
-- **Ten circuits, forward and reverse, six modes.** Career (ten events), Quick
-  Race against up to seven AI rivals on four difficulty levels, Time Trial,
+- **Ten circuits, forward and reverse, six modes.** Career (22 events across
+  seven series, from Rookie Season to the Legend League, Endurance Circuit and
+  Invitational), Quick Race against up to nine AI rivals on five difficulty
+  levels, Time Trial,
   Practice, Free Drift and **City Roam**. Each direction keeps its own record
   book. Practice opens every circuit; locked ones are rented per session. Free Drift runs solo with no clock and pays out on drift score.
   Practice also has a dedicated airport-style test runway: a 3.6 km straight for

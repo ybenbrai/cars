@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { CAREER_EVENTS } from '../js/data/career.js';
-import { POINTS, rivalPositions, seriesStandings } from '../js/championship.js';
+import { POINTS, RIVALS, rivalPositions, seriesStandings } from '../js/championship.js';
 
 const rookie = CAREER_EVENTS.filter((e) => e.series === 'rookie');
 
@@ -15,6 +15,7 @@ test('no points before any event is raced', () => {
 
 test('rivals never share a position with the player or each other', () => {
   for (const event of CAREER_EVENTS) {
+    assert.ok(RIVALS[event.series]?.length >= 3, `${event.id} has no championship rivals`);
     for (let p = 1; p <= event.opponents + 1; p++) {
       const pos = rivalPositions(event.series, event, p);
       assert.ok(!pos.includes(p), `${event.id} P${p}`);
@@ -35,4 +36,19 @@ test('winning every event in a series earns the gold trophy and maximum points',
 test('standings are stable between visits', () => {
   const best = { [rookie[0].id]: 3 };
   assert.deepEqual(seriesStandings('rookie', best), seriesStandings('rookie', best));
+});
+
+test('the expanded series award points down to the back of a ten-car grid', () => {
+  assert.ok(POINTS.length >= 10);
+  assert.ok(POINTS[8] > 0 && POINTS[9] > 0);
+  for (const series of ['legend', 'endurance', 'invitational']) {
+    const events = CAREER_EVENTS.filter((e) => e.series === series);
+    assert.equal(events.length, 4);
+    const best = Object.fromEntries(events.map((e) => [e.id, 1]));
+    const table = seriesStandings(series, best, 'ME');
+    assert.equal(table.rank, 1);
+    assert.equal(table.trophy, 'gold');
+    assert.equal(table.total, 4);
+    assert.equal(table.rows[0].points, POINTS[0] * 4);
+  }
 });
