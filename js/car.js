@@ -16,7 +16,9 @@ import {
   launchAccel,
   powerConstant,
   topSpeedFor,
+  wheelspinAmount,
 } from './vehicleMath.js';
+import { RAIN_GRIP, wetGripFactor } from './conditions.js';
 import { upgradeMultipliers } from './data/upgrades.js';
 
 const BASE = {
@@ -83,6 +85,10 @@ export class Car {
     this.wallNormal = { x: 0, z: 0 };
     this.offroad = false;
     this.trackInfo = null;
+    this.wet = false;
+    this.wetGrip = 1;
+    // Traction breakaway 0–1 (distinct from `wheelSpin`, the visual rotation).
+    this.wheelspin = 0;
     this.wheelSpin = 0;
     this.prevSpeed = 0;
     this.roll = 0;
@@ -122,6 +128,10 @@ export class Car {
     this.maxSpeed = topSpeedFor(def) * m.speed;
     this.powerK = powerConstant(def) * m.accel;
     this.launch = launchAccel(def, this.physics.grip) * m.launch;
+    // Engine torque demand for wheelspin stays dry. Rain is applied to
+    // `launch` (the traction-limited drive force) separately, so greasy tarmac
+    // means more spin for the same throttle, not less torque from the engine.
+    this.engineLaunch = this.launch;
     this.turnRate = BASE.turn * this.physics.turn;
     this.grip = BASE.grip * this.physics.grip;
     this.driftThreshold = 6.5 * this.physics.slide;
@@ -146,6 +156,8 @@ export class Car {
     this.wallNormal.z = 0;
     this.offroad = false;
     this.trackInfo = null;
+    this.wheelspin = 0;
+    this.wetGrip = 1;
     this.wheelSpin = 0;
     this.prevSpeed = 0;
     this.gearNum = 1;
@@ -240,6 +252,9 @@ export class Car {
     const speedN = clamp(Math.abs(vF) / this.maxSpeed, 0, 1);
     const speedSteer = clamp(Math.abs(vF) / 14, 0, 1);
     const highSpeedDamp = 1 - 0.34 * speedN;
+    // Standing water robs the tyres of lateral bite as speed builds. This is
+    // applied on top of the flat RAIN_GRIP loss already in `this.grip`.
+    this.wetGrip = wetGripFactor(speedN, this.wet);
 
     // ── drift state
     const speedAbs = Math.abs(vF);
@@ -300,13 +315,29 @@ export class Car {
     let nR = vR;
 
     this.boosting = !!input.boost && this.boost > 0.5 && !this.offroad;
+    const boostDrive = BASE.boostPower * p.boost * pace;
     if (this.boosting) {
       this.boost = Math.max(0, this.boost - this.nitroBurn * dt);
-      nF += BASE.boostPower * p.boost * pace * dt;
+      nF += boostDrive * dt;
     }
 
     const offroad = this.offroad;
     const maxNow = this.maxSpeed * pace * (offroad ? this.offroadPace : 1) + (this.boosting ? 7 : 0);
+
+    // Hard throttle on a low-grip surface asks for more force than the contact
+    // patch can deliver. The spin ramps up over a few tenths of a second, so a
+    // quick tap off the line hooks up while flooring it lights the tyres up.
+    const rawSpin = offroad ? 0 : wheelspinAmount({
+      throttle: throttle && !brake && nF > -0.5 ? 1 : 0,
+      speed: Math.max(0, nF),
+      maxSpeed: maxNow,
+      powerK: this.powerK * pace,
+      launch: this.engineLaunch * pace,
+      grip: this.physics.grip,
+      wetGrip: this.wet ? RAIN_GRIP * this.wetGrip : 1,
+      extraDrive: this.boosting ? boostDrive * 1.45 : 0,
+    });
+    this.wheelspin = damp(this.wheelspin, rawSpin, rawSpin > this.wheelspin ? 6 : 10, dt);
 
     if (throttle) {
       if (nF < -0.5) {
@@ -315,7 +346,9 @@ export class Car {
         const drive = driveAccel({
           speed: nF, maxSpeed: maxNow, powerK: this.powerK, launch: this.launch,
         });
-        nF += drive * pace * (this.boosting ? 1.45 : 1) * dt;
+        // Spinning tyres waste part of the drive as smoke and noise instead of
+        // moving the car. Feathering the throttle keeps the whole force.
+        nF += drive * pace * (this.boosting ? 1.45 : 1) * (1 - this.wheelspin * 0.3) * dt;
       }
     }
     if (brake) {
@@ -348,7 +381,7 @@ export class Car {
 
     // Locked tyres have little sideways grip either: any cornering speed
     // turns into a slide.
-    const baseGrip = (offroad ? BASE.offroadGrip : this.grip) * (this.locked ? 0.16 : 1);
+    const baseGrip = (offroad ? BASE.offroadGrip : this.grip * this.wetGrip) * (this.locked ? 0.16 : 1);
     const slideGrip = handbrake ? BASE.grip * 0.15 * p.slide : BASE.grip * 0.3 * p.slide;
     const grip = baseGrip + (Math.min(baseGrip, slideGrip) - baseGrip) * this.driftHold;
     nR *= Math.exp(-grip * dt);
@@ -424,7 +457,10 @@ export class Car {
     }
 
     this.braking = !!brake || handbrake;
-    if (!this.locked) this.wheelSpin += (nF * dt) / this.def.body.wheelRadius;
+    if (!this.locked) {
+      // Spinning tyres turn faster than the road speed alone would suggest.
+      this.wheelSpin += (nF * dt * (1 + this.wheelspin * 2.2)) / this.def.body.wheelRadius;
+    }
     this.model.setSpin(this.wheelSpin);
     this.model.setSteer(this.steer);
     this.model.setBraking(this.braking);
@@ -439,6 +475,11 @@ export class Car {
     // A real drift (or handbrake slide) on the throttle spins the wheels up.
     if (this.drifting && this.throttle > 0) rpmTarget = Math.max(rpmTarget, 0.62 + clamp(this.slip / 30, 0, 0.3));
     else if (this.throttle > 0 && wheel < 0.5) rpmTarget = 0.35;
+    // Wheelspin flares the revs on the line even before the car moves, which
+    // gives the driver a visual cue to back out of the throttle.
+    if (this.wheelspin > 0.12 && this.throttle > 0 && wheel < 6) {
+      rpmTarget = Math.max(rpmTarget, 0.42 + this.wheelspin * 0.33);
+    }
     this.rpmSmooth = this.rpmSmooth ?? IDLE_RPM;
     this.rpmSmooth += (rpmTarget - this.rpmSmooth) * (1 - Math.exp(-14 * dt));
     const pitchTarget = clamp(-accel * 0.0024, -0.035, 0.035);

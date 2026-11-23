@@ -81,6 +81,16 @@ export function intakeAmount({ rpm = 0, throttle = false, speedN = 0 } = {}) {
   return clamp((throttle ? 0.55 : 0.08) + rpm * 0.35 + speedN * 0.15, 0, 1);
 }
 
+/** Low, rough scrub of the driven tyres spinning up off the line. */
+export function wheelspinSound({ wheelspin = 0, wet = false, speedN = 0 } = {}) {
+  const spin = clamp(Number.isFinite(wheelspin) ? wheelspin : 0, 0, 1);
+  if (spin <= 0) return 0;
+  // Wet launches spin more easily and make a softer, splashier noise; once the
+  // car is moving the regular slide layers take over.
+  const range = clamp(1 - speedN * 0.8, 0.2, 1);
+  return clamp(spin * range * (wet ? 1.15 : 1), 0, 1);
+}
+
 /** Sustained tyre squeal once the car is properly sliding. */
 export function squealAmount({ slip = 0, handbrake = false, speedN = 0 } = {}) {
   if (speedN < 0.05) return 0;

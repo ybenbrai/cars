@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Audio now stays unlockable for the whole session. The first click, key press or
+  touch resumes the Web Audio context and retries if a browser creates it
+  suspended, so menu music and race sounds no longer disappear permanently
+  after a missed or delayed unlock. Volume and music are re-applied whenever the
+  context comes back from a tab switch or OS suspension.
 - Race toasts no longer cover the middle of the driving view. Nitro pickups,
   lap and sector times, camera changes and similar popups now appear in the
   top-left corner below the driver row, clear of the car, the centred lap
@@ -52,12 +57,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Rain is much slipperier: wet tyre grip and braking drop to 72 % of dry,
+  steering loses 10 % of its bite, and lateral grip falls further with speed as
+  the tyres start to plane on standing water. Hard stops and late turn-ins now
+  need noticeably more road in the wet.
 - Refreshed `docs/ROADMAP.md`: shipped features are now marked as such and the
   work that genuinely remains is listed explicitly. The old "Upgrades is the
   next planned feature" and "no pedestrians in this version" notes were stale.
 
 ### Added
 
+- Wheelspin off the line. Flooring the throttle asks more of the tyres than the
+  contact patch can take, so the driven wheels spin for a few tenths of a second,
+  flare the revs, waste part of the drive force and make a dedicated rubber
+  scrub sound (a splashier one in rain). Spin builds while the throttle stays
+  pinned, so a gentle tap hooks up; nitro and wet starts make it much easier to
+  light the tyres up. The effect fades out by about a third of top speed.
 - Deeper procedural car audio. Every category now has its own exhaust voice as
   well as its engine note, and tuning parts change the sound: more boost adds
   turbo whistle and a sharper intake, while more power deepens the exhaust lope.

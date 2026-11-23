@@ -7,6 +7,7 @@ import {
   turboAmount,
   intakeAmount,
   squealAmount,
+  wheelspinSound,
   tireChirpAmount,
   rivalGain,
   rivalPan,
@@ -74,6 +75,15 @@ test('intake roar responds to throttle and revs', () => {
   for (const v of [coast, pull, intakeAmount({ rpm: 9, throttle: true, speedN: 9 })]) {
     assert.ok(v >= 0 && v <= 1);
   }
+});
+
+test('wheelspin scrub is loudest off the line and stronger in the wet', () => {
+  assert.equal(wheelspinSound({ wheelspin: 0 }), 0);
+  const start = wheelspinSound({ wheelspin: 0.8 });
+  assert.ok(start > 0);
+  assert.ok(wheelspinSound({ wheelspin: 0.8, speedN: 0.8 }) < start);
+  assert.ok(wheelspinSound({ wheelspin: 0.8, wet: true }) > start);
+  assert.ok(wheelspinSound({ wheelspin: 2, wet: true }) <= 1);
 });
 
 test('tyre squeal grows with slip, speed and handbrake', () => {

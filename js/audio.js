@@ -1,7 +1,7 @@
 import { MenuMusic } from './music.js';
 import {
   ENGINE_PROFILES, RIVAL_VOICE_COUNT, engineProfile, turboAmount, intakeAmount,
-  squealAmount, tireChirpAmount, rivalGain, rivalPan, shiftPop, isValidWave,
+  squealAmount, tireChirpAmount, wheelspinSound, rivalGain, rivalPan, shiftPop, isValidWave,
 } from './audioProfiles.js';
 
 export class AudioEngine {
@@ -20,6 +20,7 @@ export class AudioEngine {
     this.limiterPhase = 0;
     this.music = null;
     this.wantMusic = false;
+    this.resumePending = false;
     // Player volume settings, 0–1.
     this.volume = 1;
     this.musicVolume = 1;
@@ -67,7 +68,7 @@ export class AudioEngine {
 
   init() {
     if (this.ready) {
-      if (this.ctx.state === 'suspended') this.ctx.resume();
+      this.resume();
       return;
     }
     const Ctx = window.AudioContext || window.webkitAudioContext;
@@ -211,6 +212,23 @@ export class AudioEngine {
     chirpSrc.start();
     this.chirp = { gain: chirpGain, filter: chirpFilter };
 
+    // Wheelspin: a rough, lower rubber scrub while the driven tyres spin
+    // faster than the road. Wet launches get a splashier, higher layer.
+    const spinSrc = ctx.createBufferSource();
+    spinSrc.buffer = buffer;
+    spinSrc.loop = true;
+    const spinFilter = ctx.createBiquadFilter();
+    spinFilter.type = 'bandpass';
+    spinFilter.frequency.value = 1100;
+    spinFilter.Q.value = 0.9;
+    const spinGain = ctx.createGain();
+    spinGain.gain.value = 0;
+    spinSrc.connect(spinFilter);
+    spinFilter.connect(spinGain);
+    spinGain.connect(master);
+    spinSrc.start();
+    this.wheelspin = { gain: spinGain, filter: spinFilter };
+
     // wind
     const wind = ctx.createBufferSource();
     wind.buffer = buffer;
@@ -268,7 +286,36 @@ export class AudioEngine {
     this.ready = true;
     this.applyVolume(1);
     if (this.wantMusic) this.music.start();
-    if (ctx.state === 'suspended') ctx.resume();
+    // Some browsers leave a context suspended even when created inside a
+    // gesture. Keep listening for the transition and re-apply the master/music
+    // levels whenever it finally starts running.
+    ctx.addEventListener?.('statechange', () => {
+      if (ctx.state !== 'running') return;
+      this.applyVolume(0.05);
+      if (this.wantMusic) this.music.start();
+    });
+    // `resume()` is the only caller of init(); it finishes the unlock on return.
+  }
+
+  /**
+   * Create (if needed) and resume the context from a real user gesture.
+   * Resolves to whether the context is actually running, so callers can keep
+   * retrying on later taps instead of assuming the first one worked.
+   */
+  resume() {
+    if (!this.ready) this.init();
+    const ctx = this.ctx;
+    if (!ctx) return Promise.resolve(false);
+    const onRunning = () => {
+      this.applyVolume(0.05);
+      if (this.wantMusic) this.music.start();
+      return true;
+    };
+    if (ctx.state === 'running') return Promise.resolve(onRunning());
+    return Promise.resolve(ctx.resume()).then(() => {
+      if (ctx.state !== 'running') return false;
+      return onRunning();
+    }).catch(() => false);
   }
 
   applyVolume(t) {
@@ -288,6 +335,14 @@ export class AudioEngine {
 
   update(state, dt = 1 / 60) {
     if (!this.ready) return;
+    // A context can be suspended again by the OS or a tab switch. Retry once
+    // at a time; the global gesture listeners in main.js do the real unlocking.
+    if (this.ctx.state !== 'running' && !this.resumePending) {
+      this.resumePending = true;
+      Promise.resolve(this.ctx.resume()).catch(() => {}).finally(() => {
+        this.resumePending = false;
+      });
+    }
     const t = this.ctx.currentTime;
     const speedN = Math.min(1, state.speed / (state.maxSpeed || 56));
     const profile = this.profile;
@@ -361,6 +416,11 @@ export class AudioEngine {
     this.tire.tireFilter.frequency.setTargetAtTime(1200 + squeal * 1500, t, 0.1);
     this.chirp.gain.gain.setTargetAtTime(chirp * 0.05, t, 0.05);
     this.chirp.filter.frequency.setTargetAtTime(2600 + squeal * 1200, t, 0.1);
+    const spin = wheelspinSound({ wheelspin: state.wheelspin ?? 0, wet: !!state.wet, speedN });
+    this.wheelspin.gain.gain.setTargetAtTime(spin * 0.16, t, 0.05);
+    this.wheelspin.filter.frequency.setTargetAtTime(
+      950 + (state.wet ? 550 : 0) + speedN * 250, t, 0.1,
+    );
 
     // Nearest rivals only, loudest and most panned when alongside. main.js
     // passes already-sorted { distance, lateral, rpm } entries.
@@ -396,6 +456,7 @@ export class AudioEngine {
     this.intake.gain.gain.setTargetAtTime(0, t, 0.1);
     this.tire.tireGain.gain.setTargetAtTime(0, t, 0.1);
     this.chirp.gain.gain.setTargetAtTime(0, t, 0.1);
+    this.wheelspin.gain.gain.setTargetAtTime(0, t, 0.1);
     this.wind.windGain.gain.setTargetAtTime(0, t, 0.2);
     this.nitro.nitroGain.gain.setTargetAtTime(0, t, 0.1);
     for (const voice of this.rivals) voice.gain.gain.setTargetAtTime(0, t, 0.12);
@@ -438,6 +499,7 @@ export class AudioEngine {
     this.exhaust.depth.gain.setTargetAtTime(this.profile.burble * 0.03, t, 0.1);
     this.tire.tireGain.gain.setTargetAtTime(pulsing ? 0.03 : 0, t, 0.08);
     this.chirp.gain.gain.setTargetAtTime(0, t, 0.1);
+    this.wheelspin.gain.gain.setTargetAtTime(0, t, 0.1);
     this.wind.windGain.gain.setTargetAtTime(0, t, 0.15);
     this.nitro.nitroGain.gain.setTargetAtTime(0, t, 0.1);
     for (const voice of this.rivals) voice.gain.gain.setTargetAtTime(0, t, 0.12);

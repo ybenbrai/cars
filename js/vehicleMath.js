@@ -51,6 +51,35 @@ export function driveAccel({ speed, maxSpeed, powerK, launch }) {
   return Math.min(launch, powerK / Math.max(v, 1)) * (1 - n * n * n);
 }
 
+// Tyres can only put about this much acceleration down before they start to
+// spin, expressed per unit of grip. Below it the car hooks up; above it the
+// contact patch breaks away and the excess becomes smoke and noise instead of
+// forward speed.
+export const TRACTION_LIMIT = 7.6;
+
+/**
+ * How much the driven tyres are spinning (0–1) when the driver asks for more
+ * force than the contact patch can take. It only happens near the start, where
+ * the engine is traction-limited: feathering the throttle keeps the tyres
+ * hooked up, while flooring it (or firing nitro) lights them up and wastes
+ * part of the drive force.
+ */
+export function wheelspinAmount({
+  throttle = 0, speed = 0, maxSpeed = 56, powerK = 0, launch = 0,
+  grip = 1, wetGrip = 1, extraDrive = 0,
+} = {}) {
+  if (!throttle) return 0;
+  const v = Math.max(0, Number.isFinite(speed) ? speed : 0);
+  const top = Math.max(1, Number.isFinite(maxSpeed) ? maxSpeed : 56);
+  // The effect fades out by roughly a third of top speed: once the car is
+  // moving, power (not traction) is the limit again.
+  const launchWindow = clamp(1 - v / (top * 0.33), 0, 1);
+  if (launchWindow <= 0) return 0;
+  const demand = driveAccel({ speed: v, maxSpeed: top, powerK, launch }) + Math.max(0, extraDrive);
+  const limit = Math.max(0.5, TRACTION_LIMIT * Math.max(0, grip) * Math.max(0, wetGrip));
+  return clamp((demand / limit - 1) * 1.6, 0, 1) * launchWindow;
+}
+
 /**
  * Coasting deceleration (m/s²): engine braking + rolling resistance, plus aero
  * drag that grows with speed. It must stay weaker than the brake pedal at every

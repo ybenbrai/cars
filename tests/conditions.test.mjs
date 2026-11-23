@@ -3,7 +3,9 @@ import { test } from 'node:test';
 
 import { CAREER_EVENTS } from '../js/data/career.js';
 import { CIRCUITS } from '../js/data/circuits.js';
-import { normalizeConditions, paletteFor, RAIN_GRIP } from '../js/conditions.js';
+import {
+  normalizeConditions, paletteFor, RAIN_GRIP, RAIN_TURN, wetGripFactor,
+} from '../js/conditions.js';
 
 const luminance = (hex) => {
   const n = parseInt(hex.replace('#', ''), 16);
@@ -27,8 +29,18 @@ test('rain shortens the fog, darkens the road and costs grip', () => {
   const wet = paletteFor(base, { weather: 'rain' });
   assert.ok(wet.fogFar < base.fogFar);
   assert.ok(luminance(wet.road) < luminance(base.road));
-  assert.ok(RAIN_GRIP < 1 && RAIN_GRIP > 0.7);
+  assert.ok(RAIN_GRIP < 0.8 && RAIN_GRIP > 0.7, 'wet grip should be clearly lower than dry');
+  assert.ok(RAIN_TURN < 1 && RAIN_TURN > 0.8, 'wet steering should lose some bite');
   assert.equal(paletteFor(base, {}).wet, undefined);
+});
+
+test('hydroplaning grows with speed only in the wet', () => {
+  assert.equal(wetGripFactor(0, true), 1);
+  assert.equal(wetGripFactor(1, true) < wetGripFactor(0.5, true), true);
+  assert.ok(wetGripFactor(1, true) < 0.9);
+  assert.equal(wetGripFactor(1, false), 1);
+  assert.equal(wetGripFactor(99, true), wetGripFactor(1, true));
+  assert.equal(wetGripFactor(NaN, true), 1);
 });
 
 test('day is genuinely brighter than night on every circuit', () => {

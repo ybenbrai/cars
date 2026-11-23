@@ -51,9 +51,10 @@ gameplay modules do not reach into the DOM except where noted.
 | `js/data/cityGrid.js` | Single source of truth for the drivable grid, sidewalks, canal, bridges and building parcels |
 | `js/downtown.js` | Dense roam-only city: instanced buildings, street trees and lamps, canal water and bridge decks |
 | `js/cityWorld.js` | Free-roam city: drivable road surface, building/bounds/traffic collision, signal cycles, instanced traffic and sidewalk pedestrians |
-| `js/car.js` | Arcade vehicle physics, wall/city collision hook, off-road handling, nitro, drift state |
-| `js/vehicleMath.js` | Pure braking, coasting and drift-entry math shared by the car, AI and tests |
-| `js/audioProfiles.js` | Pure per-category engine/exhaust voices, tuning-aware character and audio envelope math |
+| `js/car.js` | Arcade vehicle physics, wall/city collision hook, off-road handling, nitro, drift, wet grip and wheelspin state |
+| `js/conditions.js` | Time/weather palettes plus pure wet-grip, steering and hydroplaning constants |
+| `js/vehicleMath.js` | Pure braking, coasting, drift-entry and traction-demand/wheelspin math shared by the car, AI and tests |
+| `js/audioProfiles.js` | Pure per-category engine/exhaust voices, tuning-aware character and audio envelope math, including wheelspin scrub |
 | `js/markerPalette.js` | Pure gate/minimap marker colours: default per-circuit theme or a colour-blind high-contrast set |
 | `js/data/upgrades.js` | Upgrade parts, levels, prices and physics multipliers |
 | `js/ghostLap.js` | Pure Time Trial ghost recording, storage and replay maths |
@@ -64,7 +65,7 @@ gameplay modules do not reach into the DOM except where noted.
 | `js/carModel.js` | Procedural car mesh, materials, wheels, spoilers, stripes, plate, underglow, body tilt |
 | `js/garageScene.js` | Independent WebGL renderer and turntable scene for the garage |
 | `js/effects.js` | Skid marks, drift smoke, dust, sparks, nitro flames |
-| `js/audio.js` | Procedural engine, tire, wind, impact and UI sounds through Web Audio |
+| `js/audio.js` | Procedural engine, tire, wheelspin, wind, impact and UI sounds through Web Audio, with resilient context unlocking |
 | `js/input.js` | Keyboard, pointer/touch and gamepad normalization |
 | `js/hud.js` | Race HUD DOM updates, lap formatting, minimap rendering |
 | `js/ui.js` | Screen navigation, garage lists, customization controls, results and pause actions |
@@ -147,14 +148,19 @@ Handbrake grip is 15% of normal, so lateral velocity survives and the car slides
 2. Rotate heading by `-steer × turnRate × speedFactor × highSpeedDamp × driftSteer`.
 3. Re-project velocity.
 4. Apply nitro drain and forward thrust.
-5. Apply throttle/brake/reverse, coast drag, handbrake drag and off-road drag.
-6. Damp lateral velocity by grip and clamp it.
+5. Compare traction demand with the available grip to get a damped wheelspin
+   amount (worse in rain or on nitro), then apply throttle/brake/reverse, coast
+   drag, handbrake drag and off-road drag, wasting part of the drive while the
+   tyres spin.
+6. Damp lateral velocity by grip (including speed-based hydroplaning in rain)
+   and clamp it.
 7. Integrate position.
 8. Query the nearest track sample; update off-road state.
 9. Clamp to the wall corridor and reflect normal velocity on impact. In City
    Roam this step calls `world.constrain(car)` instead: the city surface decides
    off-road, and buildings, traffic and the outer bounds are solid.
-10. Derive `speed`, `slip`, `drifting`, nitro gain, gear, wheel spin, roll/pitch.
+10. Derive `speed`, `slip`, `drifting`, nitro gain, gear, wheel spin, rev flare
+    from wheelspin, roll/pitch.
 
 ### Tuning constants
 
@@ -167,6 +173,11 @@ Handbrake grip is 15% of normal, so lateral velocity survives and the car slides
 | Turn rate | 1.8 rad/s |
 | Grip | 10.5 |
 | Off-road grip | 3.4 |
+| Rain grip / braking | 0.72 × dry |
+| Rain steering | 0.90 × dry |
+| Hydroplaning loss | up to 0.18 at top speed |
+| Wheelspin traction limit | 7.6 × tyre grip |
+| Wheelspin drive loss | up to 30 % |
 | Boost power | 16 |
 | Drift threshold | 6.5 × car slide |
 | Nitro drain | 26/s |
@@ -307,19 +318,23 @@ This keeps repeated garage/race cycles from leaking GPU memory.
 Audio is synthesized with Web Audio oscillators, filters and noise buffers — no
 audio files. `audioProfiles.js` is a pure module that resolves a car's category
 and tuning into engine/exhaust waves, brightness, turbo and lope, plus the
-envelopes for whistle, intake, squeal, tyre chirp and rival falloff; `audio.js`
-owns the graph and only reads those numbers.
+envelopes for whistle, intake, squeal, tyre chirp, wheelspin scrub and rival
+falloff; `audio.js` owns the graph and only reads those numbers.
 
 The engine voice has three oscillators plus a lower-octave exhaust oscillator
 with an idle-lope LFO. Both feed a shared `shiftGain` bus so a gear change can
 dip the drivetrain independently of the per-frame gain targets. Band-passed
 noise provides turbo whistle (spooled by revs, load and nitro), intake roar, a
-low slide squeal and a high breakaway chirp. Up to three pooled rival voices
+low slide squeal, a high breakaway chirp and a low wheelspin scrub that shifts
+brighter on wet launches. Up to three pooled rival voices
 fade with distance and pan from the player's interpolated heading, so the cost
 is fixed regardless of grid size. Wind follows speed; discrete cues cover
 countdown, checkpoints, crashes, lap completion and UI actions. Every layer is
 silenced by `idle()` on pause, by mute and by Volume 0. The context is created
-on the first user gesture to satisfy browser autoplay rules.
+on the first user gesture to satisfy browser autoplay rules. Global pointer,
+keyboard and touch listeners stay armed for the whole session, and `resume()`
+retries suspended contexts from later gestures, so a missed or delayed unlock
+cannot leave the game silent.
 
 Effects use small pooled meshes for skid marks, smoke, dust, sparks and nitro
 flames. They read the car's slip, off-road and boost state, so they double as

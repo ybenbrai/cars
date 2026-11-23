@@ -11,8 +11,22 @@ export const WEATHERS = [
   { id: 'rain', label: 'RAIN' },
 ];
 
-// Tyre grip and braking in the wet, relative to dry.
-export const RAIN_GRIP = 0.84;
+// Tyre grip and braking in the wet, relative to dry. Wet tarmac is genuinely
+// greasy: a hard stop or a late turn-in needs far more road than in the dry.
+export const RAIN_GRIP = 0.72;
+// Steering response in the wet. Less bite from the front tyres, so a quick
+// flick no longer rotates the car as eagerly as it does on a dry line.
+export const RAIN_TURN = 0.9;
+// Extra lateral grip lost at speed on standing water (hydroplaning). Applied
+// on top of RAIN_GRIP, growing with the square of speed.
+export const RAIN_HYDROPLANE = 0.18;
+
+/** Lateral grip multiplier from hydroplaning, 1 when dry or stationary. */
+export function wetGripFactor(speedN = 0, wet = false) {
+  if (!wet) return 1;
+  const n = Math.min(1, Math.max(0, Number.isFinite(speedN) ? speedN : 0));
+  return 1 - RAIN_HYDROPLANE * n * n;
+}
 
 export function normalizeConditions(c = {}) {
   return {

@@ -19,6 +19,8 @@ import {
   driveAccel,
   launchAccel,
   powerConstant,
+  wheelspinAmount,
+  TRACTION_LIMIT,
   topSpeedFor,
   TOP_SPEED_SCALE,
 } from '../js/vehicleMath.js';
@@ -28,6 +30,29 @@ const HEAVY = new Set(['offroad', 'suv', 'muscle']);
 function carBrake(car) {
   return 11.5 * car.physics.grip * (HEAVY.has(car.category) ? 0.86 : 1);
 }
+
+test('wheelspin only happens when the throttle asks for too much traction', () => {
+  assert.equal(wheelspinAmount({ throttle: 0, speed: 0, launch: 12 }), 0);
+  assert.equal(wheelspinAmount({ throttle: 1, speed: 40, maxSpeed: 56, launch: 12 }), 0);
+  const easy = wheelspinAmount({ throttle: 1, speed: 0, maxSpeed: 56, launch: 6, powerK: 600, grip: 1 });
+  const fierce = wheelspinAmount({ throttle: 1, speed: 0, maxSpeed: 56, launch: 12, powerK: 600, grip: 1 });
+  assert.equal(easy, 0, 'a gentle launch hooks up');
+  assert.ok(fierce > 0.2, `a hard launch should spin: ${fierce}`);
+  assert.ok(fierce <= 1);
+  assert.ok(TRACTION_LIMIT > 0 && TRACTION_LIMIT < 10);
+});
+
+test('wet and nitro make wheelspin worse, and speed cures it', () => {
+  const base = { throttle: 1, speed: 2, maxSpeed: 56, launch: 11, powerK: 700, grip: 1 };
+  const dry = wheelspinAmount(base);
+  const wet = wheelspinAmount({ ...base, wetGrip: 0.72 });
+  const nitro = wheelspinAmount({ ...base, extraDrive: 16 });
+  assert.ok(dry > 0);
+  assert.ok(wet > dry, 'wet tyres break away sooner');
+  assert.ok(nitro > dry, 'nitro lights up the tyres');
+  assert.ok(nitro <= 1);
+  assert.ok(wheelspinAmount({ ...base, speed: 18 }) < dry, 'spin fades as the car pulls away');
+});
 
 test('coasting is always weaker than braking, for every car and speed', () => {
   for (const car of CARS) {

@@ -221,6 +221,22 @@ City Roam is a free-drive session on **Downtown Run** with no laps, no checkpoin
   further ahead and brake with a safety margin instead of secretly braking
   twice as hard.
 
+## Rain and wheelspin
+
+- Rain cuts tyre grip and braking to **72 % of dry** and steering response to
+  **90 %**. Lateral grip falls further as speed builds — up to another 18 % at
+  top speed — so a fast car can start to plane on standing water. Brake earlier,
+  turn in slower and leave a bigger margin than in the dry.
+- Flooring the throttle from rest is now a traction-limited event. If the engine
+  asks for more force than the contact patch can give, the driven tyres spin:
+  the revs flare, up to 30 % of the drive is wasted as smoke and noise, and a
+  low rubber scrub plays through the audio (higher and splashier on a wet
+  start). The spin ramps up while the throttle is pinned, so a short, gentle
+  press hooks up; full throttle or nitro off the line lights the tyres up.
+- Wheelspin fades out by about a third of top speed, where power becomes the
+  limit again. AI drivers obey the same model, so nobody gets an invisible
+  traction advantage from the start.
+
 ## AI rivals
 
 AI drivers plan their speed from the track ahead: for every bend they work out

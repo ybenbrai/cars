@@ -26,7 +26,9 @@ import { Cockpit } from './cockpit.js';
 import { QualityManager } from './quality.js';
 import { TurnSignals } from './signals.js';
 import { dailyChallenge, tierFor } from './daily.js';
-import { normalizeConditions, conditionsKey, paletteFor, RAIN_GRIP } from './conditions.js';
+import {
+  normalizeConditions, conditionsKey, paletteFor, RAIN_GRIP, RAIN_TURN,
+} from './conditions.js';
 import { Rain } from './rain.js';
 import { PhotoMode } from './photoMode.js';
 import { ReplayRecorder, ReplayPlayer } from './replay.js';
@@ -788,7 +790,7 @@ function lockLandscape() {
  */
 function launchRace(setup, entrants, { countdown = 3, online: onlineState = null, rental = null } = {}) {
   const playerEntrant = entrants.find((e) => e.isPlayer);
-  audio.init();
+  audio.resume();
   audio.setMusic(false);
   audio.setProfile(playerEntrant.def.category, playerEntrant.upgrades);
 
@@ -839,10 +841,14 @@ function launchRace(setup, entrants, { countdown = 3, online: onlineState = null
       position: entrant.slot + 1,
     };
     if (setup.conditions?.weather === 'rain') {
-      // Wet tarmac: every car on the grid loses the same grip and braking.
+      // Wet tarmac: every car on the grid loses the same grip, braking and
+      // steering bite. `engineLaunch` stays dry so wheelspin gets worse rather
+      // than quietly reducing the torque that breaks the tyres loose.
+      car.wet = true;
       car.grip *= RAIN_GRIP;
       car.brakeDecel *= RAIN_GRIP;
       car.launch *= RAIN_GRIP;
+      car.turnRate *= RAIN_TURN;
     }
     if (entrant.isPlayer) {
       car.enableHeadlights(night);
@@ -1724,7 +1730,7 @@ function updateCamera(dt) {
 /* ───────────────────────── chrome ───────────────────────── */
 
 function toggleSound() {
-  if (!audio.ready) audio.init();
+  audio.resume();
   const muted = audio.toggleMuted();
   ui.setMuted(muted);
   if (store) {
@@ -2027,6 +2033,9 @@ function tick(now, ms) {
         slip: car.locked ? Math.max(car.slip, 7) : car.slip,
         handbrake: input.handbrake || car.locked,
         boosting: car.boosting,
+        // Tyres scrubbing for grip off the line, plus a splashier wet version.
+        wheelspin: car.wheelspin,
+        wet: car.wet,
         rivals: rivalAudioInfo(car, race.racers),
       }, dt);
       if (car.boosting) race.shake = Math.max(race.shake, 0.025);
@@ -2635,18 +2644,19 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden && (state === 'racing' || state === 'countdown')) pauseGame();
   // No menu music from a background tab.
   if (document.hidden) audio.setMusic(false);
-  else if (state === 'garage' || state === 'profile') audio.setMusic(true);
+  else {
+    audio.resume();
+    if (state === 'garage' || state === 'profile') audio.setMusic(true);
+  }
 });
 
-// Browsers only allow audio after a user gesture: unlock it on the first one
-// so the menu music can start.
-const unlockAudio = () => {
-  audio.init();
-  window.removeEventListener('pointerdown', unlockAudio, true);
-  window.removeEventListener('keydown', unlockAudio, true);
-};
-window.addEventListener('pointerdown', unlockAudio, true);
-window.addEventListener('keydown', unlockAudio, true);
+// Browsers only allow audio after a user gesture. Stay armed for the whole
+// session: a context can be created suspended, or suspended again later by the
+// OS or a tab switch, and a one-shot listener would leave the game silent.
+const unlockAudio = () => { audio.resume(); };
+for (const type of ['pointerdown', 'keydown', 'touchstart']) {
+  window.addEventListener(type, unlockAudio, true);
+}
 
 input.onAction = (action) => {
   if (action === 'pause') {
