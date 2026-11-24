@@ -18,6 +18,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { attachRealModel } from './gltfCar.js';
 import { attachModernBody } from './modernCar.js';
 import { FINISHES, RIM_STYLES, SPOILERS, STRIPES, TINTS, UNDERGLOWS } from './data/cars.js';
+import { HEADLIGHT, headlightIntensity } from './lighting.js';
 
 const CARBON = 0x17171d;
 const TRIM = 0x101116;
@@ -2203,13 +2204,14 @@ export class CarModel {
       this.tailMat.emissiveIntensity = this.tailBase;
       this.tailLedMat.emissiveIntensity = this.tailLedBase;
     }
-    const beam = n ? 22 : 0;
+    const beam = headlightIntensity(n);
     for (const light of this.headlights || []) light.intensity = beam;
   }
 
   enableHeadlights(night = true) {
+    const beam = headlightIntensity(night);
     if (this.headlights) {
-      for (const light of this.headlights) light.intensity = night ? 22 : 0;
+      for (const light of this.headlights) light.intensity = beam;
       return;
     }
     const b = this.bodyDef;
@@ -2217,14 +2219,16 @@ export class CarModel {
     const L = b.length;
     this.headlights = [];
     for (const sx of [-1, 1]) {
-      const lamp = new THREE.SpotLight(0xfff1d4, 22, 65, 0.42, 0.55, 1.1);
+      const lamp = new THREE.SpotLight(
+        0xfff1d4, beam, HEADLIGHT.distance, HEADLIGHT.angle, HEADLIGHT.penumbra, HEADLIGHT.decay,
+      );
       lamp.position.set(sx * W * 0.29, b.noseDrop + 0.06, L / 2 - 0.05);
-      lamp.target.position.set(sx * W * 0.24, 0.1, L / 2 + 22);
+      lamp.target.position.set(sx * W * 0.24, 0.1, L / 2 + HEADLIGHT.aim);
       this.root.add(lamp);
       this.root.add(lamp.target);
       this.headlights.push(lamp);
     }
-    for (const light of this.headlights) light.intensity = night ? 22 : 0;
+    for (const light of this.headlights) light.intensity = beam;
   }
 
   /**

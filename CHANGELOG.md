@@ -9,6 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Headlights now actually light the road at night. The player's two spot beams
+  were still tuned for the old lighting model, so at `22` candela they barely
+  glowed on the lens. They are now about twelve times brighter with a longer,
+  slightly wider reach, giving a readable pool of light on the tarmac ahead
+  while the night sky and the rest of the scene stay dark.
 - Car-to-car contact no longer destroys both cars. A gentle side rub or rear
   nudge now only separates the bodies: it does not fire a fresh impulse every
   physics step or multiply the whole velocity by 0.94, which used to bleed away
